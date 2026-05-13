@@ -1,0 +1,38 @@
+@model AnnulTemplateVersionViewModel
+
+@{
+    ViewData["Title"] = "Анулювання версії шаблону";
+}
+
+<h1 class="h3">Анулювання версії шаблону</h1>
+<p>
+    Ви анулюєте версію <strong>v@(Model.VersionNumber)</strong> шаблону
+    <strong>@Model.TemplateNameUk</strong>. Фізичний файл і audit trail не видаляються.
+</p>
+
+@if (Model.Status == TemplateVersionStatus.Published)
+{
+    <div class="alert alert-warning">
+        Це чинна опублікована версія. Після анулювання шаблон не матиме поточної published-версії,
+        доки не буде опубліковано нову.
+    </div>
+}
+
+<form asp-action="Annul" asp-route-id="@Model.Id" method="post">
+    <input asp-for="Id" type="hidden" />
+    <input asp-for="TemplateId" type="hidden" />
+    <input asp-for="TemplateNameUk" type="hidden" />
+    <input asp-for="VersionNumber" type="hidden" />
+    <input asp-for="Status" type="hidden" />
+    <div class="mb-3">
+        <label asp-for="AnnulmentReason" class="form-label"></label>
+        <textarea asp-for="AnnulmentReason" class="form-control" rows="4"></textarea>
+        <span asp-validation-for="AnnulmentReason" class="text-danger"></span>
+    </div>
+    <button type="submit" class="btn btn-danger">Анулювати версію</button>
+    <a class="btn btn-link" asp-action="Details" asp-route-id="@Model.Id">Назад</a>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

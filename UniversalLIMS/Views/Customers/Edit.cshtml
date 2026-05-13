@@ -1,0 +1,60 @@
+@model CustomerEditViewModel
+@{
+    ViewData["Title"] = "Редагування замовника";
+}
+
+<h1 class="h3">Редагування замовника</h1>
+
+<form asp-action="Edit" method="post" class="mt-3">
+    <input type="hidden" asp-for="Id" />
+
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+    <div class="mb-3">
+        <label asp-for="Kind" class="form-label"></label>
+        <select asp-for="Kind" class="form-select" asp-items="Html.GetEnumSelectList<UniversalLIMS.Domain.Registration.CustomerKind>()"></select>
+    </div>
+    <div class="mb-3">
+        <label asp-for="FullName" class="form-label"></label>
+        <input asp-for="FullName" class="form-control" />
+        <span asp-validation-for="FullName" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="OrganizationName" class="form-label"></label>
+        <input asp-for="OrganizationName" class="form-control" />
+    </div>
+    <div class="mb-3">
+        <label asp-for="ContactPhone" class="form-label"></label>
+        <input asp-for="ContactPhone" class="form-control" />
+    </div>
+    <div class="mb-3">
+        <label asp-for="Email" class="form-label"></label>
+        <input asp-for="Email" class="form-control" />
+        <span asp-validation-for="Email" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Address" class="form-label"></label>
+        <input asp-for="Address" class="form-control" />
+    </div>
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <label asp-for="Edrpou" class="form-label"></label>
+            <input asp-for="Edrpou" class="form-control" />
+        </div>
+        <div class="col-md-6 mb-3">
+            <label asp-for="Rnokpp" class="form-label"></label>
+            <input asp-for="Rnokpp" class="form-control" />
+        </div>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Notes" class="form-label"></label>
+        <textarea asp-for="Notes" class="form-control" rows="3"></textarea>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Зберегти</button>
+    <a class="btn btn-link" asp-action="Details" asp-route-id="@Model.Id">Скасувати</a>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

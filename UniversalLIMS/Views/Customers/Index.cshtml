@@ -1,0 +1,55 @@
+@model CustomerSearchViewModel
+@{
+    ViewData["Title"] = "Замовники";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Замовники</h1>
+    <a class="btn btn-primary" asp-action="Create">Новий замовник</a>
+</div>
+
+<form method="get" class="row g-2 mb-4">
+    <div class="col-md-8">
+        <input asp-for="Query" class="form-control" placeholder="ПІБ, організація, телефон, ЄДРПОУ, РНОКПП" />
+    </div>
+    <div class="col-md-4 d-flex gap-2">
+        <button type="submit" class="btn btn-outline-primary">Знайти</button>
+        <a class="btn btn-link" asp-action="Index">Скинути</a>
+    </div>
+</form>
+
+@if (Model.Results.Count == 0)
+{
+    <div class="alert alert-secondary">Замовників не знайдено.</div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-striped align-middle">
+            <thead>
+                <tr>
+                    <th>ПІБ</th>
+                    <th>Організація</th>
+                    <th>Телефон</th>
+                    <th>ЄДРПОУ</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var customer in Model.Results)
+            {
+                <tr>
+                    <td>@customer.FullName</td>
+                    <td>@(customer.OrganizationName ?? "—")</td>
+                    <td>@(customer.ContactPhone ?? "—")</td>
+                    <td>@(customer.Edrpou ?? "—")</td>
+                    <td class="text-end">
+                        <a class="btn btn-sm btn-outline-primary" asp-action="Details" asp-route-id="@customer.Id">Деталі</a>
+                        <a class="btn btn-sm btn-primary" asp-controller="Orders" asp-action="Register" asp-route-customerId="@customer.Id">Реєстрація проби</a>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}

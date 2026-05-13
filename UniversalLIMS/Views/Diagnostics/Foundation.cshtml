@@ -1,0 +1,133 @@
+@model UniversalLIMS.ViewModels.Diagnostics.FoundationStatusViewModel
+
+@{
+    ViewData["Title"] = "Перевірка фундаменту";
+}
+
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+        <h1 class="mb-1">Перевірка фундаменту</h1>
+        <p class="text-muted mb-0">Dev-only сторінка для контролю базових інваріантів UniversalLIMS.</p>
+    </div>
+    @if (Model.HasPendingMigrations)
+    {
+        <span class="badge bg-warning text-dark">Є незастосовані міграції</span>
+    }
+    else
+    {
+        <span class="badge bg-success">База актуальна</span>
+    }
+</div>
+
+@if (TempData["DiagnosticsMessage"] is string diagnosticsMessage)
+{
+    <div class="alert alert-info">@diagnosticsMessage</div>
+}
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="text-muted">Ролі Identity</div>
+                <div class="display-6">@Model.RoleCount</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="text-muted">Філії</div>
+                <div class="display-6">@Model.BranchCount</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="text-muted">Поля даних</div>
+                <div class="display-6">@Model.DataFieldCount</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="text-muted">Audit Trail</div>
+                <div class="display-6">@Model.AuditLogCount</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">Dev-only перевірка інваріантів</div>
+    <div class="card-body">
+        <p class="text-muted">
+            Ці дії створюють і анулюють службове поле даних, щоб перевірити роботу Audit Trail
+            та Soft Annulment без ручного доступу до SQL Server.
+        </p>
+        <div class="row g-3 mb-3">
+            <div class="col-md-4">
+                <div class="border rounded p-3 h-100">
+                    <div class="text-muted">Активні тестові поля</div>
+                    <div class="fs-4">@Model.ActiveDiagnosticDataFieldCount</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="border rounded p-3 h-100">
+                    <div class="text-muted">Анульовані тестові поля</div>
+                    <div class="fs-4">@Model.AnnulledDiagnosticDataFieldCount</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="border rounded p-3 h-100">
+                    <div class="text-muted">Останній тестовий ключ</div>
+                    <div class="small"><code>@(Model.LatestDiagnosticDataFieldKey ?? "немає")</code></div>
+                </div>
+            </div>
+        </div>
+        <div class="d-flex gap-2">
+            <form asp-controller="Diagnostics" asp-action="CreateDiagnosticDataField" method="post">
+                <button type="submit" class="btn btn-primary">Створити тестове поле</button>
+            </form>
+            <form asp-controller="Diagnostics" asp-action="AnnulLatestDiagnosticDataField" method="post">
+                <button type="submit" class="btn btn-outline-danger">Анулювати останнє тестове поле</button>
+            </form>
+            <form asp-controller="Diagnostics" asp-action="PromoteCurrentUserToSystemAdministrator" method="post">
+                <button type="submit" class="btn btn-outline-secondary">Надати мені SystemAdministrator</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">Застосовані міграції</div>
+            <ul class="list-group list-group-flush">
+                @foreach (var migration in Model.AppliedMigrations)
+                {
+                    <li class="list-group-item"><code>@migration</code></li>
+                }
+            </ul>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">Очікують застосування</div>
+            @if (Model.PendingMigrations.Count == 0)
+            {
+                <div class="card-body text-muted">Незастосованих міграцій немає.</div>
+            }
+            else
+            {
+                <ul class="list-group list-group-flush">
+                    @foreach (var migration in Model.PendingMigrations)
+                    {
+                        <li class="list-group-item"><code>@migration</code></li>
+                    }
+                </ul>
+            }
+        </div>
+    </div>
+</div>

@@ -1,0 +1,107 @@
+@model OrderDetailsViewModel
+@using UniversalLIMS.Domain.Registration
+@{
+    ViewData["Title"] = "Замовлення";
+}
+
+@if (TempData["RegistrationSuccess"] is string successMessage)
+{
+    <div class="alert alert-success">@successMessage</div>
+}
+@if (TempData["RegistrationWarning"] is string warningMessage)
+{
+    <div class="alert alert-warning">@warningMessage</div>
+}
+
+<div class="d-flex justify-content-between align-items-start mb-3">
+    <div>
+        <h1 class="h3 mb-1">Замовлення @(Model.ReferralNumber ?? Model.OrderId.ToString())</h1>
+        <p class="text-muted mb-0">@Model.CustomerFullName</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a class="btn btn-outline-primary" asp-action="ReferralPdf" asp-route-id="@Model.OrderId">PDF направлення</a>
+        <a class="btn btn-link" asp-action="Index">До списку</a>
+    </div>
+</div>
+
+<dl class="row">
+    <dt class="col-sm-3">Статус</dt>
+    <dd class="col-sm-9">@Model.Status</dd>
+    <dt class="col-sm-3">Дата реєстрації</dt>
+    <dd class="col-sm-9">@(Model.RegisteredAtUtc?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "—")</dd>
+    <dt class="col-sm-3">Організація</dt>
+    <dd class="col-sm-9">@(Model.CustomerOrganizationName ?? "—")</dd>
+    <dt class="col-sm-3">Телефон</dt>
+    <dd class="col-sm-9">@(Model.CustomerContactPhone ?? "—")</dd>
+    <dt class="col-sm-3">Філія реєстрації</dt>
+    <dd class="col-sm-9">@Model.RegistrationBranchName</dd>
+</dl>
+
+<h2 class="h5 mt-4">Проби</h2>
+<div class="table-responsive">
+    <table class="table table-sm table-striped">
+        <thead>
+            <tr>
+                <th>Номер</th>
+                <th>Тип дослідження</th>
+                <th>Дата</th>
+                <th>Статус</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var sample in Model.Samples)
+        {
+            <tr>
+                <td>@sample.Number</td>
+                <td>@sample.InvestigationTypeName</td>
+                <td>@sample.RegisteredAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                <td>@sample.Status</td>
+                <td class="text-end">
+                    @if (sample.Status == SampleStatus.Registered)
+                    {
+                        <form asp-action="RouteSample" method="post" class="d-inline">
+                            <input type="hidden" name="sampleId" value="@sample.SampleId" />
+                            <input type="hidden" name="orderId" value="@Model.OrderId" />
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-sm btn-primary">Маршрутизувати</button>
+                        </form>
+                    }
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+</div>
+
+<h2 class="h5 mt-4">Документи</h2>
+@if (Model.Documents.Count == 0)
+{
+    <p class="text-muted">Документи не створено (перевірте зв'язки типу дослідження з опублікованими шаблонами).</p>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-sm table-striped">
+            <thead>
+                <tr>
+                    <th>Шаблон</th>
+                    <th>Версія</th>
+                    <th>Цільова філія</th>
+                    <th>Статус</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var document in Model.Documents)
+            {
+                <tr>
+                    <td>@document.TemplateCode — @document.TemplateName</td>
+                    <td>v@document.TemplateVersionNumber</td>
+                    <td>@document.TargetBranchName</td>
+                    <td>@document.Status</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}

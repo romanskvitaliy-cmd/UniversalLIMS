@@ -1,0 +1,46 @@
+@model CreateDataFieldFromTemplateFieldViewModel
+
+@{
+    ViewData["Title"] = "Створення DataField з Tag";
+}
+
+<h1 class="h3">Створення DataField з Tag</h1>
+<p class="text-muted">Tag у Word Content Control: <code>@Model.Tag</code></p>
+
+<form asp-action="CreateDataField" method="post">
+    <input asp-for="TemplateFieldId" type="hidden" />
+    <input asp-for="TemplateVersionId" type="hidden" />
+    <input asp-for="Tag" type="hidden" />
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+    <div class="mb-3">
+        <label asp-for="DisplayNameUk" class="form-label"></label>
+        <input asp-for="DisplayNameUk" class="form-control" />
+        <span asp-validation-for="DisplayNameUk" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="DescriptionUk" class="form-label"></label>
+        <textarea asp-for="DescriptionUk" class="form-control" rows="4"></textarea>
+        <span asp-validation-for="DescriptionUk" class="text-danger"></span>
+    </div>
+    <div class="row">
+        <div class="col-md-4 mb-3">
+            <label asp-for="FieldType" class="form-label"></label>
+            <select asp-for="FieldType" asp-items="Html.GetEnumSelectList<DataFieldType>()" class="form-select"></select>
+        </div>
+        <div class="col-md-4 mb-3">
+            <label asp-for="Scope" class="form-label"></label>
+            <select asp-for="Scope" asp-items="Html.GetEnumSelectList<DataFieldScope>()" class="form-select"></select>
+        </div>
+        <div class="col-md-4 mb-3">
+            <label asp-for="MaxLength" class="form-label"></label>
+            <input asp-for="MaxLength" class="form-control" type="number" min="1" />
+            <span asp-validation-for="MaxLength" class="text-danger"></span>
+        </div>
+    </div>
+    <button type="submit" class="btn btn-primary">Створити і прив'язати</button>
+    <a class="btn btn-link" asp-action="Map" asp-route-templateVersionId="@Model.TemplateVersionId">Назад</a>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

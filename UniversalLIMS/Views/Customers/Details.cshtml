@@ -1,0 +1,32 @@
+@model CustomerDetailsViewModel
+@{
+    ViewData["Title"] = "Замовник";
+}
+
+<h1 class="h3">@Model.FullName</h1>
+
+<dl class="row mt-3">
+    <dt class="col-sm-3">Тип</dt>
+    <dd class="col-sm-9">@Model.Kind</dd>
+    <dt class="col-sm-3">Організація</dt>
+    <dd class="col-sm-9">@(Model.OrganizationName ?? "—")</dd>
+    <dt class="col-sm-3">Телефон</dt>
+    <dd class="col-sm-9">@(Model.ContactPhone ?? "—")</dd>
+    <dt class="col-sm-3">Email</dt>
+    <dd class="col-sm-9">@(Model.Email ?? "—")</dd>
+    <dt class="col-sm-3">Адреса</dt>
+    <dd class="col-sm-9">@(Model.Address ?? "—")</dd>
+    <dt class="col-sm-3">ЄДРПОУ</dt>
+    <dd class="col-sm-9">@(Model.Edrpou ?? "—")</dd>
+    <dt class="col-sm-3">РНОКПП</dt>
+    <dd class="col-sm-9">@(Model.Rnokpp ?? "—")</dd>
+    <dt class="col-sm-3">Примітки</dt>
+    <dd class="col-sm-9">@(Model.Notes ?? "—")</dd>
+</dl>
+
+<div class="d-flex gap-2 mt-3">
+    <a class="btn btn-primary" asp-controller="Orders" asp-action="Register" asp-route-customerId="@Model.Id">Реєстрація проби</a>
+    <a class="btn btn-outline-primary" asp-action="Edit" asp-route-id="@Model.Id">Редагувати</a>
+    <a class="btn btn-outline-danger" asp-action="Annul" asp-route-id="@Model.Id">Анулювати</a>
+    <a class="btn btn-link" asp-action="Index">До списку</a>
+</div>

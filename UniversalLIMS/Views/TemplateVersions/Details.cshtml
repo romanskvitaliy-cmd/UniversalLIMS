@@ -1,0 +1,149 @@
+@model TemplateVersionDetailsViewModel
+
+@{
+    ViewData["Title"] = $"{Model.TemplateNameUk} v{Model.VersionNumber}";
+    var isEditable = Model.Status is TemplateVersionStatus.Draft or TemplateVersionStatus.ReadyForPublication;
+    var isLegacyDocx = Model.DocumentFormat == TemplateDocumentFormat.DocxLegacy;
+}
+
+<div class="d-flex justify-content-between align-items-start mb-3">
+    <div>
+        <h1 class="h3 mb-1">@Model.TemplateNameUk · v@(Model.VersionNumber)</h1>
+        <div class="text-muted">@Model.Status · @Model.OriginalFileName</div>
+    </div>
+    <div class="btn-group">
+        @if (!string.IsNullOrEmpty(Model.OpenInWordUri))
+        {
+            <a class="btn btn-primary" href="@Model.OpenInWordUri">Відкрити в Word для редагування</a>
+        }
+        @if (!string.IsNullOrEmpty(Model.OpenOriginalUrl))
+        {
+            <a class="btn btn-outline-primary" href="@Model.OpenOriginalUrl" target="_blank" rel="noopener">Показати оригінал</a>
+        }
+        <a class="btn btn-outline-primary" asp-action="DownloadOriginal" asp-route-id="@Model.Id">Завантажити файл</a>
+        <a class="btn btn-outline-secondary" asp-controller="TemplateFields" asp-action="Map" asp-route-templateVersionId="@Model.Id">Поля і теги</a>
+        <a class="btn btn-outline-secondary" asp-controller="TemplateFields" asp-action="Permissions" asp-route-templateVersionId="@Model.Id">Права ролей</a>
+        <a class="btn btn-outline-danger" asp-action="Annul" asp-route-id="@Model.Id">Анулювати</a>
+    </div>
+</div>
+
+@if (isLegacyDocx)
+{
+    <div class="alert alert-light border mb-3">
+        <strong>Legacy редагування макету</strong> — у встановленому Microsoft Word (Windows). Для нових версій рекомендовано PDF + overlay.
+    </div>
+}
+
+@if (TempData["TemplateSuccess"] is string success)
+{
+    <div class="alert alert-success">@success</div>
+}
+
+@if (TempData["TemplateWarning"] is string warning)
+{
+    <div class="alert alert-warning">@warning</div>
+}
+
+@if (Model.ValidationErrors.Count > 0)
+{
+    <div class="alert alert-danger">
+        <strong>Публікацію заблоковано:</strong>
+        <ul class="mb-0">
+            @foreach (var error in Model.ValidationErrors)
+            {
+                <li>@error</li>
+            }
+        </ul>
+    </div>
+}
+
+<dl class="row">
+    <dt class="col-sm-3">Розмір</dt>
+    <dd class="col-sm-9">@Model.FileSizeBytes байт</dd>
+    <dt class="col-sm-3">Формат</dt>
+    <dd class="col-sm-9">@Model.DocumentFormat</dd>
+    <dt class="col-sm-3">SHA-256</dt>
+    <dd class="col-sm-9"><code>@Model.Sha256Hash</code></dd>
+    <dt class="col-sm-3">Завантажено UTC</dt>
+    <dd class="col-sm-9">@Model.UploadedAtUtc</dd>
+    <dt class="col-sm-3">Опубліковано UTC</dt>
+    <dd class="col-sm-9">@(Model.PublishedAtUtc?.ToString() ?? "—")</dd>
+</dl>
+
+@if (Model.CanImportTags)
+{
+    <div class="alert alert-light border mb-3">
+        <div class="fw-semibold mb-2">Імпорт тегів у цю версію</div>
+        <p class="small text-muted mb-2">
+            Версія завантажена без тегів. Можна скопіювати overlay з попередньої версії з тими самими координатами.
+        </p>
+        <form asp-action="ImportTags" asp-route-id="@Model.Id" method="post" class="d-flex flex-wrap gap-2 align-items-center">
+            <select name="sourceVersionId" class="form-select" style="min-width: 320px;" required>
+                <option value="">Оберіть версію-джерело</option>
+                @foreach (var sourceVersion in Model.TagSourceVersions)
+                {
+                    <option value="@sourceVersion.Id">
+                        v@(sourceVersion.VersionNumber) — @sourceVersion.FieldCount тег(ів), @sourceVersion.OriginalFileName
+                    </option>
+                }
+            </select>
+            <button type="submit" class="btn btn-outline-primary">Скопіювати теги</button>
+        </form>
+    </div>
+}
+
+@if (isEditable)
+{
+    <div class="d-flex flex-wrap gap-2 mb-3">
+        @if (Model.CanRescanFields)
+        {
+            <form asp-action="RescanFields" asp-route-id="@Model.Id" method="post">
+                <button type="submit" class="btn btn-outline-secondary">Повторно прочитати Content Controls</button>
+            </form>
+        }
+        <form asp-action="Publish" asp-route-id="@Model.Id" method="post" class="d-flex gap-2">
+            <input name="publicationNotesUk" class="form-control" placeholder="Примітка до публікації" />
+            <button type="submit" class="btn btn-success">Опублікувати</button>
+        </form>
+    </div>
+}
+
+<h2 class="h5">Поля шаблону</h2>
+<table class="table table-striped align-middle">
+    <thead>
+        <tr>
+            <th>Tag</th>
+            <th>Title</th>
+            <th>Тип</th>
+            <th>Обов'язковий</th>
+            <th>DataField</th>
+            <th>Місткість</th>
+            <th>Права</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var field in Model.Fields)
+        {
+            <tr>
+                <td><code>@field.Tag</code></td>
+                <td>@(field.Title ?? "—")</td>
+                <td>@field.WordControlType</td>
+                <td>@(field.IsRequired ? "так" : "ні")</td>
+                <td>
+                    @if (field.DataFieldKey is null)
+                    {
+                        <span class="text-danger">не прив'язано</span>
+                    }
+                    else
+                    {
+                        <span><code>@field.DataFieldKey</code> — @field.DataFieldDisplayNameUk</span>
+                    }
+                </td>
+                <td>@(field.EstimatedCapacityChars?.ToString() ?? "—")</td>
+                <td>@field.PermissionCount</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<a class="btn btn-link" asp-controller="Templates" asp-action="Details" asp-route-id="@Model.TemplateId">До шаблону</a>

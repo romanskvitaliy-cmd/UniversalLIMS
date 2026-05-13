@@ -1,0 +1,41 @@
+@model IReadOnlyCollection<TemplateListItemViewModel>
+
+@{
+    ViewData["Title"] = "Конструктор шаблонів";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h1 class="h3 mb-1">Конструктор шаблонів</h1>
+        <p class="text-muted mb-0">Керування PDF overlay шаблонами, версіями та правами полів (legacy .docx підтримується).</p>
+    </div>
+    <a class="btn btn-primary" asp-action="Create">Створити шаблон</a>
+</div>
+
+<table class="table table-striped align-middle">
+    <thead>
+        <tr>
+            <th>Код</th>
+            <th>Назва</th>
+            <th>Статус</th>
+            <th>Версії</th>
+            <th>Чинна версія</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var template in Model)
+        {
+            <tr>
+                <td><code>@template.Code</code></td>
+                <td>@template.NameUk</td>
+                <td>@template.Status</td>
+                <td>@template.VersionCount</td>
+                <td>@(template.CurrentPublishedVersionNumber?.ToString() ?? "немає")</td>
+                <td class="text-end">
+                    <a class="btn btn-sm btn-outline-primary" asp-action="Details" asp-route-id="@template.Id">Відкрити</a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

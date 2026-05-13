@@ -1,0 +1,91 @@
+@model RegisterSampleViewModel
+@{
+    ViewData["Title"] = "Реєстрація проби";
+}
+
+<h1 class="h3">Реєстрація проби</h1>
+
+<div class="alert alert-info">
+    Дані замовника зберігаються в <strong>Customer</strong> (SSOT). ПІБ і телефон не дублюються в замовленні.
+</div>
+
+<form asp-action="Register" method="post" class="mt-3">
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+    <div class="mb-3">
+        <label asp-for="CustomerId" class="form-label"></label>
+        <select asp-for="CustomerId" class="form-select" asp-items="Model.Customers">
+            <option value="">— оберіть замовника —</option>
+        </select>
+        <div class="form-text">
+            <a asp-controller="Customers" asp-action="Index">Знайти замовника</a> або
+            <a asp-controller="Customers" asp-action="Create">створити нового</a>.
+        </div>
+        <span asp-validation-for="CustomerId" class="text-danger"></span>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <label asp-for="InvestigationTypeId" class="form-label"></label>
+            <select asp-for="InvestigationTypeId" class="form-select" asp-items="Model.InvestigationTypes">
+                <option value="">— оберіть тип —</option>
+            </select>
+            <span asp-validation-for="InvestigationTypeId" class="text-danger"></span>
+        </div>
+        <div class="col-md-6 mb-3">
+            <label asp-for="RegisteredAtUtc" class="form-label"></label>
+            <input asp-for="RegisteredAtUtc" class="form-control" type="datetime-local"
+                   value="@(Model.RegisteredAtUtc?.ToString("yyyy-MM-ddTHH:mm"))" />
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <label asp-for="RegistrationBranchId" class="form-label"></label>
+            <select asp-for="RegistrationBranchId" class="form-select" asp-items="Model.Branches"></select>
+            <span asp-validation-for="RegistrationBranchId" class="text-danger"></span>
+        </div>
+        <div class="col-md-6 mb-3">
+            <label asp-for="TargetBranchId" class="form-label"></label>
+            <select asp-for="TargetBranchId" class="form-select" asp-items="Model.Branches"></select>
+            <span asp-validation-for="TargetBranchId" class="text-danger"></span>
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="OrderNotes" class="form-label"></label>
+        <textarea asp-for="OrderNotes" class="form-control" rows="2"></textarea>
+    </div>
+    <div class="mb-3">
+        <label asp-for="SampleNotes" class="form-label"></label>
+        <textarea asp-for="SampleNotes" class="form-control" rows="2"></textarea>
+    </div>
+
+    @if (Model.DynamicFields.Count > 0)
+    {
+        <h2 class="h5 mt-4">Динамічні поля реєстратури</h2>
+        @for (var index = 0; index < Model.DynamicFields.Count; index++)
+        {
+            <input type="hidden" asp-for="DynamicFields[index].DataFieldId" />
+            <input type="hidden" asp-for="DynamicFields[index].DisplayNameUk" />
+            <input type="hidden" asp-for="DynamicFields[index].IsRequired" />
+            <input type="hidden" asp-for="DynamicFields[index].MaxLength" />
+            <div class="mb-3">
+                <label class="form-label">
+                    @Model.DynamicFields[index].DisplayNameUk
+                    @(Model.DynamicFields[index].IsRequired ? Html.Raw("<span class='text-danger'>*</span>") : Html.Raw(""))
+                </label>
+                <input asp-for="DynamicFields[index].StoredValue" class="form-control"
+                       maxlength="@Model.DynamicFields[index].MaxLength" />
+                <span asp-validation-for="DynamicFields[index].StoredValue" class="text-danger"></span>
+            </div>
+        }
+    }
+
+    <button type="submit" class="btn btn-primary">Зареєструвати</button>
+    <a class="btn btn-link" asp-action="Index">Назад</a>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

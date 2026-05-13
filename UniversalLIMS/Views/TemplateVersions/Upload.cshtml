@@ -1,0 +1,44 @@
+@model TemplateVersionUploadViewModel
+
+@{
+    ViewData["Title"] = "Завантаження версії шаблону";
+}
+
+<h1 class="h3">Нова версія шаблону</h1>
+<p class="text-muted">Шаблон: @Model.TemplateNameUk</p>
+
+<form asp-action="Upload" method="post" enctype="multipart/form-data">
+    <input asp-for="TemplateId" type="hidden" />
+    <input asp-for="TemplateNameUk" type="hidden" />
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+    <div class="mb-3">
+        <label asp-for="Document" class="form-label"></label>
+        <input asp-for="Document" class="form-control" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+        <span asp-validation-for="Document" class="text-danger"></span>
+        <div class="form-text">
+            Завантажте PDF або Word (.doc/.docx). Word-файли автоматично конвертуються в PDF перед збереженням.
+        </div>
+    </div>
+    <div class="mb-3">
+        <label asp-for="CopyFieldsFromVersionId" class="form-label"></label>
+        <select asp-for="CopyFieldsFromVersionId" class="form-select">
+            <option value="">Чиста версія без копіювання тегів</option>
+            @foreach (var sourceVersion in Model.TagSourceVersions)
+            {
+                <option value="@sourceVersion.Id">
+                    v@(sourceVersion.VersionNumber) — @sourceVersion.FieldCount тег(ів), @sourceVersion.OriginalFileName
+                </option>
+            }
+        </select>
+        <div class="form-text">
+            Якщо обрати попередню версію, теги та координати overlay будуть скопійовані без змін.
+            Якщо залишити чисту версію, теги можна додати вручну в Map або імпортувати пізніше на сторінці версії.
+        </div>
+    </div>
+    <button type="submit" class="btn btn-primary">Створити версію</button>
+    <a class="btn btn-link" asp-controller="Templates" asp-action="Details" asp-route-id="@Model.TemplateId">Назад</a>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

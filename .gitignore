@@ -1,0 +1,24 @@
+# Технічні папки Cursor та збірки
+.build-check/
+.tmp-license-check/
+.config/
+.vs/
+.idea/
+
+# Результати компіляції
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+
+# Тимчасові файли .NET
+*.deps.json
+*.runtimeconfig.json
+*.staticwebassets.*
+*.dll
+*.exe
+*.pdb
+*.user
+*.suo
+*.pdf
+
