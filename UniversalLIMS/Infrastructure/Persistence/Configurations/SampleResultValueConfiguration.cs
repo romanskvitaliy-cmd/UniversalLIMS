@@ -13,7 +13,15 @@ public sealed class SampleResultValueConfiguration : IEntityTypeConfiguration<Sa
         builder.HasKey(resultValue => resultValue.Id);
 
         builder.Property(resultValue => resultValue.StoredValue)
-            .HasMaxLength(4000);
+            .HasMaxLength(4000)
+            .IsRequired();
+
+        builder.Property(resultValue => resultValue.Unit)
+            .HasMaxLength(50)
+            .IsRequired();
+
+        builder.Property(resultValue => resultValue.Uncertainty)
+            .HasPrecision(18, 6);
 
         builder.Property(resultValue => resultValue.EnteredAtUtc)
             .HasColumnType("datetime2");

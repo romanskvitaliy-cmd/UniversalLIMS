@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using UniversalLIMS.Infrastructure.Persistence;
 
@@ -11,9 +12,11 @@ using UniversalLIMS.Infrastructure.Persistence;
 namespace UniversalLIMS.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260514050722_AddSampleResultValueTemplateBookmarkName")]
+    partial class AddSampleResultValueTemplateBookmarkName
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -434,7 +437,7 @@ namespace UniversalLIMS.Data.Migrations
                         .HasMaxLength(450)
                         .HasColumnType("nvarchar(450)");
 
-                    b.Property<Guid>("EquipmentId")
+                    b.Property<Guid?>("EquipmentId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<bool>("IsAnnulled")
@@ -450,18 +453,13 @@ namespace UniversalLIMS.Data.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("StoredValue")
-                        .IsRequired()
                         .HasMaxLength(4000)
                         .HasColumnType("nvarchar(4000)");
 
-                    b.Property<decimal>("Uncertainty")
-                        .HasPrecision(18, 6)
-                        .HasColumnType("decimal(18,6)");
-
-                    b.Property<string>("Unit")
+                    b.Property<string>("TemplateBookmarkName")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
 
                     b.Property<DateTime?>("UpdatedAtUtc")
                         .HasColumnType("datetime2");
@@ -1633,8 +1631,7 @@ namespace UniversalLIMS.Data.Migrations
                     b.HasOne("UniversalLIMS.Domain.Laboratory.Equipment", "Equipment")
                         .WithMany()
                         .HasForeignKey("EquipmentId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("UniversalLIMS.Domain.Registration.Sample", "Sample")
                         .WithMany("ResultValues")
