@@ -2,16 +2,12 @@ using Syncfusion.Licensing;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using UniversalLIMS.Application.Abstractions;
-using UniversalLIMS.Application.Laboratory.Abstractions;
-using UniversalLIMS.Application.Laboratory.Services;
 using UniversalLIMS.Application.Registration.Abstractions;
 using UniversalLIMS.Application.Security;
 using UniversalLIMS.Application.Templates.Abstractions;
 using UniversalLIMS.Domain.Identity;
 using UniversalLIMS.Infrastructure.Persistence;
 using UniversalLIMS.Infrastructure.Persistence.Interceptors;
-using UniversalLIMS.Infrastructure.Persistence.Queries;
-using UniversalLIMS.Infrastructure.Persistence.Repositories;
 using UniversalLIMS.Infrastructure.Persistence.Seed;
 using UniversalLIMS.Infrastructure.Registration;
 using UniversalLIMS.Infrastructure.Services;
@@ -69,18 +65,10 @@ namespace UniversalLIMS
             builder.Services.AddScoped<ITemplateFieldMappingService, TemplateFieldMappingService>();
             builder.Services.AddSingleton<ITemplateOriginalOpenTokenIssuer, TemplateOriginalOpenTokenIssuer>();
             builder.Services.AddScoped<ICustomerService, CustomerService>();
-            builder.Services.AddScoped<IOrderRegistrationService, OrderRegistrationService>();
             builder.Services.AddScoped<IOrderFieldValueService, OrderFieldValueService>();
             builder.Services.AddScoped<INumberingService, NumberingService>();
             builder.Services.AddScoped<IReferralPdfGenerator, ReferralPdfGenerator>();
-            builder.Services.AddScoped<IUnitOfWork, EfUnitOfWork>();
-            builder.Services.AddScoped<ISampleRepository, SampleRepository>();
-            builder.Services.AddScoped<ISampleResultRepository, SampleResultRepository>();
-            builder.Services.AddScoped<ILaboratoryEquipmentRepository, LaboratoryEquipmentRepository>();
-            builder.Services.AddScoped<ILaboratoryDataFieldRepository, LaboratoryDataFieldRepository>();
-            builder.Services.AddScoped<ILaboratoryResultService, SampleResultService>();
-            builder.Services.AddScoped<ILaboratoryJournalQuery, LaboratoryJournalQuery>();
-            builder.Services.AddScoped<ILaboratoryJournalService, LaboratoryJournalService>();
+            builder.Services.AddScoped<IPdfWorkspaceFillService, PdfWorkspaceFillService>();
             builder.Services.AddAuthorization(options =>
             {
                 options.AddPolicy(LimsPolicies.ManageSystem, policy =>
@@ -95,7 +83,11 @@ namespace UniversalLIMS
                 options.AddPolicy(LimsPolicies.ApproveConclusions, policy =>
                     policy.RequireRole(LimsRoles.SystemAdministrator, LimsRoles.Specialist));
             });
-            builder.Services.AddControllersWithViews();
+            builder.Services.AddControllersWithViews()
+                .AddJsonOptions(options =>
+                {
+                    options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+                });
 
             var app = builder.Build();
 

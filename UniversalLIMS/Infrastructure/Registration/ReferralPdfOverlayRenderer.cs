@@ -20,13 +20,8 @@ public sealed class ReferralPdfOverlayRenderer
 
         foreach (var overlaySegment in segments)
         {
-            if (overlaySegment.DataFieldId is null)
-            {
-                continue;
-            }
-
-            if (!valuesByDataFieldId.TryGetValue(overlaySegment.DataFieldId.Value, out var value) ||
-                string.IsNullOrWhiteSpace(value))
+            var value = ResolveOverlayText(overlaySegment, valuesByDataFieldId);
+            if (string.IsNullOrWhiteSpace(value))
             {
                 continue;
             }
@@ -47,6 +42,25 @@ public sealed class ReferralPdfOverlayRenderer
         using var output = new MemoryStream();
         loadedDocument.Save(output);
         return output.ToArray();
+    }
+
+    private static string? ResolveOverlayText(
+        ReferralOverlaySegment segment,
+        IReadOnlyDictionary<Guid, string?> valuesByDataFieldId)
+    {
+        if (!string.IsNullOrWhiteSpace(segment.Text))
+        {
+            return segment.Text;
+        }
+
+        if (segment.DataFieldId is null ||
+            !valuesByDataFieldId.TryGetValue(segment.DataFieldId.Value, out var value) ||
+            string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        return value;
     }
 
     private static RectangleF ToPdfRectangle(ReferralOverlaySegment segment)
@@ -103,6 +117,11 @@ public sealed class ReferralPdfOverlayRenderer
 public sealed class ReferralOverlaySegment
 {
     public Guid? DataFieldId { get; init; }
+
+    public string? StorageKey { get; init; }
+
+    /// <summary>Готовий текст для сегмента (наприклад, один рядок з waterfall).</summary>
+    public string? Text { get; init; }
 
     public int PageNumber { get; init; }
 

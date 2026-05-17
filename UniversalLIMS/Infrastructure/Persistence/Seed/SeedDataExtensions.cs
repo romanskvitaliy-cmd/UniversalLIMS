@@ -14,5 +14,7 @@ public static class SeedDataExtensions
 
         var seeder = services.GetRequiredService<DataSeeder>();
         await seeder.SeedAsync();
+
+        await LaboratoryDataSeeder.SeedAsync(context);
     }
 }

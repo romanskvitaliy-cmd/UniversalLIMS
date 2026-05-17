@@ -1,0 +1,175 @@
+@model PdfWorkspaceFillViewModel
+@using System.Text.Json
+
+@{
+    ViewData["Title"] = $"Заповнення PDF — v{Model.VersionNumber}";
+}
+
+<style>
+    .pdf-fill-hero {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 12px 14px;
+        margin-bottom: 10px;
+        border: 1px solid #e5eaf1;
+        border-radius: 12px;
+        background: linear-gradient(180deg, #fafcff 0%, #ffffff 100%);
+    }
+
+    #pdfFillWorkspaceRoot {
+        overflow: auto;
+        max-width: 100%;
+        height: 80vh;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        background: #f8f9fa;
+    }
+
+    .pdf-fill-field-box {
+        position: relative;
+        border: 2px solid #6c757d;
+        background: rgba(108, 117, 125, 0.12);
+        border-radius: 4px;
+        box-sizing: border-box;
+        overflow: hidden;
+        pointer-events: auto;
+    }
+
+    /* Значення прижато до нижньої межі рамки тега (не зміщуємо саму рамку на PDF). */
+    .pdf-fill-field-box .pdf-fill-input {
+        position: absolute;
+        left: 0;
+        bottom: 0;
+        width: 100%;
+        max-height: 100%;
+        min-height: 14px;
+        height: auto;
+        margin: 0;
+        border: 0;
+        border-bottom: 2px solid #6c757d;
+        border-radius: 0;
+        background: rgba(255, 255, 255, 0.92);
+        resize: none;
+        font-size: 12px;
+        line-height: 1.15;
+        padding: 0 4px 2px;
+        box-sizing: border-box;
+        box-shadow: none;
+    }
+
+    .pdf-fill-field-box textarea.pdf-fill-input {
+        top: 0;
+        height: 100%;
+        border-bottom-width: 2px;
+    }
+
+    .pdf-fill-field-box .pdf-fill-input:focus {
+        outline: 2px solid #0d6efd;
+        background: #fff;
+    }
+
+    .field-overlay-layer {
+        pointer-events: none;
+    }
+
+    .pdf-fill-page canvas {
+        display: block;
+    }
+</style>
+
+<div class="pdf-fill-hero">
+    <div>
+        <h1 class="h4 mb-1">PDF Workspace — заповнення</h1>
+        <p class="text-muted mb-0">@Model.TemplateNameUk · v@(Model.VersionNumber)</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2 justify-content-end">
+        <a class="btn btn-outline-secondary btn-sm" asp-action="Index">Список версій</a>
+        @if (!string.IsNullOrWhiteSpace(Model.PdfPreviewUrl))
+        {
+            <a class="btn btn-outline-secondary btn-sm" href="@Model.PdfPreviewUrl" target="_blank" rel="noopener">Оригінал PDF</a>
+        }
+        <button id="pdfFillSaveButton" type="button" class="btn btn-primary btn-sm">Зберегти значення</button>
+        <a id="pdfFillPreviewFinalButton"
+           class="btn btn-success btn-sm @(Model.OrderId.HasValue ? "" : "d-none")"
+           href="@(Model.OrderId.HasValue ? Url.Action("FinalPdf", "PdfWorkspace", new { templateVersionId = Model.TemplateVersionId, orderId = Model.OrderId }) : "#")"
+           target="_blank"
+           rel="noopener">Переглянути фінальний PDF</a>
+        <a id="pdfFillDownloadFinalButton"
+           class="btn btn-outline-success btn-sm @(Model.OrderId.HasValue ? "" : "d-none")"
+           href="@(Model.OrderId.HasValue ? Url.Action("FinalPdf", "PdfWorkspace", new { templateVersionId = Model.TemplateVersionId, orderId = Model.OrderId, download = true }) : "#")">Зберегти як PDF</a>
+    </div>
+</div>
+
+<div id="pdfFillStatus" class="alert d-none mb-2" role="status"></div>
+
+<form id="pdfFillAntiforgeryForm" class="d-none">
+    @Html.AntiForgeryToken()
+</form>
+
+@if (TempData["TemplateWarning"] is string warning)
+{
+    <div class="alert alert-warning">@warning</div>
+}
+
+@if (string.IsNullOrWhiteSpace(Model.PdfPreviewUrl))
+{
+    <div class="alert alert-warning">Preview URL для PDF не згенеровано.</div>
+}
+else if (!Model.Segments.Any())
+{
+    <div class="alert alert-info">У цій версії ще немає розміщених полів (сегментів).</div>
+}
+else
+{
+    <div class="row g-2 align-items-center mb-2">
+        <div class="col-auto">
+            <label class="form-label mb-0 small" for="pdfFillZoomSlider">Масштаб</label>
+        </div>
+        <div class="col-md-4">
+            <input id="pdfFillZoomSlider" class="form-range" type="range" min="75" max="300" step="5" value="100" />
+        </div>
+        <div class="col-auto small text-muted"><span id="pdfFillZoomValue">100%</span></div>
+        <div class="col-auto small text-muted ms-auto">Полів: @Model.Segments.Count</div>
+    </div>
+
+    <div id="pdfFillWorkspaceRoot" class="p-2">
+        <div id="pdfFillZoomContainer">
+            <div id="pdfFillPagesHost"></div>
+        </div>
+        <div id="pdfFillPreviewError" class="alert alert-warning m-2" style="display:none;"></div>
+    </div>
+}
+
+@section Scripts {
+    @if (!string.IsNullOrWhiteSpace(Model.PdfPreviewUrl))
+    {
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" referrerpolicy="no-referrer"></script>
+        <script>
+            window.__pdfPreviewUrl = "@Model.PdfPreviewUrl";
+            window.__templateVersionId = "@Model.TemplateVersionId";
+            window.__pdfFillOrderId = @(Model.OrderId.HasValue ? $"\"{Model.OrderId}\"" : "null");
+            window.__pdfFillSaveUrl = "@($"/PdfWorkspace/Fill/{Model.TemplateVersionId}/values")";
+            window.__pdfFillFinalPdfUrlTemplate = "@Url.Action("FinalPdf", "PdfWorkspace", new { templateVersionId = Model.TemplateVersionId, orderId = "__ORDER_ID__" })".replace("__ORDER_ID__", "{orderId}");
+            window.__pdfFillSavedValues = @Html.Raw(JsonSerializer.Serialize(Model.SavedValuesByKey));
+            window.__pdfFillSegments = @Html.Raw(JsonSerializer.Serialize(
+                Model.Segments.Select(segment => new
+                {
+                    segmentId = segment.SegmentId,
+                    templateFieldId = segment.TemplateFieldId,
+                    tag = segment.Tag,
+                    title = segment.Title,
+                    dataFieldKey = segment.DataFieldKey,
+                    sequence = segment.Sequence,
+                    page = segment.PageNumber,
+                    x = segment.PositionX,
+                    y = segment.PositionY,
+                    width = segment.Width,
+                    height = segment.Height,
+                    allowMultiline = segment.AllowMultiline
+                })));
+        </script>
+        <script src="~/js/pdf-workspace-fill.js" asp-append-version="true"></script>
+    }
+}

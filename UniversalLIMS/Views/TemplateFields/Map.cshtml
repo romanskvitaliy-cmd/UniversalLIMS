@@ -26,6 +26,9 @@
 
     .pdf-designer-canvas {
         min-width: 0;
+        --pdf-scroll-thumb: rgba(15, 23, 42, 0.22);
+        --pdf-scroll-thumb-hover: rgba(15, 23, 42, 0.38);
+        --pdf-scroll-track: transparent;
     }
 
     .template-map-hero {
@@ -252,17 +255,60 @@
         min-width: 2.5rem;
     }
 
-    .top-scrollbar {
-        overflow-x: auto;
-        overflow-y: hidden;
-        height: 14px;
-        border: 1px solid #e3e7ea;
-        border-radius: 6px;
-        background: #f8f9fa;
+    .pdf-designer-scroll,
+    .pdf-h-scrollbar {
+        scrollbar-width: thin;
+        scrollbar-color: var(--pdf-scroll-thumb) var(--pdf-scroll-track);
     }
 
-    .top-scrollbar > div {
+    .pdf-designer-scroll::-webkit-scrollbar,
+    .pdf-h-scrollbar::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+
+    .pdf-designer-scroll::-webkit-scrollbar-track,
+    .pdf-h-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .pdf-designer-scroll::-webkit-scrollbar-thumb,
+    .pdf-h-scrollbar::-webkit-scrollbar-thumb {
+        background-color: var(--pdf-scroll-thumb);
+        border-radius: 999px;
+        border: 2px solid transparent;
+        background-clip: padding-box;
+    }
+
+    .pdf-designer-scroll::-webkit-scrollbar-thumb:hover,
+    .pdf-h-scrollbar::-webkit-scrollbar-thumb:hover {
+        background-color: var(--pdf-scroll-thumb-hover);
+    }
+
+    .pdf-designer-scroll::-webkit-scrollbar-button,
+    .pdf-h-scrollbar::-webkit-scrollbar-button {
+        display: none;
+        width: 0;
+        height: 0;
+    }
+
+    .pdf-h-scrollbar {
+        overflow-x: auto;
+        overflow-y: hidden;
+        height: 10px;
+        margin-bottom: 6px;
+    }
+
+    .pdf-h-scrollbar > div {
         height: 1px;
+    }
+
+    #pdfOverlayDesignerRoot {
+        overflow: auto;
+    }
+
+    #pdfPagesHost canvas {
+        display: block;
     }
 
     .field-overlay-box {
@@ -737,14 +783,11 @@ else
         </div>
         <div class="pdf-designer-grid">
             <div class="pdf-designer-canvas">
-                <div class="mb-2">
-                    <div class="small text-muted mb-1">Горизонтальний скрол документа (вліво/вправо)</div>
-                    <div id="pdfTopScroller" class="top-scrollbar">
-                        <div id="pdfTopScrollerTrack"></div>
-                    </div>
+                <div id="pdfTopScroller" class="pdf-h-scrollbar pdf-designer-scroll">
+                    <div id="pdfTopScrollerTrack"></div>
                 </div>
                 <div id="pdfOverlayDesignerRoot"
-                     class="position-relative border bg-light-subtle overflow-auto"
+                     class="pdf-designer-scroll position-relative border bg-light-subtle"
                      style="max-width: 100%; height: 80vh;">
                     <div id="pdfZoomContainer" class="p-2">
                         <div id="pdfPagesHost"></div>
@@ -775,7 +818,7 @@ else
                     </div>
                     <div class="mb-2">
                         <label class="form-label mb-1" for="overlayZoomSlider">Масштаб preview: <span id="overlayZoomValue">100%</span></label>
-                        <input id="overlayZoomSlider" class="form-range" type="range" min="50" max="250" step="5" value="100" />
+                        <input id="overlayZoomSlider" class="form-range" type="range" min="75" max="300" step="5" value="100" />
                     </div>
                     <div class="mb-2">
                         <label class="form-label mb-1" for="overlayFieldWidth">Ширина (px)</label>
@@ -1022,7 +1065,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
     </div>
     <div id="overlayNudgePadBody">
     <div class="small text-muted mb-1">Масштаб</div>
-    <input id="overlayNudgeZoomSlider" class="form-range mb-2" type="range" min="50" max="250" step="5" value="100" />
+    <input id="overlayNudgeZoomSlider" class="form-range mb-2" type="range" min="75" max="300" step="5" value="100" />
     <div class="d-flex gap-1 mb-2">
         <button id="nudgeModeSingle" type="button" class="btn btn-sm btn-outline-primary flex-fill">✏️ Активний</button>
         <button id="nudgeModeAll" type="button" class="btn btn-sm btn-outline-warning flex-fill">🖱️ Всі</button>
@@ -1234,6 +1277,8 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
 
                     constructor() {
                         this.previewScale = FieldEngine.PREVIEW_SCALE;
+                        this.zoomPercent = 100;
+                        this.zoomDebounceId = null;
                         this.pdf = null;
                         this.pageLayers = new Map();
                         this.pageCanvases = new Map();
@@ -1288,6 +1333,89 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                     debugLog(...args) {
                         if (!this.debug) return;
                         console.log("[FieldEngine]", ...args);
+                    }
+
+                    getCoordinateScale() {
+                        return this.zoomPercent / 100;
+                    }
+
+                    getViewportScale() {
+                        return FieldEngine.PREVIEW_SCALE * this.getCoordinateScale();
+                    }
+
+                    getOutputScale() {
+                        return Math.min(window.devicePixelRatio || 1, 3);
+                    }
+
+                    exportFieldsToBaseCoordinates() {
+                        const coordScale = this.getCoordinateScale();
+                        const baseFields = [];
+                        this.fieldByIndex.forEach((field, index) => {
+                            const box = this.boxesByIndex.get(index);
+                            if (box) {
+                                const page = Number.parseInt(box.dataset.page || "1", 10);
+                                const previewField = this.getFieldInPreviewSpace(box, page);
+                                baseFields.push({
+                                    ...field,
+                                    index,
+                                    page: previewField.page,
+                                    x: previewField.x,
+                                    y: previewField.y,
+                                    width: previewField.width,
+                                    height: previewField.height
+                                });
+                                return;
+                            }
+
+                            baseFields.push({
+                                ...field,
+                                index,
+                                x: (field.x ?? 0) / coordScale,
+                                y: (field.y ?? 0) / coordScale,
+                                width: (field.width ?? 220) / coordScale,
+                                height: (field.height ?? 28) / coordScale
+                            });
+                        });
+
+                        return baseFields.sort((left, right) => left.index - right.index);
+                    }
+
+                    schedulePdfZoomRefresh(newZoomPercent) {
+                        window.clearTimeout(this.zoomDebounceId);
+                        this.zoomDebounceId = window.setTimeout(() => {
+                            this.refreshPdfZoom(newZoomPercent).catch((error) => {
+                                console.error("PDF zoom refresh failed", error);
+                            });
+                        }, 120);
+                    }
+
+                    async refreshPdfZoom(newZoomPercent) {
+                        if (!this.pdf) {
+                            return;
+                        }
+
+                        const previousActiveIndex = this.activeIndex;
+                        const baseFields = this.exportFieldsToBaseCoordinates();
+                        this.zoomPercent = Math.max(75, Math.min(300, newZoomPercent));
+                        this.previewScale = this.getViewportScale();
+                        if (zoomContainer) {
+                            zoomContainer.style.zoom = "";
+                        }
+
+                        await this.renderPages();
+
+                        const displayFields = baseFields.map((field, overlayIndex) =>
+                            this.normalizeField({ ...field, index: overlayIndex }, overlayIndex));
+                        this.renderAllFields(displayFields);
+
+                        if (previousActiveIndex !== null && this.boxesByIndex.has(previousActiveIndex)) {
+                            this.setActive(previousActiveIndex);
+                        }
+
+                        this.updateEditUI();
+                        if (typeof syncHorizontalScrollbars === "function") {
+                            syncHorizontalScrollbars();
+                        }
                     }
 
                     saveNudgeUiState() {
@@ -1395,39 +1523,54 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         this.pageLayers.clear();
                         this.pageCanvases.clear();
                         this.pageViewports.clear();
+                        const viewportScale = this.getViewportScale();
+                        const outputScale = this.getOutputScale();
+                        this.previewScale = viewportScale;
+
                         for (let pageNumber = 1; pageNumber <= this.pdf.numPages; pageNumber++) {
                             const page = await this.pdf.getPage(pageNumber);
-                            const viewport = page.getViewport({ scale: this.previewScale });
+                            const viewport = page.getViewport({ scale: viewportScale });
                             this.pageViewports.set(pageNumber, viewport);
+
+                            const cssWidth = Math.floor(viewport.width);
+                            const cssHeight = Math.floor(viewport.height);
+
                             const wrapper = document.createElement("div");
                             wrapper.className = "position-relative border bg-white mb-3 mx-auto";
-                            wrapper.style.width = `${viewport.width}px`;
-                            wrapper.style.height = `${viewport.height}px`;
+                            wrapper.style.width = `${cssWidth}px`;
+                            wrapper.style.height = `${cssHeight}px`;
                             wrapper.dataset.page = String(pageNumber);
 
                             const canvas = document.createElement("canvas");
-                            canvas.width = viewport.width;
-                            canvas.height = viewport.height;
-                            canvas.style.width = `${viewport.width}px`;
-                            canvas.style.height = `${viewport.height}px`;
+                            canvas.width = Math.floor(cssWidth * outputScale);
+                            canvas.height = Math.floor(cssHeight * outputScale);
+                            canvas.style.width = `${cssWidth}px`;
+                            canvas.style.height = `${cssHeight}px`;
                             wrapper.appendChild(canvas);
                             this.pageCanvases.set(pageNumber, canvas);
 
                             const layer = document.createElement("div");
                             layer.className = "position-absolute top-0 start-0 field-overlay-layer";
-                            layer.style.width = "100%";
-                            layer.style.height = "100%";
+                            layer.style.width = `${cssWidth}px`;
+                            layer.style.height = `${cssHeight}px`;
                             layer.style.pointerEvents = "all";
                             layer.style.zIndex = "30";
                             layer.dataset.page = String(pageNumber);
                             wrapper.appendChild(layer);
                             this.pageLayers.set(pageNumber, layer);
-                            this.debugLog("Page layer created", { pageNumber, width: viewport.width, height: viewport.height });
+                            this.debugLog("Page layer created", { pageNumber, width: cssWidth, height: cssHeight });
 
                             pagesHost.appendChild(wrapper);
-                            const ctx = canvas.getContext("2d");
+                            const ctx = canvas.getContext("2d", { alpha: false });
                             if (ctx) {
-                                await page.render({ canvasContext: ctx, viewport }).promise;
+                                ctx.imageSmoothingEnabled = true;
+                                ctx.imageSmoothingQuality = "high";
+                                const transform = outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : null;
+                                await page.render({
+                                    canvasContext: ctx,
+                                    viewport,
+                                    transform
+                                }).promise;
                             }
                         }
                     }
@@ -1611,10 +1754,11 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
 
                     toViewportRect(field, page) {
                         const viewport = this.pageViewports.get(page);
-                        const rawX = Math.max(0, Number(field.x) || 0);
-                        const rawY = Math.max(0, Number(field.y) || 0);
-                        const rawW = Math.max(20, Number(field.width) || 220);
-                        const rawH = Math.max(14, Number(field.height) || 28);
+                        const coordScale = this.getCoordinateScale();
+                        const rawX = Math.max(0, (Number(field.x) || 0) * coordScale);
+                        const rawY = Math.max(0, (Number(field.y) || 0) * coordScale);
+                        const rawW = Math.max(20, (Number(field.width) || 220) * coordScale);
+                        const rawH = Math.max(14, (Number(field.height) || 28) * coordScale);
                         const rawRect = { left: rawX, top: rawY, width: rawW, height: rawH };
                         if (!viewport) {
                             return rawRect;
@@ -1654,12 +1798,13 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                     }
 
                     getFieldInPreviewSpace(box, pageNum) {
+                        const coordScale = this.getCoordinateScale();
                         return {
                             page: pageNum,
-                            x: Math.max(0, this.normalizePixel(box.style.left)),
-                            y: Math.max(0, this.normalizePixel(box.style.top)),
-                            width: Math.max(20, Math.round(box.offsetWidth)),
-                            height: Math.max(14, Math.round(box.offsetHeight))
+                            x: Math.max(0, Math.round(this.normalizePixel(box.style.left) / coordScale)),
+                            y: Math.max(0, Math.round(this.normalizePixel(box.style.top) / coordScale)),
+                            width: Math.max(20, Math.round(box.offsetWidth / coordScale)),
+                            height: Math.max(14, Math.round(box.offsetHeight / coordScale))
                         };
                     }
 
@@ -4746,31 +4891,44 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                     applyPdfTagLibraryFilter();
                 }
 
-                const syncTopScrollbar = () => {
-                    if (!topScroller || !topScrollerTrack || !zoomContainer) return;
-                    topScrollerTrack.style.width = `${zoomContainer.scrollWidth}px`;
-                    topScroller.scrollLeft = root.scrollLeft;
+                let syncingHorizontalScroll = false;
+                const syncHorizontalScrollbars = (source = root) => {
+                    if (!root || !zoomContainer || !topScroller || !topScrollerTrack) return;
+
+                    topScrollerTrack.style.width = `${Math.max(root.scrollWidth, zoomContainer.scrollWidth)}px`;
+
+                    if (syncingHorizontalScroll) return;
+                    syncingHorizontalScroll = true;
+                    const left = source?.scrollLeft ?? root.scrollLeft;
+                    if (source !== topScroller) topScroller.scrollLeft = left;
+                    if (source !== root) root.scrollLeft = left;
+                    syncingHorizontalScroll = false;
                 };
-                if (topScroller) {
-                    topScroller.addEventListener("scroll", () => root.scrollLeft = topScroller.scrollLeft);
-                    root.addEventListener("scroll", () => topScroller.scrollLeft = root.scrollLeft);
+
+                topScroller?.addEventListener("scroll", () => syncHorizontalScrollbars(topScroller));
+                root?.addEventListener("scroll", () => syncHorizontalScrollbars(root));
+
+                if (typeof ResizeObserver !== "undefined" && zoomContainer) {
+                    const horizontalScrollObserver = new ResizeObserver(() => syncHorizontalScrollbars());
+                    horizontalScrollObserver.observe(zoomContainer);
+                    if (pagesHost) horizontalScrollObserver.observe(pagesHost);
                 }
+
                 if (zoomSlider && zoomContainer) {
                     const applyZoom = () => {
                         const zoomPercent = Number.parseInt(zoomSlider.value, 10);
                         if (!Number.isInteger(zoomPercent)) return;
-                        zoomContainer.style.zoom = `${Math.max(50, zoomPercent)}%`;
-                        zoomValue.textContent = `${Math.max(50, zoomPercent)}%`;
-                        if (nudgeZoomSlider) nudgeZoomSlider.value = String(Math.max(50, zoomPercent));
-                        syncTopScrollbar();
+                        const clamped = Math.max(75, Math.min(300, zoomPercent));
+                        zoomValue.textContent = `${clamped}%`;
+                        if (nudgeZoomSlider) nudgeZoomSlider.value = String(clamped);
+                        engine.schedulePdfZoomRefresh(clamped);
                     };
                     zoomSlider.addEventListener("input", applyZoom);
-                    applyZoom();
                 }
 
                 engine.init().then(() => {
                     if (previewError) previewError.style.display = "none";
-                    setTimeout(syncTopScrollbar, 0);
+                    setTimeout(syncHorizontalScrollbars, 0);
                 }).catch((error) => {
                     console.error("PDF preview load failed", error);
                     showPreviewError("Не вдалося відрендерити PDF у конструкторі. Перевірте доступність PDF файлу та перезавантажте сторінку.");
@@ -4779,3 +4937,4 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
         </script>
     }
 }
+
