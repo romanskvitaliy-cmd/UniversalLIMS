@@ -82,17 +82,17 @@
     const buildInitialValuesMap = () => {
         const values = new Map();
         segments.forEach((segment) => {
-            const key = segment.dataFieldKey || "";
-            if (!key) {
-                return;
-            }
-
+            const templateFieldId = segment.templateFieldId ? String(segment.templateFieldId) : "";
+            const fieldKey = segment.dataFieldKey || "";
             const sequence = segment.sequence ?? 0;
             const tag = segment.tag || "";
             const savedKey = tag && segments.filter((item) => item.tag === tag).length > 1
                 ? `${tag}#${sequence}`
                 : tag;
-            const saved = savedByKey[savedKey] ?? savedByKey[tag] ?? savedByKey[key];
+            const saved = savedByKey[templateFieldId]
+                ?? savedByKey[savedKey]
+                ?? savedByKey[tag]
+                ?? (fieldKey ? savedByKey[fieldKey] : undefined);
             if (saved === undefined || saved === null) {
                 return;
             }
@@ -103,43 +103,15 @@
     };
 
     const collectFilledValues = () => {
-        const inputs = [...document.querySelectorAll(".pdf-fill-input")];
-        const tagCounts = new Map();
-        inputs.forEach((input) => {
-            const tag = (input.dataset.tag || "").trim();
-            if (!tag) {
-                return;
-            }
-
-            tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
-        });
-
         const values = [];
-        inputs.forEach((input) => {
-            const tag = (input.dataset.tag || "").trim();
-            const fieldKey = (input.dataset.fieldKey || "").trim();
-            const sequence = Number.parseInt(input.dataset.sequence || "0", 10) || 0;
-            let clientKey = tag || fieldKey;
-            if (!clientKey) {
-                return;
-            }
-
-            if (tag && (tagCounts.get(tag) || 0) > 1) {
-                clientKey = `${tag}#${sequence}`;
-            }
-
+        document.querySelectorAll(".pdf-fill-input").forEach((input) => {
+            const templateFieldId = (input.dataset.templateFieldId || "").trim();
             const value = input.value.trim();
-            if (value.length === 0) {
+            if (!templateFieldId || value.length === 0) {
                 return;
             }
 
-            values.push({
-                key: clientKey,
-                value,
-                tag: tag || null,
-                dataFieldKey: fieldKey || null,
-                sequence
-            });
+            values.push({ templateFieldId, value });
         });
 
         return values;
@@ -307,6 +279,7 @@
                 input.className = "pdf-fill-input form-control form-control-sm";
                 input.dataset.fieldKey = fieldKey;
                 input.dataset.segmentId = segmentId;
+                input.dataset.templateFieldId = String(segment.templateFieldId || "");
                 input.dataset.tag = String(segment.tag || "");
                 input.dataset.sequence = String(segment.sequence ?? 0);
                 input.placeholder = displayLabel;
@@ -320,7 +293,11 @@
                     const tagKey = displayLabel && segments.filter((item) => item.tag === displayLabel).length > 1
                         ? `${displayLabel}#${seq}`
                         : displayLabel;
-                    const saved = savedByKey[tagKey] ?? savedByKey[displayLabel] ?? savedByKey[fieldKey];
+                    const templateFieldId = String(segment.templateFieldId || "");
+                    const saved = savedByKey[templateFieldId]
+                        ?? savedByKey[tagKey]
+                        ?? savedByKey[displayLabel]
+                        ?? savedByKey[fieldKey];
                     input.value = saved === undefined || saved === null ? "" : String(saved);
                 }
 
@@ -382,40 +359,18 @@
                 currentOrderId = body.orderId ?? body.OrderId ?? currentOrderId;
                 window.__pdfFillOrderId = currentOrderId;
 
-                const savedCount = body.saved ?? body.savedCount ?? body.SavedCount ?? 0;
+                const savedCount = body.savedCount ?? body.SavedCount ?? 0;
                 const totalFields = body.totalFields ?? body.TotalFields ?? payload.length;
-                const submittedCount = body.submittedCount ?? body.SubmittedCount ?? payload.length;
-                const matchedFields = Array.isArray(body.matchedFields) ? body.matchedFields : [];
-                const unmatchedFields = Array.isArray(body.unmatchedFields) ? body.unmatchedFields : [];
-                const matchLog = Array.isArray(body.matchLog) ? body.matchLog : [];
-                const skipped = Array.isArray(body.skippedKeys) ? body.skippedKeys : [];
-
-                console.group("[PdfWorkspace Fill] save diagnostics");
-                console.log("saved:", savedCount, "totalFields:", totalFields, "submitted:", submittedCount);
-                console.log("matchedFields:", matchedFields);
-                console.log("unmatchedFields:", unmatchedFields);
-                console.table(matchLog);
-                console.groupEnd();
+                const unmatched = Array.isArray(body.unmatched) ? body.unmatched : [];
 
                 let message = body.message || "Значення збережено.";
-                if (savedCount === 0 && submittedCount > 0) {
-                    message = `Не збережено жодного поля (надіслано ${submittedCount}). Перевірте теги в конструкторі.`;
-                    if (unmatchedFields.length > 0) {
-                        message += ` Не зіставлено: ${unmatchedFields.join(", ")}.`;
-                    }
-
-                    showStatus(message, "warning");
-                } else {
-                    if (unmatchedFields.length > 0) {
-                        message += ` Не зіставлено (${unmatchedFields.length}): ${unmatchedFields.join(", ")}.`;
-                    }
-
-                    if (skipped.length > 0) {
-                        message += ` Пропущено ключі: ${skipped.join(", ")}.`;
-                    }
-
-                    showStatus(message, savedCount < totalFields ? "warning" : "success");
+                if (unmatched.length > 0) {
+                    message += ` Не зіставлено: ${unmatched.join(", ")}.`;
                 }
+
+                showStatus(
+                    message,
+                    savedCount === 0 ? "warning" : savedCount < totalFields ? "warning" : "success");
                 if (currentOrderId) {
                     updateFinalPdfActions(currentOrderId);
                 }

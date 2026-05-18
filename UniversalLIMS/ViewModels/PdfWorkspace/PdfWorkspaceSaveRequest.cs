@@ -13,18 +13,9 @@ public sealed class PdfWorkspaceSaveRequest
 
 public sealed class PdfWorkspaceSaveFieldRequest
 {
-    [JsonPropertyName("key")]
-    public string Key { get; set; } = string.Empty;
+    [JsonPropertyName("templateFieldId")]
+    public Guid? TemplateFieldId { get; set; }
 
     [JsonPropertyName("value")]
     public string? Value { get; set; }
-
-    [JsonPropertyName("tag")]
-    public string? Tag { get; set; }
-
-    [JsonPropertyName("dataFieldKey")]
-    public string? DataFieldKey { get; set; }
-
-    [JsonPropertyName("sequence")]
-    public int? Sequence { get; set; }
 }

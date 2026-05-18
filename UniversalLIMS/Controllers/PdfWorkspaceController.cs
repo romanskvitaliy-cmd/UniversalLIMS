@@ -87,11 +87,8 @@ public sealed class PdfWorkspaceController : Controller
             var values = (request.Values ?? [])
                 .Select(item => new PdfWorkspaceFieldValueDto
                 {
-                    Key = item.Key,
-                    Value = item.Value,
-                    Tag = item.Tag,
-                    DataFieldKey = item.DataFieldKey,
-                    Sequence = item.Sequence
+                    TemplateFieldId = item.TemplateFieldId,
+                    Value = item.Value
                 })
                 .ToList();
 
@@ -104,19 +101,10 @@ public sealed class PdfWorkspaceController : Controller
             return Json(new
             {
                 orderId = result.OrderId,
-                saved = result.SavedCount,
                 savedCount = result.SavedCount,
                 totalFields = result.TotalFields,
-                submittedCount = values.Count,
-                matchedFields = result.MatchedFields,
-                unmatchedFields = result.UnmatchedFields,
-                skippedKeys = result.SkippedKeys,
-                matchLog = result.MatchLog,
-                message = result.SavedCount > 0
-                    ? $"Збережено {result.SavedCount} з {result.TotalFields} полів."
-                    : values.Count > 0
-                        ? "Жодне значення не вдалося зіставити з полями шаблону (перевірте теги / DataField)."
-                        : "Немає полів для збереження."
+                unmatched = result.UnmatchedFields,
+                message = result.Message
             });
         }
         catch (InvalidOperationException exception)

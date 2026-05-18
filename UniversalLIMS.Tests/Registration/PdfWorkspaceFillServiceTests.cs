@@ -5,7 +5,6 @@ using UniversalLIMS.Domain.Organization;
 using UniversalLIMS.Domain.Registration;
 using UniversalLIMS.Domain.Templates;
 using UniversalLIMS.Infrastructure.Persistence;
-using UniversalLIMS.Infrastructure.Persistence.Interceptors;
 using UniversalLIMS.Infrastructure.Registration;
 
 namespace UniversalLIMS.Tests.Registration;
@@ -13,7 +12,7 @@ namespace UniversalLIMS.Tests.Registration;
 public sealed class PdfWorkspaceFillServiceTests
 {
     [Fact]
-    public async Task SaveValuesAsync_MapsTagToStorageKeyAndPersistsOrderFieldValue()
+    public async Task SaveValuesAsync_PersistsByDataFieldKeyWhenMapped()
     {
         await using var context = CreateContext();
         var branchId = Guid.NewGuid();
@@ -114,20 +113,15 @@ public sealed class PdfWorkspaceFillServiceTests
             new OrderFieldValueService(context),
             NullLogger<PdfWorkspaceFillService>.Instance);
 
+        var templateField = await context.TemplateFields.SingleAsync(field => field.TemplateVersionId == versionId);
+
         var result = await service.SaveValuesAsync(
             versionId,
             null,
-            [
-                new PdfWorkspaceFieldValueDto
-                {
-                    Key = "SamplingLocation",
-                    Tag = "SamplingLocation",
-                    DataFieldKey = "Sample.SamplingLocation",
-                    Value = "м. Житомир"
-                }
-            ]);
+            [new PdfWorkspaceFieldValueDto { TemplateFieldId = templateField.Id, Value = "м. Житомир" }]);
 
         Assert.Equal(1, result.SavedCount);
+        Assert.Equal("Збережено 1 з 1 полів", result.Message);
 
         var stored = await context.OrderFieldValues
             .Include(fieldValue => fieldValue.DataField)
@@ -135,13 +129,10 @@ public sealed class PdfWorkspaceFillServiceTests
 
         Assert.Equal("Sample.SamplingLocation", stored.DataField.Key);
         Assert.Equal("м. Житомир", stored.StoredValue);
-
-        var linkedField = await context.TemplateFields.SingleAsync(field => field.TemplateVersionId == versionId);
-        Assert.Equal(dataFieldId, linkedField.DataFieldId);
     }
 
     [Fact]
-    public async Task SaveValuesAsync_DoesNotCollapseFieldsThatShareCanonicalResolverKey()
+    public async Task SaveValuesAsync_CreatesSeparateRecordsPerTemplateFieldTag()
     {
         await using var context = CreateContext();
         var branchId = Guid.NewGuid();
@@ -182,6 +173,7 @@ public sealed class PdfWorkspaceFillServiceTests
         });
 
         var tags = new[] { "Global.DocNumber", "ProtocolNumber", "Global.FacilityName", "Air.Temperature" };
+        var templateFieldIds = tags.Select(_ => Guid.NewGuid()).ToArray();
         context.TemplateVersions.Add(new TemplateVersion
         {
             Id = versionId,
@@ -197,7 +189,7 @@ public sealed class PdfWorkspaceFillServiceTests
             UploadedAtUtc = DateTime.UtcNow,
             Fields = tags.Select((tag, index) => new TemplateField
             {
-                Id = Guid.NewGuid(),
+                Id = templateFieldIds[index],
                 TemplateVersionId = versionId,
                 Tag = tag,
                 Title = tag,
@@ -227,12 +219,10 @@ public sealed class PdfWorkspaceFillServiceTests
             new OrderFieldValueService(context),
             NullLogger<PdfWorkspaceFillService>.Instance);
 
-        var submissions = tags
-            .Select((tag, index) => new PdfWorkspaceFieldValueDto
+        var submissions = templateFieldIds
+            .Select((id, index) => new PdfWorkspaceFieldValueDto
             {
-                Key = tag,
-                Tag = tag,
-                DataFieldKey = tag,
+                TemplateFieldId = id,
                 Value = $"value-{index + 1}"
             })
             .ToList();
@@ -240,7 +230,6 @@ public sealed class PdfWorkspaceFillServiceTests
         var result = await service.SaveValuesAsync(versionId, null, submissions);
 
         Assert.Equal(tags.Length, result.SavedCount);
-        Assert.Equal(tags.Length, result.MatchedFields.Count);
         Assert.Empty(result.UnmatchedFields);
 
         var storedKeys = await context.OrderFieldValues
