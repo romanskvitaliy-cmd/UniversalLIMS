@@ -337,6 +337,12 @@
 
             saveButton.disabled = true;
 
+            const requestBody = {
+                orderId: currentOrderId,
+                values: payload
+            };
+            console.log("[PdfWorkspace Fill] save payload:", JSON.parse(JSON.stringify(requestBody)));
+
             try {
                 const response = await fetch(window.__pdfFillSaveUrl, {
                     method: "POST",
@@ -345,15 +351,16 @@
                         "Content-Type": "application/json",
                         RequestVerificationToken: getAntiforgeryToken()
                     },
-                    body: JSON.stringify({
-                        orderId: currentOrderId,
-                        values: payload
-                    })
+                    body: JSON.stringify(requestBody)
                 });
 
                 const body = await response.json().catch(() => ({}));
                 if (!response.ok) {
-                    throw new Error(body.message || `Помилка збереження (${response.status}).`);
+                    const detail = body.detail || body.inner || "";
+                    throw new Error(
+                        detail
+                            ? `${body.message || "Помилка збереження"}: ${detail}`
+                            : body.message || `Помилка збереження (${response.status}).`);
                 }
 
                 currentOrderId = body.orderId ?? body.OrderId ?? currentOrderId;

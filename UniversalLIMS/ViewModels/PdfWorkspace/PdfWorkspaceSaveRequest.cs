@@ -13,8 +13,9 @@ public sealed class PdfWorkspaceSaveRequest
 
 public sealed class PdfWorkspaceSaveFieldRequest
 {
+    /// <summary>GUID рядком з фронтенду (string, не object).</summary>
     [JsonPropertyName("templateFieldId")]
-    public Guid? TemplateFieldId { get; set; }
+    public string? TemplateFieldId { get; set; }
 
     [JsonPropertyName("value")]
     public string? Value { get; set; }

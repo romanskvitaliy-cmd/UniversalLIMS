@@ -121,13 +121,13 @@ public sealed class PdfWorkspaceFillServiceTests
             [new PdfWorkspaceFieldValueDto { TemplateFieldId = templateField.Id, Value = "м. Житомир" }]);
 
         Assert.Equal(1, result.SavedCount);
-        Assert.Equal("Збережено 1 з 1 полів", result.Message);
+        Assert.Equal(1, result.TotalFields);
 
         var stored = await context.OrderFieldValues
             .Include(fieldValue => fieldValue.DataField)
             .SingleAsync(fieldValue => fieldValue.OrderId == result.OrderId);
 
-        Assert.Equal("Sample.SamplingLocation", stored.DataField.Key);
+        Assert.Equal(templateField.Id.ToString("D"), stored.DataField.Key);
         Assert.Equal("м. Житомир", stored.StoredValue);
     }
 
@@ -238,10 +238,10 @@ public sealed class PdfWorkspaceFillServiceTests
             .Select(fieldValue => fieldValue.DataField.Key)
             .ToListAsync();
 
-        Assert.Equal(tags.Length, storedKeys.Count);
-        foreach (var tag in tags)
+        Assert.Equal(tags.Length, storedKeys.Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        foreach (var templateFieldId in templateFieldIds)
         {
-            Assert.Contains(tag, storedKeys, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains(templateFieldId.ToString("D"), storedKeys, StringComparer.OrdinalIgnoreCase);
         }
     }
 

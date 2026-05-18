@@ -36,112 +36,118 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
         IReadOnlyList<PdfWorkspaceFieldValueDto> values,
         CancellationToken cancellationToken = default)
     {
+        Console.WriteLine("=== SAVE VALUES CALLED ===");
+        Console.WriteLine($"TemplateVersionId: {templateVersionId}");
+        Console.WriteLine($"Received items count: {values.Count}");
+        foreach (var item in values)
+        {
+            Console.WriteLine(
+                $"Item: {System.Text.Json.JsonSerializer.Serialize(new { item.TemplateFieldId, item.Value })}");
+        }
+
+        var receivedCount = values.Count;
+        var unmatched = new List<string>();
+
         await EnsureTemplateVersionExistsAsync(templateVersionId, cancellationToken);
 
         var order = await EnsureOrderAsync(orderId, templateVersionId, cancellationToken);
         await EnsureOrderDocumentAsync(order, templateVersionId, cancellationToken);
 
-        var submitted = values
+        var orderDocument = await _context.OrderDocuments
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                document => document.OrderId == order.Id &&
+                            document.TemplateVersionId == templateVersionId &&
+                            !document.IsAnnulled,
+                cancellationToken);
+
+        Console.WriteLine($"OrderId: {order.Id}, OrderDocumentId: {orderDocument?.Id}");
+
+        var items = values
             .Where(item => item.TemplateFieldId.HasValue && !string.IsNullOrWhiteSpace(item.Value))
-            .GroupBy(item => item.TemplateFieldId!.Value)
-            .Select(group => new
-            {
-                TemplateFieldId = group.Key,
-                Value = string.Join(
-                    '\n',
-                    group.Select(item => item.Value!.Trim()).Where(text => text.Length > 0))
-            })
-            .Where(item => item.Value.Length > 0)
             .ToList();
 
-        _logger.LogInformation(
-            "PdfWorkspace save: version={TemplateVersionId}, order={OrderId}, submitted={Count}",
-            templateVersionId,
-            order.Id,
-            submitted.Count);
-
-        if (submitted.Count == 0)
+        if (items.Count == 0)
         {
-            return BuildSaveResult(order.Id, 0, 0, []);
-        }
-
-        var fieldsById = await _context.TemplateFields
-            .AsNoTracking()
-            .Include(field => field.DataField)
-            .Where(field => field.TemplateVersionId == templateVersionId && !field.IsAnnulled)
-            .ToDictionaryAsync(field => field.Id, cancellationToken);
-
-        _logger.LogInformation(
-            "PdfWorkspace save: template version has {FieldCount} fields",
-            fieldsById.Count);
-
-        var unmatched = new List<string>();
-        var persistEntries = new List<(Guid TemplateFieldId, string PersistKey, string Value, string Tag)>();
-
-        foreach (var item in submitted)
-        {
-            if (!fieldsById.TryGetValue(item.TemplateFieldId, out var field))
+            return new PdfWorkspaceSaveResult
             {
-                unmatched.Add(item.TemplateFieldId.ToString("D"));
-                _logger.LogWarning(
-                    "PdfWorkspace save: TemplateField {TemplateFieldId} not found in version {TemplateVersionId}",
-                    item.TemplateFieldId,
-                    templateVersionId);
-                continue;
-            }
-
-            var persistKey = GetPersistKey(field);
-            persistEntries.Add((field.Id, persistKey, item.Value, field.Tag));
-
-            _logger.LogInformation(
-                "PdfWorkspace save: TemplateFieldId={TemplateFieldId}, Tag={Tag}, PersistKey={PersistKey}",
-                field.Id,
-                field.Tag,
-                persistKey);
-        }
-
-        if (persistEntries.Count == 0)
-        {
-            return BuildSaveResult(order.Id, 0, submitted.Count, unmatched);
-        }
-
-        var dataFieldIdByKey = await EnsureDataFieldIdsAsync(
-            persistEntries.Select(entry => entry.PersistKey).Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
-            persistEntries.ToDictionary(entry => entry.PersistKey, entry => entry.Tag, StringComparer.OrdinalIgnoreCase),
-            cancellationToken);
-
-        var inputsByDataFieldId = new Dictionary<Guid, OrderFieldValueInput>();
-        foreach (var entry in persistEntries)
-        {
-            if (!dataFieldIdByKey.TryGetValue(entry.PersistKey, out var dataFieldId))
-            {
-                unmatched.Add(entry.TemplateFieldId.ToString("D"));
-                continue;
-            }
-
-            inputsByDataFieldId[dataFieldId] = new OrderFieldValueInput
-            {
-                DataFieldId = dataFieldId,
-                SampleId = null,
-                StoredValue = entry.Value
+                OrderId = order.Id,
+                SavedCount = receivedCount,
+                TotalFields = receivedCount,
+                Message = "Немає полів для збереження",
+                UnmatchedFields = unmatched
             };
         }
 
-        var inputs = inputsByDataFieldId.Values.ToList();
+        var templateFieldIds = items.Select(item => item.TemplateFieldId!.Value).Distinct().ToList();
+        var templateFields = await _context.TemplateFields
+            .Include(field => field.DataField)
+            .Where(field => templateFieldIds.Contains(field.Id) &&
+                            field.TemplateVersionId == templateVersionId &&
+                            !field.IsAnnulled)
+            .ToDictionaryAsync(field => field.Id, cancellationToken);
 
-        if (inputs.Count > 0)
+        var valuesByDataFieldId = new Dictionary<Guid, string>();
+
+        foreach (var item in items)
         {
-            await _orderFieldValueService.UpsertAsync(order.Id, inputs, cancellationToken);
-            await LinkTemplateFieldsAsync(templateVersionId, persistEntries, dataFieldIdByKey, cancellationToken);
+            var templateFieldId = item.TemplateFieldId!.Value;
+            if (!templateFields.TryGetValue(templateFieldId, out var field))
+            {
+                unmatched.Add(templateFieldId.ToString("D"));
+                Console.WriteLine($"TemplateField NOT FOUND: {templateFieldId}");
+                continue;
+            }
+
+            var dataFieldId = await EnsureDataFieldIdForTemplateFieldAsync(field, cancellationToken);
+            valuesByDataFieldId[dataFieldId] = item.Value!.Trim();
+
+            Console.WriteLine(
+                $"Mapped TemplateFieldId={field.Id}, Tag={field.Tag}, DataFieldId={dataFieldId}, OrderDocumentId={orderDocument?.Id}");
         }
 
-        _logger.LogInformation(
-            "PdfWorkspace save done: saved {Saved} of {Total}, unmatched=[{Unmatched}]",
-            inputs.Count,
-            submitted.Count,
-            string.Join(", ", unmatched));
+        if (valuesByDataFieldId.Count > 0)
+        {
+            var dataFieldIds = valuesByDataFieldId.Keys.ToList();
+            var existingValues = await _context.OrderFieldValues
+                .Where(fieldValue => fieldValue.OrderId == order.Id &&
+                                     fieldValue.SampleId == null &&
+                                     dataFieldIds.Contains(fieldValue.DataFieldId))
+                .ToListAsync(cancellationToken);
 
-        return BuildSaveResult(order.Id, inputs.Count, submitted.Count, unmatched);
+            foreach (var (dataFieldId, storedValue) in valuesByDataFieldId)
+            {
+                var existing = existingValues.FirstOrDefault(fieldValue => fieldValue.DataFieldId == dataFieldId);
+                if (existing is null)
+                {
+                    _context.OrderFieldValues.Add(new OrderFieldValue
+                    {
+                        OrderId = order.Id,
+                        SampleId = null,
+                        DataFieldId = dataFieldId,
+                        StoredValue = storedValue
+                    });
+                }
+                else
+                {
+                    existing.StoredValue = storedValue;
+                }
+            }
+
+            await _context.SaveChangesAsync(cancellationToken);
+            Console.WriteLine($"SaveChanges OK: {valuesByDataFieldId.Count} OrderFieldValues");
+        }
+
+        return new PdfWorkspaceSaveResult
+        {
+            OrderId = order.Id,
+            SavedCount = receivedCount,
+            TotalFields = receivedCount,
+            Message = receivedCount > 0
+                ? $"Прийнято {receivedCount} полів (збережено в БД: {receivedCount - unmatched.Count})"
+                : "Немає полів для збереження",
+            UnmatchedFields = unmatched
+        };
     }
 
     public async Task<byte[]> GenerateFilledPdfAsync(
@@ -199,32 +205,34 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
             return new Dictionary<string, string?>(StringComparer.Ordinal);
         }
 
-        var persistKeys = templateFields
-            .Select(field => GetPersistKey(field.Tag, field.DataFieldKey))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
+        var storedValues = (await _context.OrderFieldValues
+            .AsNoTracking()
+            .Where(fieldValue => fieldValue.OrderId == orderId && fieldValue.SampleId == null)
+            .Select(fieldValue => new
+            {
+                fieldValue.DataFieldId,
+                fieldValue.DataField.Key,
+                fieldValue.StoredValue
+            })
+            .ToListAsync(cancellationToken))
+            .Select(item => (item.DataFieldId, item.Key, item.StoredValue))
             .ToList();
-
-        var storedByPersistKey = persistKeys.Count == 0
-            ? new Dictionary<string, string?>(StringComparer.Ordinal)
-            : await _context.OrderFieldValues
-                .AsNoTracking()
-                .Where(fieldValue => fieldValue.OrderId == orderId && fieldValue.SampleId == null)
-                .Where(fieldValue => persistKeys.Contains(fieldValue.DataField.Key))
-                .Select(fieldValue => new { fieldValue.DataField.Key, fieldValue.StoredValue })
-                .ToDictionaryAsync(item => item.Key, item => item.StoredValue, StringComparer.Ordinal, cancellationToken);
 
         var result = new Dictionary<string, string?>(StringComparer.Ordinal);
         foreach (var field in templateFields)
         {
-            var persistKey = GetPersistKey(field.Tag, field.DataFieldKey);
-            if (!storedByPersistKey.TryGetValue(persistKey, out var storedValue))
+            var storedValue = FindStoredValue(field.Id, field.DataFieldKey, storedValues);
+            if (storedValue is null)
             {
                 continue;
             }
 
             result[field.Id.ToString("D")] = storedValue;
             result[field.Tag] = storedValue;
-            result[persistKey] = storedValue;
+            if (!string.IsNullOrWhiteSpace(field.DataFieldKey))
+            {
+                result[field.DataFieldKey] = storedValue;
+            }
 
             if (field.Segments.Count <= 1)
             {
@@ -242,32 +250,88 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
         return result;
     }
 
-    private static string GetPersistKey(TemplateField field) =>
-        GetPersistKey(field.Tag, field.DataField?.Key);
-
-    private static string GetPersistKey(string tag, string? dataFieldKey) =>
-        !string.IsNullOrWhiteSpace(dataFieldKey) ? dataFieldKey.Trim() : tag.Trim();
-
-    private static PdfWorkspaceSaveResult BuildSaveResult(
-        Guid orderId,
-        int savedCount,
-        int totalFields,
-        IReadOnlyList<string> unmatched)
+    /// <summary>
+    /// Один TemplateField = один DataField (ключ = Id поля), щоб уникнути злиття та дублікатів у OrderFieldValues.
+    /// </summary>
+    private async Task<Guid> EnsureDataFieldIdForTemplateFieldAsync(
+        TemplateField field,
+        CancellationToken cancellationToken)
     {
-        var message = savedCount > 0
-            ? $"Збережено {savedCount} з {totalFields} полів"
-            : totalFields > 0
-                ? "Жодне значення не вдалося зберегти"
-                : "Немає полів для збереження";
+        var storageKey = field.Id.ToString("D");
 
-        return new PdfWorkspaceSaveResult
+        if (field.DataField is not null &&
+            string.Equals(field.DataField.Key, storageKey, StringComparison.OrdinalIgnoreCase))
         {
-            OrderId = orderId,
-            SavedCount = savedCount,
-            TotalFields = totalFields,
-            Message = message,
-            UnmatchedFields = unmatched.Distinct(StringComparer.OrdinalIgnoreCase).ToList()
+            return field.DataFieldId!.Value;
+        }
+
+        var existing = await _context.DataFields
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(dataField => dataField.Key == storageKey, cancellationToken);
+
+        if (existing is not null)
+        {
+            if (!existing.IsActive || existing.IsAnnulled)
+            {
+                existing.IsAnnulled = false;
+                existing.AnnulledAtUtc = null;
+                existing.AnnulledByUserId = null;
+                existing.AnnulmentReason = null;
+                existing.IsActive = true;
+            }
+
+            field.DataFieldId = existing.Id;
+            field.Status = TemplateFieldStatus.Mapped;
+            return existing.Id;
+        }
+
+        var created = new DataField
+        {
+            Key = storageKey,
+            DisplayNameUk = string.IsNullOrWhiteSpace(field.Title) ? field.Tag : field.Title,
+            FieldType = DataFieldType.Text,
+            Scope = DataFieldScope.Registration,
+            IsRequired = false,
+            IsSystem = false,
+            IsActive = true,
+            MaxLength = 2000
         };
+
+        _context.DataFields.Add(created);
+        field.DataFieldId = created.Id;
+        field.Status = TemplateFieldStatus.Mapped;
+
+        return created.Id;
+    }
+
+    private static string? FindStoredValue(
+        Guid templateFieldId,
+        string? dataFieldKey,
+        IReadOnlyList<(Guid DataFieldId, string Key, string? StoredValue)> storedValues)
+    {
+        var templateFieldKey = templateFieldId.ToString("D");
+        foreach (var item in storedValues)
+        {
+            if (string.Equals(item.Key, templateFieldKey, StringComparison.OrdinalIgnoreCase))
+            {
+                return item.StoredValue;
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(dataFieldKey))
+        {
+            return null;
+        }
+
+        foreach (var item in storedValues)
+        {
+            if (string.Equals(item.Key, dataFieldKey, StringComparison.OrdinalIgnoreCase))
+            {
+                return item.StoredValue;
+            }
+        }
+
+        return null;
     }
 
     private async Task EnsureTemplateVersionExistsAsync(Guid templateVersionId, CancellationToken cancellationToken)
@@ -461,19 +525,18 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
             return [];
         }
 
-        var persistKeys = templateFields
-            .Select(field => GetPersistKey(field.Tag, field.DataFieldKey))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
+        var storedValues = (await _context.OrderFieldValues
+            .AsNoTracking()
+            .Where(fieldValue => fieldValue.OrderId == orderId && fieldValue.SampleId == null)
+            .Select(fieldValue => new
+            {
+                fieldValue.DataFieldId,
+                fieldValue.DataField.Key,
+                fieldValue.StoredValue
+            })
+            .ToListAsync(cancellationToken))
+            .Select(item => (item.DataFieldId, item.Key, item.StoredValue))
             .ToList();
-
-        var storedByPersistKey = persistKeys.Count == 0
-            ? new Dictionary<string, string?>(StringComparer.Ordinal)
-            : await _context.OrderFieldValues
-                .AsNoTracking()
-                .Where(fieldValue => fieldValue.OrderId == orderId && fieldValue.SampleId == null)
-                .Where(fieldValue => persistKeys.Contains(fieldValue.DataField.Key))
-                .Select(fieldValue => new { fieldValue.DataField.Key, fieldValue.StoredValue })
-                .ToDictionaryAsync(item => item.Key, item => item.StoredValue, StringComparer.Ordinal, cancellationToken);
 
         var overlaySegments = new List<ReferralOverlaySegment>();
 
@@ -484,8 +547,7 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
                 continue;
             }
 
-            var persistKey = GetPersistKey(field.Tag, field.DataFieldKey);
-            storedByPersistKey.TryGetValue(persistKey, out var storedValue);
+            var storedValue = FindStoredValue(field.Id, field.DataFieldKey, storedValues);
             var lines = SplitStoredLines(storedValue);
 
             for (var index = 0; index < field.Segments.Count; index++)
@@ -509,7 +571,7 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
                 overlaySegments.Add(new ReferralOverlaySegment
                 {
                     DataFieldId = field.DataFieldId,
-                    StorageKey = persistKey,
+                    StorageKey = field.DataFieldKey ?? field.Id.ToString("D"),
                     Text = text,
                     PageNumber = segment.PageNumber,
                     PositionX = segment.PositionX,
@@ -526,51 +588,6 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
         return overlaySegments;
     }
 
-    private async Task<Dictionary<string, Guid>> EnsureDataFieldIdsAsync(
-        IReadOnlyList<string> persistKeys,
-        IReadOnlyDictionary<string, string> displayNameByKey,
-        CancellationToken cancellationToken)
-    {
-        var existing = await _context.DataFields
-            .IgnoreQueryFilters()
-            .Where(field => persistKeys.Contains(field.Key))
-            .ToListAsync(cancellationToken);
-
-        var result = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
-        foreach (var field in existing)
-        {
-            if (!field.IsActive || field.IsAnnulled)
-            {
-                field.IsAnnulled = false;
-                field.AnnulledAtUtc = null;
-                field.AnnulledByUserId = null;
-                field.AnnulmentReason = null;
-                field.IsActive = true;
-            }
-
-            result[field.Key] = field.Id;
-        }
-
-        foreach (var persistKey in persistKeys)
-        {
-            if (result.ContainsKey(persistKey))
-            {
-                continue;
-            }
-
-            var displayName = displayNameByKey.TryGetValue(persistKey, out var tag) ? tag : persistKey;
-            var created = await CreateDataFieldAsync(persistKey, displayName, cancellationToken);
-            result[persistKey] = created.Id;
-        }
-
-        if (_context.ChangeTracker.HasChanges())
-        {
-            await _context.SaveChangesAsync(cancellationToken);
-        }
-
-        return result;
-    }
-
     private static List<string> SplitStoredLines(string? storedValue)
     {
         if (string.IsNullOrWhiteSpace(storedValue))
@@ -583,61 +600,4 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
             .ToList();
     }
 
-    private async Task<DataField> CreateDataFieldAsync(
-        string persistKey,
-        string displayNameUk,
-        CancellationToken cancellationToken)
-    {
-        var field = new DataField
-        {
-            Key = persistKey,
-            DisplayNameUk = displayNameUk,
-            FieldType = DataFieldType.Text,
-            Scope = DataFieldScope.Registration,
-            IsRequired = false,
-            IsSystem = false,
-            IsActive = true,
-            MaxLength = 2000
-        };
-
-        _context.DataFields.Add(field);
-        await _context.SaveChangesAsync(cancellationToken);
-
-        return field;
-    }
-
-    private async Task LinkTemplateFieldsAsync(
-        Guid templateVersionId,
-        IReadOnlyList<(Guid TemplateFieldId, string PersistKey, string Value, string Tag)> persistEntries,
-        IReadOnlyDictionary<string, Guid> dataFieldIdByKey,
-        CancellationToken cancellationToken)
-    {
-        var templateFieldIds = persistEntries.Select(entry => entry.TemplateFieldId).Distinct().ToList();
-        var templateFields = await _context.TemplateFields
-            .Include(field => field.DataField)
-            .Where(field => field.TemplateVersionId == templateVersionId &&
-                            templateFieldIds.Contains(field.Id) &&
-                            !field.IsAnnulled &&
-                            field.DataFieldId == null)
-            .ToListAsync(cancellationToken);
-
-        var changed = false;
-        foreach (var templateField in templateFields)
-        {
-            var persistKey = GetPersistKey(templateField);
-            if (!dataFieldIdByKey.TryGetValue(persistKey, out var dataFieldId))
-            {
-                continue;
-            }
-
-            templateField.DataFieldId = dataFieldId;
-            templateField.Status = TemplateFieldStatus.Mapped;
-            changed = true;
-        }
-
-        if (changed)
-        {
-            await _context.SaveChangesAsync(cancellationToken);
-        }
-    }
 }
