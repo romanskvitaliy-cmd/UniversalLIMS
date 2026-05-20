@@ -36,117 +36,107 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
         IReadOnlyList<PdfWorkspaceFieldValueDto> values,
         CancellationToken cancellationToken = default)
     {
-        Console.WriteLine("=== SAVE VALUES CALLED ===");
-        Console.WriteLine($"TemplateVersionId: {templateVersionId}");
-        Console.WriteLine($"Received items count: {values.Count}");
-        foreach (var item in values)
-        {
-            Console.WriteLine(
-                $"Item: {System.Text.Json.JsonSerializer.Serialize(new { item.TemplateFieldId, item.Value })}");
-        }
-
-        var receivedCount = values.Count;
-        var unmatched = new List<string>();
+        var received = values.Count;
+        var mapped = 0;
+        var saved = 0;
+        var skippedUnmapped = 0;
+        var skippedEmpty = 0;
 
         await EnsureTemplateVersionExistsAsync(templateVersionId, cancellationToken);
 
         var order = await EnsureOrderAsync(orderId, templateVersionId, cancellationToken);
         await EnsureOrderDocumentAsync(order, templateVersionId, cancellationToken);
 
-        var orderDocument = await _context.OrderDocuments
-            .AsNoTracking()
-            .FirstOrDefaultAsync(
-                document => document.OrderId == order.Id &&
-                            document.TemplateVersionId == templateVersionId &&
-                            !document.IsAnnulled,
-                cancellationToken);
-
-        Console.WriteLine($"OrderId: {order.Id}, OrderDocumentId: {orderDocument?.Id}");
-
-        var items = values
-            .Where(item => item.TemplateFieldId.HasValue && !string.IsNullOrWhiteSpace(item.Value))
+        var templateFieldIds = values
+            .Where(item => item.TemplateFieldId.HasValue)
+            .Select(item => item.TemplateFieldId!.Value)
+            .Distinct()
             .ToList();
 
-        if (items.Count == 0)
+        var templateFields = templateFieldIds.Count == 0
+            ? new Dictionary<Guid, TemplateField>()
+            : await _context.TemplateFields
+                .Where(field => templateFieldIds.Contains(field.Id) &&
+                                field.TemplateVersionId == templateVersionId &&
+                                !field.IsAnnulled)
+                .ToDictionaryAsync(field => field.Id, cancellationToken);
+
+        var mappedDataFieldIds = templateFields.Values
+            .Where(field => field.DataFieldId.HasValue)
+            .Select(field => field.DataFieldId!.Value)
+            .Distinct()
+            .ToList();
+
+        var existingValues = mappedDataFieldIds.Count == 0
+            ? []
+            : await _context.OrderFieldValues
+                .Where(fieldValue => fieldValue.OrderId == order.Id &&
+                                     fieldValue.SampleId == null &&
+                                     mappedDataFieldIds.Contains(fieldValue.DataFieldId))
+                .ToListAsync(cancellationToken);
+
+        foreach (var item in values)
         {
-            return new PdfWorkspaceSaveResult
+            if (!item.TemplateFieldId.HasValue ||
+                !templateFields.TryGetValue(item.TemplateFieldId.Value, out var field) ||
+                !field.DataFieldId.HasValue)
             {
-                OrderId = order.Id,
-                SavedCount = receivedCount,
-                TotalFields = receivedCount,
-                Message = "Немає полів для збереження",
-                UnmatchedFields = unmatched
-            };
-        }
-
-        var templateFieldIds = items.Select(item => item.TemplateFieldId!.Value).Distinct().ToList();
-        var templateFields = await _context.TemplateFields
-            .Include(field => field.DataField)
-            .Where(field => templateFieldIds.Contains(field.Id) &&
-                            field.TemplateVersionId == templateVersionId &&
-                            !field.IsAnnulled)
-            .ToDictionaryAsync(field => field.Id, cancellationToken);
-
-        var valuesByDataFieldId = new Dictionary<Guid, string>();
-
-        foreach (var item in items)
-        {
-            var templateFieldId = item.TemplateFieldId!.Value;
-            if (!templateFields.TryGetValue(templateFieldId, out var field))
-            {
-                unmatched.Add(templateFieldId.ToString("D"));
-                Console.WriteLine($"TemplateField NOT FOUND: {templateFieldId}");
+                skippedUnmapped++;
                 continue;
             }
 
-            var dataFieldId = await EnsureDataFieldIdForTemplateFieldAsync(field, cancellationToken);
-            valuesByDataFieldId[dataFieldId] = item.Value!.Trim();
+            mapped++;
+            var dataFieldId = field.DataFieldId.Value;
+            var trimmedValue = item.Value?.Trim();
 
-            Console.WriteLine(
-                $"Mapped TemplateFieldId={field.Id}, Tag={field.Tag}, DataFieldId={dataFieldId}, OrderDocumentId={orderDocument?.Id}");
-        }
-
-        if (valuesByDataFieldId.Count > 0)
-        {
-            var dataFieldIds = valuesByDataFieldId.Keys.ToList();
-            var existingValues = await _context.OrderFieldValues
-                .Where(fieldValue => fieldValue.OrderId == order.Id &&
-                                     fieldValue.SampleId == null &&
-                                     dataFieldIds.Contains(fieldValue.DataFieldId))
-                .ToListAsync(cancellationToken);
-
-            foreach (var (dataFieldId, storedValue) in valuesByDataFieldId)
+            if (string.IsNullOrEmpty(trimmedValue))
             {
                 var existing = existingValues.FirstOrDefault(fieldValue => fieldValue.DataFieldId == dataFieldId);
-                if (existing is null)
+                if (existing is not null)
                 {
-                    _context.OrderFieldValues.Add(new OrderFieldValue
-                    {
-                        OrderId = order.Id,
-                        SampleId = null,
-                        DataFieldId = dataFieldId,
-                        StoredValue = storedValue
-                    });
+                    _context.OrderFieldValues.Remove(existing);
+                    existingValues.Remove(existing);
                 }
-                else
-                {
-                    existing.StoredValue = storedValue;
-                }
+
+                skippedEmpty++;
+                continue;
             }
 
+            var stored = existingValues.FirstOrDefault(fieldValue => fieldValue.DataFieldId == dataFieldId);
+            if (stored is null)
+            {
+                var created = new OrderFieldValue
+                {
+                    OrderId = order.Id,
+                    SampleId = null,
+                    DataFieldId = dataFieldId,
+                    StoredValue = trimmedValue
+                };
+                _context.OrderFieldValues.Add(created);
+                existingValues.Add(created);
+            }
+            else
+            {
+                stored.StoredValue = trimmedValue;
+            }
+
+            saved++;
+        }
+
+        if (mapped > 0)
+        {
             await _context.SaveChangesAsync(cancellationToken);
-            Console.WriteLine($"SaveChanges OK: {valuesByDataFieldId.Count} OrderFieldValues");
         }
 
         return new PdfWorkspaceSaveResult
         {
             OrderId = order.Id,
-            SavedCount = receivedCount,
-            TotalFields = receivedCount,
-            Message = receivedCount > 0
-                ? $"Прийнято {receivedCount} полів (збережено в БД: {receivedCount - unmatched.Count})"
-                : "Немає полів для збереження",
-            UnmatchedFields = unmatched
+            Received = received,
+            Mapped = mapped,
+            Saved = saved,
+            SkippedUnmapped = skippedUnmapped,
+            SkippedEmpty = skippedEmpty,
+            Message = BuildSaveMessage(received, mapped, saved, skippedUnmapped, skippedEmpty)
         };
     }
 
@@ -170,13 +160,123 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
             throw new InvalidOperationException("Оригінальний PDF шаблону не знайдено у сховищі.");
         }
 
-        var segments = await LoadOverlaySegmentsWithValuesAsync(templateVersionId, orderId, cancellationToken);
+        var (segments, valuesByDataFieldId) = await LoadOverlayRenderDataAsync(
+            templateVersionId,
+            orderId,
+            cancellationToken);
 
         await using var originalPdfStream = await _templateDocumentStorage.OpenReadAsync(
             version.StorageKey,
             cancellationToken);
 
-        return _overlayRenderer.Render(originalPdfStream, segments, new Dictionary<Guid, string?>());
+        if (originalPdfStream.CanSeek)
+        {
+            originalPdfStream.Position = 0;
+        }
+
+        return _overlayRenderer.Render(originalPdfStream, segments, valuesByDataFieldId);
+    }
+
+    public async Task<byte[]> GenerateCalibrationPreviewPdfAsync(
+        Guid templateVersionId,
+        IReadOnlyDictionary<Guid, string> sampleTextsByFieldId,
+        CancellationToken cancellationToken = default)
+    {
+        var version = await _context.TemplateVersions
+            .AsNoTracking()
+            .FirstOrDefaultAsync(item => item.Id == templateVersionId, cancellationToken)
+            ?? throw new InvalidOperationException("Версію шаблону не знайдено.");
+
+        if (version.DocumentFormat != TemplateDocumentFormat.Pdf)
+        {
+            throw new InvalidOperationException("Підтримуються лише PDF-шаблони.");
+        }
+
+        if (!await _templateDocumentStorage.ExistsAsync(version.StorageKey, cancellationToken))
+        {
+            throw new InvalidOperationException("Оригінальний PDF шаблону не знайдено у сховищі.");
+        }
+
+        var layoutRows = await (
+                from segment in _context.TemplateFieldSegments.AsNoTracking()
+                join field in _context.TemplateFields.AsNoTracking() on segment.TemplateFieldId equals field.Id
+                where field.TemplateVersionId == templateVersionId
+                      && !field.IsAnnulled
+                      && !segment.IsAnnulled
+                orderby field.SortOrder, segment.Sequence
+                select new OverlaySegmentJoinRow(
+                    field.Id,
+                    field.DataFieldId ?? Guid.Empty,
+                    field.TextOffsetX,
+                    field.TextOffsetY,
+                    segment.PageNumber,
+                    segment.PositionX,
+                    segment.PositionY,
+                    segment.Width,
+                    segment.Height,
+                    segment.Sequence,
+                    segment.TextAlignment,
+                    segment.HorizontalAlignment,
+                    segment.VerticalAlignment,
+                    segment.FontName,
+                    segment.FontSize))
+            .ToListAsync(cancellationToken);
+
+        var overlaySegments = new List<ReferralOverlaySegment>();
+        foreach (var fieldGroup in layoutRows.GroupBy(row => row.TemplateFieldId))
+        {
+            if (!sampleTextsByFieldId.TryGetValue(fieldGroup.Key, out var sampleText) ||
+                string.IsNullOrWhiteSpace(sampleText))
+            {
+                continue;
+            }
+
+            var orderedSegments = fieldGroup.OrderBy(row => row.Sequence).ToList();
+            var lines = SplitStoredLines(sampleText);
+
+            for (var index = 0; index < orderedSegments.Count; index++)
+            {
+                var row = orderedSegments[index];
+                var text = orderedSegments.Count == 1
+                    ? sampleText.Trim()
+                    : index < lines.Count
+                        ? lines[index]
+                        : null;
+
+                if (string.IsNullOrWhiteSpace(text))
+                {
+                    continue;
+                }
+
+                overlaySegments.Add(new ReferralOverlaySegment
+                {
+                    Text = text,
+                    PageNumber = row.PageNumber,
+                    PositionX = row.PositionX,
+                    PositionY = row.PositionY,
+                    Width = row.Width,
+                    Height = row.Height,
+                    TextAlignment = row.TextAlignment,
+                    HorizontalAlignment = row.HorizontalAlignment ?? row.TextAlignment.ToString(),
+                    VerticalAlignment = row.VerticalAlignment,
+                    FontName = row.FontName,
+                    FontSize = row.FontSize,
+                    TextOffsetX = row.TextOffsetX,
+                    TextOffsetY = row.TextOffsetY
+                });
+            }
+        }
+
+        await using var originalPdfStream = await _templateDocumentStorage.OpenReadAsync(
+            version.StorageKey,
+            cancellationToken);
+
+        if (originalPdfStream.CanSeek)
+        {
+            originalPdfStream.Position = 0;
+        }
+
+        return _overlayRenderer.Render(originalPdfStream, overlaySegments, new Dictionary<Guid, string?>());
     }
 
     public async Task<IReadOnlyDictionary<string, string?>> GetSavedValuesByKeyAsync(
@@ -191,6 +291,7 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
             {
                 field.Id,
                 field.Tag,
+                field.DataFieldId,
                 DataFieldKey = field.DataField != null ? field.DataField.Key : null,
                 Segments = field.Segments
                     .Where(segment => !segment.IsAnnulled)
@@ -205,24 +306,36 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
             return new Dictionary<string, string?>(StringComparer.Ordinal);
         }
 
-        var storedValues = (await _context.OrderFieldValues
-            .AsNoTracking()
-            .Where(fieldValue => fieldValue.OrderId == orderId && fieldValue.SampleId == null)
-            .Select(fieldValue => new
-            {
-                fieldValue.DataFieldId,
-                fieldValue.DataField.Key,
-                fieldValue.StoredValue
-            })
-            .ToListAsync(cancellationToken))
-            .Select(item => (item.DataFieldId, item.Key, item.StoredValue))
+        var dataFieldIds = templateFields
+            .Where(field => field.DataFieldId.HasValue)
+            .Select(field => field.DataFieldId!.Value)
+            .Distinct()
             .ToList();
+
+        if (dataFieldIds.Count == 0)
+        {
+            return new Dictionary<string, string?>(StringComparer.Ordinal);
+        }
+
+        var storedByDataFieldId = OrderFieldValueSelection.ResolveByDataFieldId(
+            await _context.OrderFieldValues
+                .AsNoTracking()
+                .Where(fieldValue => fieldValue.OrderId == orderId &&
+                                     dataFieldIds.Contains(fieldValue.DataFieldId))
+                .Select(fieldValue => new OrderFieldValueCandidate(
+                    fieldValue.DataFieldId,
+                    fieldValue.SampleId,
+                    fieldValue.StoredValue,
+                    fieldValue.UpdatedAtUtc,
+                    fieldValue.CreatedAtUtc))
+                .ToListAsync(cancellationToken));
 
         var result = new Dictionary<string, string?>(StringComparer.Ordinal);
         foreach (var field in templateFields)
         {
-            var storedValue = FindStoredValue(field.Id, field.DataFieldKey, storedValues);
-            if (storedValue is null)
+            if (!field.DataFieldId.HasValue ||
+                !storedByDataFieldId.TryGetValue(field.DataFieldId.Value, out var storedValue) ||
+                string.IsNullOrWhiteSpace(storedValue))
             {
                 continue;
             }
@@ -250,89 +363,14 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
         return result;
     }
 
-    /// <summary>
-    /// Один TemplateField = один DataField (ключ = Id поля), щоб уникнути злиття та дублікатів у OrderFieldValues.
-    /// </summary>
-    private async Task<Guid> EnsureDataFieldIdForTemplateFieldAsync(
-        TemplateField field,
-        CancellationToken cancellationToken)
-    {
-        var storageKey = field.Id.ToString("D");
-
-        if (field.DataField is not null &&
-            string.Equals(field.DataField.Key, storageKey, StringComparison.OrdinalIgnoreCase))
-        {
-            return field.DataFieldId!.Value;
-        }
-
-        var existing = await _context.DataFields
-            .IgnoreQueryFilters()
-            .FirstOrDefaultAsync(dataField => dataField.Key == storageKey, cancellationToken);
-
-        if (existing is not null)
-        {
-            if (!existing.IsActive || existing.IsAnnulled)
-            {
-                existing.IsAnnulled = false;
-                existing.AnnulledAtUtc = null;
-                existing.AnnulledByUserId = null;
-                existing.AnnulmentReason = null;
-                existing.IsActive = true;
-            }
-
-            field.DataFieldId = existing.Id;
-            field.Status = TemplateFieldStatus.Mapped;
-            return existing.Id;
-        }
-
-        var created = new DataField
-        {
-            Key = storageKey,
-            DisplayNameUk = string.IsNullOrWhiteSpace(field.Title) ? field.Tag : field.Title,
-            FieldType = DataFieldType.Text,
-            Scope = DataFieldScope.Registration,
-            IsRequired = false,
-            IsSystem = false,
-            IsActive = true,
-            MaxLength = 2000
-        };
-
-        _context.DataFields.Add(created);
-        field.DataFieldId = created.Id;
-        field.Status = TemplateFieldStatus.Mapped;
-
-        return created.Id;
-    }
-
-    private static string? FindStoredValue(
-        Guid templateFieldId,
-        string? dataFieldKey,
-        IReadOnlyList<(Guid DataFieldId, string Key, string? StoredValue)> storedValues)
-    {
-        var templateFieldKey = templateFieldId.ToString("D");
-        foreach (var item in storedValues)
-        {
-            if (string.Equals(item.Key, templateFieldKey, StringComparison.OrdinalIgnoreCase))
-            {
-                return item.StoredValue;
-            }
-        }
-
-        if (string.IsNullOrWhiteSpace(dataFieldKey))
-        {
-            return null;
-        }
-
-        foreach (var item in storedValues)
-        {
-            if (string.Equals(item.Key, dataFieldKey, StringComparison.OrdinalIgnoreCase))
-            {
-                return item.StoredValue;
-            }
-        }
-
-        return null;
-    }
+    private static string BuildSaveMessage(
+        int received,
+        int mapped,
+        int saved,
+        int skippedUnmapped,
+        int skippedEmpty) =>
+        $"Прийнято: {received}, зіставлено: {mapped}, збережено: {saved}, " +
+        $"пропущено (без мапінгу): {skippedUnmapped}, очищено порожніх: {skippedEmpty}.";
 
     private async Task EnsureTemplateVersionExistsAsync(Guid templateVersionId, CancellationToken cancellationToken)
     {
@@ -487,81 +525,85 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
         await _context.SaveChangesAsync(cancellationToken);
     }
 
-    private async Task<IReadOnlyList<ReferralOverlaySegment>> LoadOverlaySegmentsWithValuesAsync(
-        Guid templateVersionId,
-        Guid orderId,
-        CancellationToken cancellationToken)
+    private async Task<(IReadOnlyList<ReferralOverlaySegment> Segments, Dictionary<Guid, string?> ValuesByDataFieldId)>
+        LoadOverlayRenderDataAsync(
+            Guid templateVersionId,
+            Guid orderId,
+            CancellationToken cancellationToken)
     {
-        var templateFields = await _context.TemplateFields
-            .AsNoTracking()
-            .Where(field => field.TemplateVersionId == templateVersionId && !field.IsAnnulled)
-            .Select(field => new
-            {
-                field.Id,
-                field.Tag,
-                field.DataFieldId,
-                DataFieldKey = field.DataField != null ? field.DataField.Key : null,
-                Segments = field.Segments
-                    .Where(segment => !segment.IsAnnulled)
-                    .OrderBy(segment => segment.Sequence)
-                    .Select(segment => new
-                    {
-                        segment.PageNumber,
-                        segment.PositionX,
-                        segment.PositionY,
-                        segment.Width,
-                        segment.Height,
-                        segment.Sequence,
-                        segment.TextAlignment,
-                        segment.FontName,
-                        segment.FontSize
-                    })
-                    .ToList()
-            })
+        var layoutRows = await (
+                from segment in _context.TemplateFieldSegments.AsNoTracking()
+                join field in _context.TemplateFields.AsNoTracking() on segment.TemplateFieldId equals field.Id
+                where field.TemplateVersionId == templateVersionId
+                      && !field.IsAnnulled
+                      && !segment.IsAnnulled
+                      && field.DataFieldId != null
+                orderby field.SortOrder, segment.Sequence
+                select new OverlaySegmentJoinRow(
+                    field.Id,
+                    field.DataFieldId!.Value,
+                    field.TextOffsetX,
+                    field.TextOffsetY,
+                    segment.PageNumber,
+                    segment.PositionX,
+                    segment.PositionY,
+                    segment.Width,
+                    segment.Height,
+                    segment.Sequence,
+                    segment.TextAlignment,
+                    segment.HorizontalAlignment,
+                    segment.VerticalAlignment,
+                    segment.FontName,
+                    segment.FontSize))
             .ToListAsync(cancellationToken);
 
-        if (templateFields.Count == 0)
+        if (layoutRows.Count == 0)
         {
-            return [];
+            return ([], []);
         }
 
-        var storedValues = (await _context.OrderFieldValues
-            .AsNoTracking()
-            .Where(fieldValue => fieldValue.OrderId == orderId && fieldValue.SampleId == null)
-            .Select(fieldValue => new
-            {
-                fieldValue.DataFieldId,
-                fieldValue.DataField.Key,
-                fieldValue.StoredValue
-            })
-            .ToListAsync(cancellationToken))
-            .Select(item => (item.DataFieldId, item.Key, item.StoredValue))
-            .ToList();
+        var dataFieldIds = layoutRows.Select(row => row.DataFieldId).Distinct().ToList();
+
+        var valuesByDataFieldId = OrderFieldValueSelection.ResolveByDataFieldId(
+            await _context.OrderFieldValues
+                .AsNoTracking()
+                .Where(fieldValue => fieldValue.OrderId == orderId &&
+                                     dataFieldIds.Contains(fieldValue.DataFieldId))
+                .Select(fieldValue => new OrderFieldValueCandidate(
+                    fieldValue.DataFieldId,
+                    fieldValue.SampleId,
+                    fieldValue.StoredValue,
+                    fieldValue.UpdatedAtUtc,
+                    fieldValue.CreatedAtUtc))
+                .ToListAsync(cancellationToken));
+
+        if (valuesByDataFieldId.Count == 0)
+        {
+            return ([], valuesByDataFieldId);
+        }
 
         var overlaySegments = new List<ReferralOverlaySegment>();
 
-        foreach (var field in templateFields)
+        foreach (var fieldGroup in layoutRows.GroupBy(row => row.TemplateFieldId))
         {
-            if (field.Segments.Count == 0)
+            var dataFieldId = fieldGroup.First().DataFieldId;
+            if (!valuesByDataFieldId.TryGetValue(dataFieldId, out var storedValue) ||
+                string.IsNullOrWhiteSpace(storedValue))
             {
                 continue;
             }
 
-            var storedValue = FindStoredValue(field.Id, field.DataFieldKey, storedValues);
+            var orderedSegments = fieldGroup.OrderBy(row => row.Sequence).ToList();
             var lines = SplitStoredLines(storedValue);
 
-            for (var index = 0; index < field.Segments.Count; index++)
+            for (var index = 0; index < orderedSegments.Count; index++)
             {
-                var segment = field.Segments[index];
-                string? text = null;
-                if (!string.IsNullOrWhiteSpace(storedValue))
-                {
-                    text = field.Segments.Count == 1
-                        ? storedValue
-                        : index < lines.Count
-                            ? lines[index]
-                            : null;
-                }
+                var row = orderedSegments[index];
+                var text = orderedSegments.Count == 1
+                    ? storedValue
+                    : index < lines.Count
+                        ? lines[index]
+                        : null;
 
                 if (string.IsNullOrWhiteSpace(text))
                 {
@@ -570,23 +612,43 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
 
                 overlaySegments.Add(new ReferralOverlaySegment
                 {
-                    DataFieldId = field.DataFieldId,
-                    StorageKey = field.DataFieldKey ?? field.Id.ToString("D"),
+                    DataFieldId = row.DataFieldId,
                     Text = text,
-                    PageNumber = segment.PageNumber,
-                    PositionX = segment.PositionX,
-                    PositionY = segment.PositionY,
-                    Width = segment.Width,
-                    Height = segment.Height,
-                    TextAlignment = segment.TextAlignment,
-                    FontName = segment.FontName,
-                    FontSize = segment.FontSize
+                    PageNumber = row.PageNumber,
+                    PositionX = row.PositionX,
+                    PositionY = row.PositionY,
+                    Width = row.Width,
+                    Height = row.Height,
+                    TextAlignment = row.TextAlignment,
+                    HorizontalAlignment = row.HorizontalAlignment ?? row.TextAlignment.ToString(),
+                    VerticalAlignment = row.VerticalAlignment,
+                    FontName = row.FontName,
+                    FontSize = row.FontSize,
+                    TextOffsetX = row.TextOffsetX,
+                    TextOffsetY = row.TextOffsetY
                 });
             }
         }
 
-        return overlaySegments;
+        return (overlaySegments, valuesByDataFieldId);
     }
+
+    private sealed record OverlaySegmentJoinRow(
+        Guid TemplateFieldId,
+        Guid DataFieldId,
+        decimal TextOffsetX,
+        decimal TextOffsetY,
+        int PageNumber,
+        decimal PositionX,
+        decimal PositionY,
+        decimal Width,
+        decimal Height,
+        int Sequence,
+        TextAlignment TextAlignment,
+        string? HorizontalAlignment,
+        string? VerticalAlignment,
+        string? FontName,
+        decimal? FontSize);
 
     private static List<string> SplitStoredLines(string? storedValue)
     {
@@ -599,5 +661,4 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
             .Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
             .ToList();
     }
-
 }

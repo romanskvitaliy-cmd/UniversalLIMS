@@ -73,7 +73,7 @@ public sealed class ReferralPdfOverlayRendererTests
                     TextAlignment = TextAlignment.Left
                 }
             ],
-            new Dictionary<Guid, string?> { [dataFieldId] = "TEST-VALUE" });
+            new Dictionary<Guid, string?> { [dataFieldId] = "Тестове значення" });
 
         Assert.NotEmpty(rendered);
         Assert.NotEqual(originalPdf.Length, rendered.Length);

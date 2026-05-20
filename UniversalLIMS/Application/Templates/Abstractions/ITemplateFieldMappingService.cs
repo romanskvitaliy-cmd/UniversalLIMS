@@ -19,6 +19,11 @@ public interface ITemplateFieldMappingService
         IReadOnlyDictionary<Guid, TemplateFieldLayoutUpdate> layoutByFieldId,
         CancellationToken cancellationToken = default);
 
+    Task UpdateTextOffsetsAsync(
+        Guid templateVersionId,
+        IReadOnlyDictionary<Guid, TemplateFieldTextOffsetUpdate> offsetsByFieldId,
+        CancellationToken cancellationToken = default);
+
     Task EnsureEditableTemplateVersionAsync(
         Guid templateVersionId,
         CancellationToken cancellationToken = default);

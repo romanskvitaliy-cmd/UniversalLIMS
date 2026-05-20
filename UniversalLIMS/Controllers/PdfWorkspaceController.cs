@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -85,14 +84,6 @@ public sealed class PdfWorkspaceController : Controller
 
         try
         {
-            Console.WriteLine("=== SAVE VALUES CALLED (Controller) ===");
-            Console.WriteLine($"TemplateVersionId: {templateVersionId}");
-            Console.WriteLine($"Received items count: {request.Values?.Count ?? 0}");
-            foreach (var item in request.Values ?? [])
-            {
-                Console.WriteLine($"Item: {JsonSerializer.Serialize(item)}");
-            }
-
             var values = (request.Values ?? [])
                 .Select(item => new PdfWorkspaceFieldValueDto
                 {
@@ -110,9 +101,11 @@ public sealed class PdfWorkspaceController : Controller
             return Json(new
             {
                 orderId = result.OrderId,
-                savedCount = result.SavedCount,
-                totalFields = result.TotalFields,
-                unmatched = result.UnmatchedFields,
+                received = result.Received,
+                mapped = result.Mapped,
+                saved = result.Saved,
+                skippedUnmapped = result.SkippedUnmapped,
+                skippedEmpty = result.SkippedEmpty,
                 message = result.Message
             });
         }
@@ -122,7 +115,6 @@ public sealed class PdfWorkspaceController : Controller
         }
         catch (Exception exception)
         {
-            Console.WriteLine($"=== SAVE VALUES ERROR === {exception}");
             return StatusCode(500, new
             {
                 message = "Помилка збереження на сервері.",

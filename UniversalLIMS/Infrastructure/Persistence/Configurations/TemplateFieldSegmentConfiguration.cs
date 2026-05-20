@@ -17,6 +17,12 @@ public sealed class TemplateFieldSegmentConfiguration : IEntityTypeConfiguration
             .HasMaxLength(20)
             .IsRequired();
 
+        builder.Property(segment => segment.HorizontalAlignment)
+            .HasMaxLength(20);
+
+        builder.Property(segment => segment.VerticalAlignment)
+            .HasMaxLength(20);
+
         builder.Property(segment => segment.PositionX)
             .HasColumnType("decimal(12,4)");
 

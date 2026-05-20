@@ -68,11 +68,21 @@ public sealed class TemplateFieldMappingItemViewModel
 
     [Range(0, 100000)]
     public decimal? Height { get; set; }
+
+    public decimal TextOffsetX { get; set; }
+
+    public decimal TextOffsetY { get; set; }
 }
 
 public sealed class DataFieldOptionViewModel
 {
     public Guid Id { get; set; }
+
+    public string Key { get; set; } = string.Empty;
+
+    public string DisplayNameUk { get; set; } = string.Empty;
+
+    public string GroupName { get; set; } = string.Empty;
 
     public string Label { get; set; } = string.Empty;
 }

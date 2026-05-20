@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using UniversalLIMS.Infrastructure.Persistence;
 
@@ -11,9 +12,11 @@ using UniversalLIMS.Infrastructure.Persistence;
 namespace UniversalLIMS.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260519070025_AddTemplateFieldSegmentTextTypography")]
+    partial class AddTemplateFieldSegmentTextTypography
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1268,18 +1271,6 @@ namespace UniversalLIMS.Data.Migrations
 
                     b.Property<Guid>("TemplateVersionId")
                         .HasColumnType("uniqueidentifier");
-
-                    b.Property<decimal>("TextOffsetX")
-                        .ValueGeneratedOnAdd()
-                        .HasPrecision(8, 2)
-                        .HasColumnType("decimal(8,2)")
-                        .HasDefaultValue(0m);
-
-                    b.Property<decimal>("TextOffsetY")
-                        .ValueGeneratedOnAdd()
-                        .HasPrecision(8, 2)
-                        .HasColumnType("decimal(8,2)")
-                        .HasDefaultValue(0m);
 
                     b.Property<string>("Title")
                         .HasMaxLength(200)

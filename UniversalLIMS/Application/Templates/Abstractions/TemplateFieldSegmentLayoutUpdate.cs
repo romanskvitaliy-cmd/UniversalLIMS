@@ -12,4 +12,7 @@ public sealed record TemplateFieldSegmentLayoutUpdate(
     decimal Height,
     bool IsPrimary,
     string TextAlignment,
+    decimal? FontSize = null,
+    string? HorizontalAlignment = null,
+    string? VerticalAlignment = null,
     byte[]? RowVersion = null);

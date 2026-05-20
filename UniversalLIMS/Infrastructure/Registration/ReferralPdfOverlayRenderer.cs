@@ -1,13 +1,21 @@
+using System.Collections.Concurrent;
 using Syncfusion.Drawing;
 using Syncfusion.Pdf.Graphics;
 using Syncfusion.Pdf.Parsing;
+using UniversalLIMS.Application.Registration;
 using UniversalLIMS.Domain.Templates;
 
 namespace UniversalLIMS.Infrastructure.Registration;
 
 public sealed class ReferralPdfOverlayRenderer
 {
-    public const decimal ConstructorPreviewScale = 1.35m;
+    public const decimal ConstructorPreviewScale = PdfOverlayTextLayout.ConstructorPreviewScale;
+
+    private const float DefaultFontSize = 10f;
+    private const float MinFontSize = 6f;
+    private const float FontSizeStep = 0.5f;
+
+    private static readonly ConcurrentDictionary<float, PdfTrueTypeFont> FontCache = new();
 
     public byte[] Render(
         Stream originalPdfStream,
@@ -33,8 +41,8 @@ public sealed class ReferralPdfOverlayRenderer
 
             var page = loadedDocument.Pages[overlaySegment.PageNumber - 1];
             var bounds = ToPdfRectangle(overlaySegment);
-            var font = CreateFont(overlaySegment);
-            var format = CreateStringFormat(overlaySegment.TextAlignment);
+            var format = CreateStringFormat(overlaySegment);
+            var font = ResolveFontToFitWidth(value, overlaySegment, bounds.Width, format);
 
             page.Graphics.DrawString(value, font, PdfBrushes.Black, bounds, format);
         }
@@ -65,49 +73,69 @@ public sealed class ReferralPdfOverlayRenderer
 
     private static RectangleF ToPdfRectangle(ReferralOverlaySegment segment)
     {
-        var scale = 1f / (float)ConstructorPreviewScale;
-        return new RectangleF(
-            (float)segment.PositionX * scale,
-            (float)segment.PositionY * scale,
-            (float)segment.Width * scale,
-            (float)segment.Height * scale);
+        var preview = PdfOverlayTextLayout.GetPreviewBounds(
+            segment.PositionX,
+            segment.PositionY,
+            segment.Width,
+            segment.Height,
+            segment.TextOffsetX,
+            segment.TextOffsetY);
+        var pdf = PdfOverlayTextLayout.ToPdfPoints(preview);
+        return new RectangleF(pdf.X, pdf.Y, pdf.Width, pdf.Height);
     }
 
-    private static PdfFont CreateFont(ReferralOverlaySegment segment)
+    private static PdfTrueTypeFont ResolveFontToFitWidth(
+        string text,
+        ReferralOverlaySegment segment,
+        float maxWidth,
+        PdfStringFormat format)
     {
-        var fontFamily = ResolveFontFamily(segment.FontName);
-        var fontSize = segment.FontSize is > 0 ? (float)segment.FontSize.Value : 10f;
-        return new PdfStandardFont(fontFamily, fontSize);
-    }
+        var currentFontSize = segment.FontSize is > 0 ? (float)segment.FontSize.Value : DefaultFontSize;
 
-    private static PdfFontFamily ResolveFontFamily(string? fontName)
-    {
-        if (string.IsNullOrWhiteSpace(fontName))
+        while (true)
         {
-            return PdfFontFamily.Helvetica;
+            var font = GetUnicodeFont(currentFontSize);
+            var measuredWidth = font.MeasureString(text, format).Width;
+            if (measuredWidth <= maxWidth || currentFontSize <= MinFontSize)
+            {
+                return font;
+            }
+
+            currentFontSize -= FontSizeStep;
         }
-
-        return fontName.Trim().ToLowerInvariant() switch
-        {
-            "times" or "times new roman" or "timesnewroman" => PdfFontFamily.TimesRoman,
-            "courier" or "courier new" or "couriernew" => PdfFontFamily.Courier,
-            _ => PdfFontFamily.Helvetica
-        };
     }
 
-    private static PdfStringFormat CreateStringFormat(TextAlignment alignment)
+    private static PdfTrueTypeFont GetUnicodeFont(float fontSize)
+    {
+        var normalizedSize = MathF.Round(fontSize * 2f, MidpointRounding.AwayFromZero) / 2f;
+        return FontCache.GetOrAdd(normalizedSize, size =>
+        {
+            var fontPath = PdfCyrillicFontProvider.ResolveFontPath();
+            return new PdfTrueTypeFont(fontPath, size, PdfFontStyle.Regular);
+        });
+    }
+
+    private static PdfStringFormat CreateStringFormat(ReferralOverlaySegment segment)
     {
         var format = new PdfStringFormat
         {
-            LineAlignment = PdfVerticalAlignment.Top,
-            WordWrap = PdfWordWrapType.Word
+            WordWrap = PdfWordWrapType.None
         };
 
-        format.Alignment = alignment switch
+        var horizontal = segment.HorizontalAlignment ?? segment.TextAlignment.ToString();
+        format.Alignment = horizontal switch
         {
-            TextAlignment.Center => PdfTextAlignment.Center,
-            TextAlignment.Right => PdfTextAlignment.Right,
+            "Center" => PdfTextAlignment.Center,
+            "Right" => PdfTextAlignment.Right,
             _ => PdfTextAlignment.Left
+        };
+
+        var vertical = segment.VerticalAlignment ?? "Bottom";
+        format.LineAlignment = vertical switch
+        {
+            "Top" => PdfVerticalAlignment.Top,
+            "Middle" => PdfVerticalAlignment.Middle,
+            _ => PdfVerticalAlignment.Bottom
         };
 
         return format;
@@ -135,7 +163,15 @@ public sealed class ReferralOverlaySegment
 
     public TextAlignment TextAlignment { get; init; }
 
+    public string? HorizontalAlignment { get; init; }
+
+    public string? VerticalAlignment { get; init; }
+
     public string? FontName { get; init; }
 
     public decimal? FontSize { get; init; }
+
+    public decimal TextOffsetX { get; init; }
+
+    public decimal TextOffsetY { get; init; }
 }

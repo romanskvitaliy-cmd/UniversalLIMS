@@ -37,6 +37,12 @@ public class TemplateField : BaseEntity, ISoftAnnulled
 
     public FieldOverflowPolicy OverflowPolicy { get; set; } = FieldOverflowPolicy.Block;
 
+    /// <summary>Горизонтальний зсув тексту overlay у пікселях preview конструктора (до масштабу PDF).</summary>
+    public decimal TextOffsetX { get; set; }
+
+    /// <summary>Вертикальний зсув тексту overlay у пікселях preview конструктора (до масштабу PDF).</summary>
+    public decimal TextOffsetY { get; set; }
+
     [Obsolete("Use Segments instead.")]
     [NotMapped]
     public int? PageNumber

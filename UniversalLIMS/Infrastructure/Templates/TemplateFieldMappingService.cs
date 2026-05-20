@@ -118,6 +118,32 @@ public sealed class TemplateFieldMappingService : ITemplateFieldMappingService
         await _context.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task UpdateTextOffsetsAsync(
+        Guid templateVersionId,
+        IReadOnlyDictionary<Guid, TemplateFieldTextOffsetUpdate> offsetsByFieldId,
+        CancellationToken cancellationToken = default)
+    {
+        if (offsetsByFieldId.Count == 0)
+        {
+            return;
+        }
+
+        var version = await LoadEditableVersionAsync(templateVersionId, cancellationToken);
+
+        foreach (var field in version.Fields)
+        {
+            if (!offsetsByFieldId.TryGetValue(field.Id, out var offsets))
+            {
+                continue;
+            }
+
+            field.TextOffsetX = offsets.TextOffsetX;
+            field.TextOffsetY = offsets.TextOffsetY;
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task EnsureEditableTemplateVersionAsync(
         Guid templateVersionId,
         CancellationToken cancellationToken = default)
@@ -141,11 +167,6 @@ public sealed class TemplateFieldMappingService : ITemplateFieldMappingService
         IDictionary<TemplateFieldSegment, string> clientReferenceBySegment,
         CancellationToken cancellationToken = default)
     {
-        if (segmentUpdates.Count == 0)
-        {
-            return;
-        }
-
         var field = await _context.TemplateFields
             .Include(templateField => templateField.Segments)
             .FirstOrDefaultAsync(
@@ -158,8 +179,17 @@ public sealed class TemplateFieldMappingService : ITemplateFieldMappingService
             throw new InvalidOperationException($"Поле шаблону {fieldId} не знайдено у версії {templateVersionId}.");
         }
 
-        // Upsert only the segments that belong to this field.
-        var existingSegmentsById = field.Segments.ToDictionary(segment => segment.Id);
+        var existingSegments = await _context.TemplateFieldSegments
+            .Where(segment => segment.TemplateFieldId == fieldId)
+            .ToListAsync(cancellationToken);
+
+        if (segmentUpdates.Count == 0)
+        {
+            RemoveOrphanSegments(field, existingSegments);
+            return;
+        }
+
+        var existingSegmentsById = existingSegments.ToDictionary(segment => segment.Id);
         var retainedSegments = new List<TemplateFieldSegment>(segmentUpdates.Count);
         var segmentsByClientReferenceId = new Dictionary<string, TemplateFieldSegment>(StringComparer.Ordinal);
         var newlyCreatedSegmentIds = new HashSet<Guid>();
@@ -212,30 +242,25 @@ public sealed class TemplateFieldMappingService : ITemplateFieldMappingService
             segment.Width = Math.Max(20, segmentUpdate.Width);
             segment.Height = Math.Max(14, segmentUpdate.Height);
             segment.IsPrimary = segmentUpdate.IsPrimary;
-            segment.TextAlignment = Enum.TryParse<TextAlignment>(segmentUpdate.TextAlignment, true, out var alignment)
-                ? alignment
-                : TextAlignment.Left;
+            ApplySegmentTypography(segment, segmentUpdate);
             retainedSegments.Add(segment);
             clientReferenceBySegment[segment] = clientReferenceId;
         }
 
-        var segmentsToAnnul = field.Segments
-            .Where(item => !retainedSegments.Contains(item))
+        var retainedSegmentIds = retainedSegments
+            .Select(segment => segment.Id)
+            .ToHashSet();
+        var orphanSegments = existingSegments
+            .Where(segment => !retainedSegmentIds.Contains(segment.Id))
             .ToList();
 
-        ReleaseActiveSequenceSlots(segmentsToAnnul, AnnulledSequenceStagingBase);
-        foreach (var segment in segmentsToAnnul)
-        {
-            field.Segments.Remove(segment);
-            AnnulSegment(segment);
-        }
+        RemoveOrphanSegments(field, orphanSegments);
 
-        if (segmentsToAnnul.Count > 0)
+        if (orphanSegments.Count > 0)
         {
             ReleaseActiveSequenceSlots(retainedSegments, RetainedSequenceStagingBase);
         }
 
-        // Waterfall order is scoped to the current field only.
         FinalizeWaterfallSequences(retainedSegments);
         FinalizePrimarySegment(field, retainedSegments);
 
@@ -257,7 +282,9 @@ public sealed class TemplateFieldMappingService : ITemplateFieldMappingService
 
         var freshSegments = await _context.TemplateFieldSegments
             .AsNoTracking()
-            .Where(segment => segment.TemplateField.TemplateVersionId == templateVersionId)
+            .Where(segment =>
+                segment.TemplateField.TemplateVersionId == templateVersionId
+                && !segment.TemplateField.IsAnnulled)
             .OrderBy(segment => segment.TemplateField.SortOrder)
             .ThenBy(segment => segment.Sequence)
             .ToListAsync(cancellationToken);
@@ -277,6 +304,9 @@ public sealed class TemplateFieldMappingService : ITemplateFieldMappingService
                 segment.Height,
                 segment.IsPrimary,
                 segment.TextAlignment.ToString(),
+                segment.FontSize,
+                segment.HorizontalAlignment,
+                segment.VerticalAlignment,
                 segment.RowVersion))
             .ToList();
 
@@ -289,10 +319,21 @@ public sealed class TemplateFieldMappingService : ITemplateFieldMappingService
         return new TemplateFieldSegmentLayoutSaveResult(mapping, savedSegments);
     }
 
-    private void AnnulSegment(TemplateFieldSegment segment)
+    private void RemoveOrphanSegments(TemplateField field, IReadOnlyList<TemplateFieldSegment> orphanSegments)
     {
-        segment.AnnulmentReason = "Видалено в PDF overlay designer.";
-        _context.Remove(segment);
+        if (orphanSegments.Count == 0)
+        {
+            return;
+        }
+
+        ReleaseActiveSequenceSlots(orphanSegments, AnnulledSequenceStagingBase);
+        foreach (var segment in orphanSegments)
+        {
+            field.Segments.Remove(segment);
+            segment.AnnulmentReason = "Видалено в PDF overlay designer.";
+        }
+
+        _context.TemplateFieldSegments.RemoveRange(orphanSegments);
     }
 
     private static void ReleaseActiveSequenceSlots(
@@ -407,6 +448,12 @@ public sealed class TemplateFieldMappingService : ITemplateFieldMappingService
             field.AnnulledAtUtc = _dateTimeProvider.UtcNow;
             field.AnnulledByUserId = _currentUserService.UserId;
             field.AnnulmentReason = "Видалено в PDF overlay designer.";
+
+            var activeSegments = field.Segments.ToList();
+            if (activeSegments.Count > 0)
+            {
+                RemoveOrphanSegments(field, activeSegments);
+            }
         }
 
         await _context.SaveChangesAsync(cancellationToken);
@@ -661,5 +708,47 @@ public sealed class TemplateFieldMappingService : ITemplateFieldMappingService
         {
             throw new InvalidOperationException("Опубліковану версію шаблону змінювати заборонено.");
         }
+    }
+
+    private static void ApplySegmentTypography(
+        TemplateFieldSegment segment,
+        TemplateFieldSegmentLayoutUpdate segmentUpdate)
+    {
+        var horizontal = ResolveHorizontalAlignment(
+            segmentUpdate.HorizontalAlignment,
+            segmentUpdate.TextAlignment);
+
+        segment.HorizontalAlignment = horizontal;
+        segment.TextAlignment = Enum.TryParse<TextAlignment>(horizontal, true, out var alignment)
+            ? alignment
+            : TextAlignment.Left;
+        segment.VerticalAlignment = NormalizeVerticalAlignment(segmentUpdate.VerticalAlignment);
+        segment.FontSize = segmentUpdate.FontSize is > 0 ? segmentUpdate.FontSize : null;
+    }
+
+    private static string ResolveHorizontalAlignment(string? horizontalAlignment, string textAlignment)
+    {
+        if (!string.IsNullOrWhiteSpace(horizontalAlignment))
+        {
+            return horizontalAlignment.Trim();
+        }
+
+        return string.IsNullOrWhiteSpace(textAlignment) ? "Left" : textAlignment.Trim();
+    }
+
+    private static string? NormalizeVerticalAlignment(string? verticalAlignment)
+    {
+        if (string.IsNullOrWhiteSpace(verticalAlignment))
+        {
+            return null;
+        }
+
+        return verticalAlignment.Trim() switch
+        {
+            "Top" => "Top",
+            "Middle" => "Middle",
+            "Bottom" => "Bottom",
+            _ => null
+        };
     }
 }

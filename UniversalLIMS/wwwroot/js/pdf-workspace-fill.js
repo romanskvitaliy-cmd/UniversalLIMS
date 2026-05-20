@@ -103,18 +103,33 @@
     };
 
     const collectFilledValues = () => {
-        const values = [];
-        document.querySelectorAll(".pdf-fill-input").forEach((input) => {
+        const inputs = [...document.querySelectorAll(".pdf-fill-input")];
+        inputs.sort((left, right) => {
+            const leftSeq = Number.parseInt(left.dataset.sequence || "0", 10) || 0;
+            const rightSeq = Number.parseInt(right.dataset.sequence || "0", 10) || 0;
+            return leftSeq - rightSeq;
+        });
+
+        const byTemplateFieldId = new Map();
+        inputs.forEach((input) => {
             const templateFieldId = (input.dataset.templateFieldId || "").trim();
-            const value = input.value.trim();
-            if (!templateFieldId || value.length === 0) {
+            if (!templateFieldId) {
                 return;
             }
 
-            values.push({ templateFieldId, value });
+            const segmentValue = input.value;
+            if (byTemplateFieldId.has(templateFieldId)) {
+                const merged = byTemplateFieldId.get(templateFieldId);
+                byTemplateFieldId.set(templateFieldId, `${merged}\n${segmentValue}`);
+            } else {
+                byTemplateFieldId.set(templateFieldId, segmentValue);
+            }
         });
 
-        return values;
+        return [...byTemplateFieldId.entries()].map(([templateFieldId, value]) => ({
+            templateFieldId,
+            value: value.trim()
+        }));
     };
 
     const normalizePixel = (value, fallback = 0) => {
@@ -326,7 +341,7 @@
         async saveValues() {
             const payload = collectFilledValues();
             if (payload.length === 0) {
-                showStatus("Немає заповнених полів для збереження.", "warning");
+                showStatus("Немає полів на PDF для збереження.", "warning");
                 return;
             }
 
@@ -366,23 +381,22 @@
                 currentOrderId = body.orderId ?? body.OrderId ?? currentOrderId;
                 window.__pdfFillOrderId = currentOrderId;
 
-                const savedCount = body.savedCount ?? body.SavedCount ?? 0;
-                const totalFields = body.totalFields ?? body.TotalFields ?? payload.length;
-                const unmatched = Array.isArray(body.unmatched) ? body.unmatched : [];
+                const received = body.received ?? body.Received ?? payload.length;
+                const mapped = body.mapped ?? body.Mapped ?? 0;
+                const saved = body.saved ?? body.Saved ?? 0;
+                const skippedUnmapped = body.skippedUnmapped ?? body.SkippedUnmapped ?? 0;
+                const skippedEmpty = body.skippedEmpty ?? body.SkippedEmpty ?? 0;
 
-                let message = body.message || "Значення збережено.";
-                if (unmatched.length > 0) {
-                    message += ` Не зіставлено: ${unmatched.join(", ")}.`;
-                }
+                const message = body.message
+                    || `Прийнято: ${received}, збережено: ${saved}, без мапінгу: ${skippedUnmapped}, очищено: ${skippedEmpty}.`;
 
-                showStatus(
-                    message,
-                    savedCount === 0 ? "warning" : savedCount < totalFields ? "warning" : "success");
+                const hasIssues = skippedUnmapped > 0 || (mapped > 0 && saved === 0 && skippedEmpty < mapped);
+                showStatus(message, saved > 0 && !hasIssues ? "success" : "warning");
                 if (currentOrderId) {
                     updateFinalPdfActions(currentOrderId);
                 }
 
-                if (currentOrderId && savedCount > 0) {
+                if (currentOrderId && (saved > 0 || skippedEmpty > 0)) {
                     const url = new URL(window.location.href);
                     url.searchParams.set("orderId", currentOrderId);
                     window.history.replaceState(null, "", url.toString());

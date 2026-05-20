@@ -17,6 +17,12 @@ public interface IPdfWorkspaceFillService
         Guid orderId,
         Guid templateVersionId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>Тестовий PDF для режиму калібрування (зразкові тексти по полях).</summary>
+    Task<byte[]> GenerateCalibrationPreviewPdfAsync(
+        Guid templateVersionId,
+        IReadOnlyDictionary<Guid, string> sampleTextsByFieldId,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed class PdfWorkspaceFieldValueDto
@@ -30,11 +36,15 @@ public sealed class PdfWorkspaceSaveResult
 {
     public Guid OrderId { get; init; }
 
-    public int SavedCount { get; init; }
+    public int Received { get; init; }
 
-    public int TotalFields { get; init; }
+    public int Mapped { get; init; }
+
+    public int Saved { get; init; }
+
+    public int SkippedUnmapped { get; init; }
+
+    public int SkippedEmpty { get; init; }
 
     public string Message { get; init; } = string.Empty;
-
-    public IReadOnlyList<string> UnmatchedFields { get; init; } = [];
 }

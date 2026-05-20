@@ -285,6 +285,121 @@ public sealed class TemplateFieldSegmentLayoutLocalDbTests
     }
 
     [Fact]
+    public async Task SaveFieldSegments_LocalDb_RemoveMiddleSegment_AnnulsOrphan()
+    {
+        await using var context = CreateContext();
+        var templateId = Guid.NewGuid();
+        var versionId = Guid.NewGuid();
+        var fieldId = Guid.NewGuid();
+        var firstSegmentId = Guid.NewGuid();
+        var secondSegmentId = Guid.NewGuid();
+        var thirdSegmentId = Guid.NewGuid();
+
+        context.Templates.Add(new Template
+        {
+            Id = templateId,
+            Code = "T-SEG-LDB-DEL",
+            NameUk = "Segment delete test",
+            Status = TemplateStatus.Draft
+        });
+
+        context.TemplateVersions.Add(new TemplateVersion
+        {
+            Id = versionId,
+            TemplateId = templateId,
+            VersionNumber = 1,
+            Status = TemplateVersionStatus.Draft,
+            DocumentFormat = TemplateDocumentFormat.Pdf,
+            OriginalFileName = "template.pdf",
+            StorageKey = "templates/template.pdf",
+            ContentType = "application/pdf",
+            FileSizeBytes = 1,
+            Sha256Hash = new string('e', 64),
+            UploadedAtUtc = DateTime.UtcNow,
+            Fields =
+            [
+                new TemplateField
+                {
+                    Id = fieldId,
+                    TemplateVersionId = versionId,
+                    Tag = "WindSpeed",
+                    Title = "Швидкість вітру",
+                    SortOrder = 1,
+                    Segments =
+                    [
+                        new TemplateFieldSegment
+                        {
+                            Id = firstSegmentId,
+                            TemplateFieldId = fieldId,
+                            Sequence = 1,
+                            PageNumber = 1,
+                            PositionX = 10,
+                            PositionY = 20,
+                            Width = 100,
+                            Height = 20,
+                            IsPrimary = true
+                        },
+                        new TemplateFieldSegment
+                        {
+                            Id = secondSegmentId,
+                            TemplateFieldId = fieldId,
+                            Sequence = 2,
+                            PageNumber = 1,
+                            PositionX = 10,
+                            PositionY = 45,
+                            Width = 100,
+                            Height = 20,
+                            IsPrimary = false
+                        },
+                        new TemplateFieldSegment
+                        {
+                            Id = thirdSegmentId,
+                            TemplateFieldId = fieldId,
+                            Sequence = 3,
+                            PageNumber = 1,
+                            PositionX = 10,
+                            PositionY = 70,
+                            Width = 100,
+                            Height = 20,
+                            IsPrimary = false
+                        }
+                    ]
+                }
+            ]
+        });
+
+        await context.SaveChangesAsync();
+        context.ChangeTracker.Clear();
+
+        var service = CreateService(context);
+        await SaveFieldSegmentsAsync(
+            service,
+            context,
+            versionId,
+            fieldId,
+            new List<TemplateFieldSegmentLayoutUpdate>
+            {
+                new(firstSegmentId, fieldId, "client-seg-del-1", 1, 1, 10, 20, 100, 20, true, "Left"),
+                new(thirdSegmentId, fieldId, "client-seg-del-3", 2, 1, 10, 70, 100, 20, false, "Left")
+            });
+
+        var activeSegments = await context.TemplateFieldSegments
+            .Where(segment => segment.TemplateFieldId == fieldId)
+            .OrderBy(segment => segment.Sequence)
+            .ToListAsync();
+
+        Assert.Equal(2, activeSegments.Count);
+        Assert.DoesNotContain(activeSegments, segment => segment.Id == secondSegmentId);
+        Assert.Equal([1, 2], activeSegments.Select(segment => segment.Sequence).ToArray());
+
+        var removedSegment = await context.TemplateFieldSegments
+            .IgnoreQueryFilters()
+            .SingleAsync(segment => segment.Id == secondSegmentId);
+
+        Assert.True(removedSegment.IsAnnulled);
+    }
+
+    [Fact]
     public async Task SaveFieldSegments_LocalDb_AddThenShiftSecondSave_UpdatesLayouts()
     {
         await using var context = CreateContext();

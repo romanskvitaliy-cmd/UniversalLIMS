@@ -43,6 +43,14 @@ public sealed class TemplateFieldConfiguration : IEntityTypeConfiguration<Templa
             .HasMaxLength(50)
             .IsRequired();
 
+        builder.Property(field => field.TextOffsetX)
+            .HasPrecision(8, 2)
+            .HasDefaultValue(0m);
+
+        builder.Property(field => field.TextOffsetY)
+            .HasPrecision(8, 2)
+            .HasDefaultValue(0m);
+
         builder.Property(field => field.DetectedAtUtc)
             .HasColumnType("datetime2");
 

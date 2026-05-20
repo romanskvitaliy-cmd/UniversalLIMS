@@ -118,8 +118,12 @@ public sealed class ReferralPdfGenerator : IReferralPdfGenerator
                     Width = segment.Width,
                     Height = segment.Height,
                     TextAlignment = segment.TextAlignment,
+                    HorizontalAlignment = segment.HorizontalAlignment ?? segment.TextAlignment.ToString(),
+                    VerticalAlignment = segment.VerticalAlignment,
                     FontName = segment.FontName,
-                    FontSize = segment.FontSize
+                    FontSize = segment.FontSize,
+                    TextOffsetX = field.TextOffsetX,
+                    TextOffsetY = field.TextOffsetY
                 }))
             .ToListAsync(cancellationToken);
     }

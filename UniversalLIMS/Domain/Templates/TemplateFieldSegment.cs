@@ -24,6 +24,10 @@ public class TemplateFieldSegment : BaseEntity, ISoftAnnulled
 
     public TextAlignment TextAlignment { get; set; } = TextAlignment.Left;
 
+    public string? HorizontalAlignment { get; set; }
+
+    public string? VerticalAlignment { get; set; }
+
     public string? FontName { get; set; }
 
     public decimal? FontSize { get; set; }

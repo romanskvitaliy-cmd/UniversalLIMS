@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using UniversalLIMS.Application.Registration.Abstractions;
 using UniversalLIMS.Application.Security;
 using UniversalLIMS.Application.Templates.Abstractions;
 using UniversalLIMS.Domain.Templates;
@@ -14,16 +15,19 @@ namespace UniversalLIMS.Controllers;
 public sealed class TemplateFieldsController : Controller
 {
     private readonly ITemplateFieldMappingService _fieldMappingService;
+    private readonly IPdfWorkspaceFillService _pdfWorkspaceFillService;
     private readonly ApplicationDbContext _context;
     private readonly ITemplateOriginalOpenTokenIssuer _openTokenIssuer;
 
     public TemplateFieldsController(
         ApplicationDbContext context,
         ITemplateFieldMappingService fieldMappingService,
+        IPdfWorkspaceFillService pdfWorkspaceFillService,
         ITemplateOriginalOpenTokenIssuer openTokenIssuer)
     {
         _context = context;
         _fieldMappingService = fieldMappingService;
+        _pdfWorkspaceFillService = pdfWorkspaceFillService;
         _openTokenIssuer = openTokenIssuer;
     }
 
@@ -102,6 +106,14 @@ public sealed class TemplateFieldsController : Controller
             {
                 await _fieldMappingService.UpdateLayoutAsync(model.TemplateVersionId, layouts, cancellationToken);
             }
+            else
+            {
+                var textOffsets = model.Fields.ToDictionary(
+                    field => field.FieldId,
+                    field => new TemplateFieldTextOffsetUpdate(field.TextOffsetX, field.TextOffsetY));
+                await _fieldMappingService.UpdateTextOffsetsAsync(model.TemplateVersionId, textOffsets, cancellationToken);
+            }
+
             await transaction.CommitAsync(cancellationToken);
         }
         catch (DbUpdateConcurrencyException)
@@ -146,9 +158,16 @@ public sealed class TemplateFieldsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> AddPdfField(CreatePdfTemplateFieldViewModel model, CancellationToken cancellationToken)
     {
+        var wantsJson = WantsMapJsonResponse();
         if (!ModelState.IsValid)
         {
-            TempData["TemplateWarning"] = "Не вдалося додати PDF-тег. Перевірте Tag та Title.";
+            const string validationMessage = "Не вдалося додати PDF-тег. Перевірте Tag та Title.";
+            if (wantsJson)
+            {
+                return BadRequest(new { message = validationMessage });
+            }
+
+            TempData["TemplateWarning"] = validationMessage;
             return RedirectToAction(nameof(Map), new { templateVersionId = model.TemplateVersionId });
         }
 
@@ -159,7 +178,21 @@ public sealed class TemplateFieldsController : Controller
                 model.Tag,
                 model.Title,
                 cancellationToken);
-            TempData["TemplateSuccess"] = $"Поле '{model.Tag}' успішно додано.";
+            var successMessage = $"Поле '{model.Tag}' успішно додано.";
+
+            if (wantsJson)
+            {
+                return Ok(new
+                {
+                    success = true,
+                    message = successMessage,
+                    fieldId = createdFieldId,
+                    tag = model.Tag,
+                    title = model.Title
+                });
+            }
+
+            TempData["TemplateSuccess"] = successMessage;
 
             // Новий тег стає активним і відразу відкривається режим редагування.
             return RedirectToAction(nameof(Map), new
@@ -172,11 +205,27 @@ public sealed class TemplateFieldsController : Controller
         }
         catch (DbUpdateConcurrencyException)
         {
-            TempData["TemplateWarning"] = "Версію шаблону було змінено паралельно. Оновіть сторінку та спробуйте ще раз.";
+            const string concurrencyMessage = "Версію шаблону було змінено паралельно. Оновіть сторінку та спробуйте ще раз.";
+            if (wantsJson)
+            {
+                return BadRequest(new { message = concurrencyMessage });
+            }
+
+            TempData["TemplateWarning"] = concurrencyMessage;
         }
         catch (InvalidOperationException ex)
         {
+            if (wantsJson)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+
             TempData["TemplateWarning"] = ex.Message;
+        }
+
+        if (wantsJson)
+        {
+            return BadRequest(new { message = "Не вдалося додати PDF-тег." });
         }
 
         // Важливо: форсований рефреш
@@ -305,12 +354,16 @@ public sealed class TemplateFieldsController : Controller
             .Select(field => new
             {
                 id = field.Id,
+                dataFieldId = field.DataFieldId,
                 tag = field.Tag,
                 title = field.Title,
                 fieldType = field.FieldType.ToString(),
                 overflowPolicy = field.OverflowPolicy.ToString(),
                 sortOrder = field.SortOrder,
+                textOffsetX = field.TextOffsetX,
+                textOffsetY = field.TextOffsetY,
                 segments = field.Segments
+                    .Where(segment => !segment.IsAnnulled)
                     .OrderBy(segment => segment.Sequence)
                     .Select(segment => new
                     {
@@ -323,6 +376,9 @@ public sealed class TemplateFieldsController : Controller
                         height = segment.Height,
                         isPrimary = segment.IsPrimary,
                         textAlignment = segment.TextAlignment.ToString(),
+                        fontSize = segment.FontSize,
+                        horizontalAlignment = segment.HorizontalAlignment ?? segment.TextAlignment.ToString(),
+                        verticalAlignment = segment.VerticalAlignment,
                         rowVersion = segment.RowVersion
                     })
                     .ToList()
@@ -332,6 +388,60 @@ public sealed class TemplateFieldsController : Controller
         return Json(fields);
     }
 
+    [HttpPut("/api/template-fields/{templateVersionId:guid}/text-offsets")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveTextOffsets(
+        Guid templateVersionId,
+        [FromBody] SaveTemplateFieldTextOffsetsRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (request.Fields.Count == 0)
+        {
+            return BadRequest(new { message = "Порожній список offset." });
+        }
+
+        try
+        {
+            await _fieldMappingService.EnsureEditableTemplateVersionAsync(templateVersionId, cancellationToken);
+            var offsets = request.Fields.ToDictionary(
+                field => field.FieldId,
+                field => new TemplateFieldTextOffsetUpdate(field.TextOffsetX, field.TextOffsetY));
+            await _fieldMappingService.UpdateTextOffsetsAsync(templateVersionId, offsets, cancellationToken);
+            return Ok(new { success = true, message = "Text offset збережено." });
+        }
+        catch (InvalidOperationException exception)
+        {
+            return BadRequest(new { message = exception.Message });
+        }
+    }
+
+    [HttpPost("/api/template-fields/{templateVersionId:guid}/calibration-preview")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CalibrationPreviewPdf(
+        Guid templateVersionId,
+        [FromBody] CalibrationPreviewPdfRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _fieldMappingService.EnsureEditableTemplateVersionAsync(templateVersionId, cancellationToken);
+            var samples = (request.Samples ?? [])
+                .Where(sample => sample.FieldId != Guid.Empty)
+                .ToDictionary(sample => sample.FieldId, sample => sample.Text ?? string.Empty);
+
+            var pdfBytes = await _pdfWorkspaceFillService.GenerateCalibrationPreviewPdfAsync(
+                templateVersionId,
+                samples,
+                cancellationToken);
+
+            return File(pdfBytes, "application/pdf", "calibration-preview.pdf");
+        }
+        catch (InvalidOperationException exception)
+        {
+            return BadRequest(new { message = exception.Message });
+        }
+    }
+
     [HttpPut("/api/template-fields/{templateVersionId:guid}/segments")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SavePdfFieldSegments(
@@ -339,7 +449,9 @@ public sealed class TemplateFieldsController : Controller
         [FromBody] SaveTemplateFieldSegmentsRequest request,
         CancellationToken cancellationToken)
     {
-        if (request.Fields.Count == 0)
+        var hasFieldUpdates = request.Fields.Count > 0;
+        var hasDeletions = request.DeletedFieldIds.Count > 0;
+        if (!hasFieldUpdates && !hasDeletions)
         {
             return BadRequest(new { message = "Segment payload is empty." });
         }
@@ -351,6 +463,14 @@ public sealed class TemplateFieldsController : Controller
         try
         {
             await _fieldMappingService.EnsureEditableTemplateVersionAsync(templateVersionId, cancellationToken);
+
+            if (hasDeletions)
+            {
+                await _fieldMappingService.DeleteFieldsAsync(
+                    templateVersionId,
+                    request.DeletedFieldIds,
+                    cancellationToken);
+            }
 
             foreach (var field in request.Fields.OrderBy(field => field.FieldId))
             {
@@ -368,6 +488,9 @@ public sealed class TemplateFieldsController : Controller
                         segment.Height,
                         segment.IsPrimary,
                         segment.TextAlignment,
+                        segment.FontSize,
+                        segment.HorizontalAlignment,
+                        segment.VerticalAlignment,
                         ResolveSegmentRowVersion(segment)))
                     .ToList();
 
@@ -376,6 +499,16 @@ public sealed class TemplateFieldsController : Controller
                     field.FieldId,
                     segmentUpdates,
                     clientReferenceBySegment,
+                    cancellationToken);
+
+                await _fieldMappingService.UpdateTextOffsetsAsync(
+                    templateVersionId,
+                    new Dictionary<Guid, TemplateFieldTextOffsetUpdate>
+                    {
+                        [field.FieldId] = new(
+                            field.TextOffsetX ?? 0m,
+                            field.TextOffsetY ?? 0m)
+                    },
                     cancellationToken);
             }
 
@@ -402,6 +535,9 @@ public sealed class TemplateFieldsController : Controller
                     height = segment.Height,
                     isPrimary = segment.IsPrimary,
                     textAlignment = segment.TextAlignment,
+                    fontSize = segment.FontSize,
+                    horizontalAlignment = segment.HorizontalAlignment,
+                    verticalAlignment = segment.VerticalAlignment,
                     rowVersion = Convert.ToBase64String(segment.RowVersion)
                 })
             });
@@ -479,6 +615,9 @@ public sealed class TemplateFieldsController : Controller
             .Select(dataField => new DataFieldOptionViewModel
             {
                 Id = dataField.Id,
+                Key = dataField.Key,
+                DisplayNameUk = dataField.DisplayNameUk,
+                GroupName = dataField.Scope.ToString(),
                 Label = $"{dataField.Key} - {dataField.DisplayNameUk}" +
                     (dataField.MaxLength.HasValue ? $" (max {dataField.MaxLength})" : string.Empty)
             })
@@ -524,7 +663,9 @@ public sealed class TemplateFieldsController : Controller
                         PositionX = primarySegment?.PositionX,
                         PositionY = primarySegment?.PositionY,
                         Width = primarySegment?.Width,
-                        Height = primarySegment?.Height
+                        Height = primarySegment?.Height,
+                        TextOffsetX = field.TextOffsetX,
+                        TextOffsetY = field.TextOffsetY
                     };
                 })
                 .ToList()

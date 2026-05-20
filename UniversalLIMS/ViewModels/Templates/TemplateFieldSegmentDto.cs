@@ -24,6 +24,12 @@ public sealed class TemplateFieldSegmentDto
 
     public string TextAlignment { get; set; } = "Left";
 
+    public decimal? FontSize { get; set; }
+
+    public string? HorizontalAlignment { get; set; }
+
+    public string? VerticalAlignment { get; set; }
+
     public byte[]? RowVersion { get; set; }
 
     public string? RowVersionBase64 { get; set; }

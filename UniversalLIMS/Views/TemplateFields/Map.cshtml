@@ -1,16 +1,20 @@
-@model TemplateFieldMappingViewModel
+﻿@model TemplateFieldMappingViewModel
 @using System.Text.Json
 
 @{
     ViewData["Title"] = "Поля шаблону";
     var overflowPolicies = Enum.GetValues<FieldOverflowPolicy>();
     var isLegacyDocx = Model.DocumentFormat == TemplateDocumentFormat.DocxLegacy;
+    if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
+    {
+        Layout = "_LayoutDesigner";
+    }
 }
 
 <style>
     .pdf-designer-grid {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) 300px;
+        grid-template-columns: minmax(0, 1fr) var(--designer-nudge-width, 360px);
         gap: 12px;
     }
 
@@ -29,6 +33,44 @@
         --pdf-scroll-thumb: rgba(15, 23, 42, 0.22);
         --pdf-scroll-thumb-hover: rgba(15, 23, 42, 0.38);
         --pdf-scroll-track: transparent;
+    }
+
+    .template-map-strip {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 10px;
+        margin-bottom: 4px;
+        padding: 4px 8px 2px;
+        font-size: 0.82rem;
+        color: #64748b;
+    }
+
+    .template-map-strip__actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-shrink: 0;
+    }
+
+    .template-map-strip__title {
+        font-weight: 600;
+        color: #334155;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        min-width: 0;
+        margin-left: auto;
+    }
+
+    .template-map-pdf-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid #e8edf4;
     }
 
     .template-map-hero {
@@ -59,6 +101,19 @@
         gap: 8px;
         flex-wrap: wrap;
         justify-content: flex-end;
+    }
+
+    .pdf-overlay-card {
+        border: 1px solid #e5eaf1;
+        border-radius: 10px;
+        padding: 8px 10px 10px;
+        margin-bottom: 8px;
+        background: #fff;
+    }
+
+    .pdf-overlay-card__hint {
+        font-size: 0.72rem;
+        color: #94a3b8;
     }
 
     .pdf-library-search {
@@ -113,7 +168,6 @@
         display: none;
     }
 
-    /* Native <select> is kept for semantics & option data only — UI is single search + structured panel */
     #pdfTagLibrary.pdf-tag-library-select-hidden {
         position: absolute;
         width: 1px;
@@ -126,133 +180,134 @@
         border: 0;
     }
 
-    .pdf-tag-browse-panel {
-        max-height: min(42vh, 320px);
-        overflow-x: hidden;
-        overflow-y: auto;
-        border: 1px solid #e2e8f0;
-        border-radius: 12px;
-        background: linear-gradient(180deg, #f8fafc 0%, #ffffff 42%);
-        padding: 8px;
-        scroll-behavior: smooth;
-        outline: none;
+    .searchable-combo {
+        position: relative;
+        width: 100%;
     }
 
-    .pdf-tag-browse-panel.pdf-tag-picker-collapsed {
-        display: none;
-    }
-
-    .pdf-tag-selected-summary {
-        border: 1px solid #e2e8f0;
-        border-radius: 10px;
-        padding: 0.55rem 0.65rem;
-        background: linear-gradient(180deg, #f8fafc 0%, #ffffff 65%);
-        line-height: 1.35;
-    }
-
-    .pdf-tag-selected-group-badge {
-        display: block;
-        font-size: 0.74rem;
-        font-weight: 700;
-        color: #4338ca;
-        background: rgba(67, 56, 202, 0.08);
-        border: 1px solid rgba(67, 56, 202, 0.2);
-        border-radius: 8px;
-        padding: 0.25rem 0.45rem;
-        margin-bottom: 0.35rem;
-        word-break: break-word;
-    }
-
-    .pdf-tag-selected-detail {
-        font-weight: 600;
-        font-size: 0.875rem;
-        color: #0f172a;
-    }
-
-    .pdf-tag-search-context {
-        font-size: 0.8rem;
-        color: #334155;
-        border-left: 3px solid #38bdf8;
-        padding: 0.35rem 0.5rem;
-        background: rgba(56, 189, 248, 0.08);
-        border-radius: 6px;
-    }
-
-    .pdf-tag-picker-row {
+    .searchable-combo-trigger {
         display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 2px;
+        align-items: center;
+        gap: 0.35rem;
         width: 100%;
         text-align: left;
-        min-height: 44px;
-        padding: 0.45rem 0.6rem;
-        margin-bottom: 6px;
+        background: #fff;
+        border-color: #d8e1ed;
+    }
+
+    .searchable-combo-trigger:focus {
+        border-color: #86b7fe;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
+    }
+
+    .searchable-combo-icon {
+        flex: 0 0 auto;
+        opacity: 0.55;
+        font-size: 0.8rem;
+    }
+
+    .searchable-combo-label {
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 0.8rem;
+    }
+
+    .searchable-combo-caret {
+        flex: 0 0 auto;
+        opacity: 0.45;
+        font-size: 0.65rem;
+    }
+
+    .searchable-combo-menu {
+        position: relative !important;
+        margin-top: 0.2rem;
+        margin-bottom: 10px;
+        width: 100%;
         border: 1px solid #e2e8f0;
         border-radius: 10px;
         background: #fff;
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
+        padding: 0.35rem;
+    }
+
+    .searchable-combo-search {
+        margin-bottom: 0.35rem;
+        border-color: #e2e8f0;
+    }
+
+    .searchable-combo-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        max-height: 280px;
+        overflow-y: auto;
+    }
+
+    /* Список знайдених тегів у полі "Тег з бібліотеки" */
+    #nudgeTagLibraryCombo .searchable-combo-list {
+        max-height: 30vh !important;
+        width: 100%;
+        overflow-y: auto !important;
+    }
+
+    .searchable-combo-option {
+        display: flex;
+        flex-direction: column;
+        gap: 0.1rem;
+        padding: 0.4rem 0.45rem;
+        border-radius: 8px;
         cursor: pointer;
-        transition: border-color 0.12s ease, box-shadow 0.12s ease, transform 0.08s ease;
     }
 
-    .pdf-tag-picker-row:last-child {
-        margin-bottom: 0;
+    .searchable-combo-option:hover,
+    .searchable-combo-option.is-active {
+        background: #f1f5f9;
     }
 
-    .pdf-tag-picker-row:hover {
-        border-color: #cbd5e1;
-        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
-    }
-
-    .pdf-tag-picker-row.is-selected {
-        border-color: #2563eb;
+    .searchable-combo-option.is-selected {
         background: #eff6ff;
-        box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.2);
+        box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.25);
     }
 
-    .pdf-tag-picker-row:focus-visible {
-        outline: none;
-        border-color: #2563eb;
-        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.35);
-    }
-
-    .pdf-tag-picker-group-inline {
+    .searchable-combo-option-group {
         font-size: 0.65rem;
         font-weight: 700;
-        letter-spacing: 0.04em;
         text-transform: uppercase;
+        letter-spacing: 0.03em;
         color: #6366f1;
-        line-height: 1.25;
-        max-width: 100%;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
     }
 
-    .pdf-tag-picker-code {
-        font-family: ui-monospace, "Cascadia Mono", "Segoe UI Mono", Consolas, monospace;
-        font-size: 0.78rem;
-        font-weight: 700;
-        color: #0f172a;
-        letter-spacing: 0.01em;
-    }
-
-    .pdf-tag-picker-desc {
+    .searchable-combo-option-title {
         font-size: 0.8rem;
-        color: #475569;
+        font-weight: 600;
+        color: #0f172a;
         line-height: 1.25;
     }
 
-    .pdf-tag-picker-empty {
-        padding: 1rem 0.5rem;
+    .searchable-combo-option-key {
+        font-family: ui-monospace, Consolas, monospace;
+        font-size: 0.72rem;
+        color: #64748b;
+    }
+
+    .searchable-combo-empty {
+        padding: 0.75rem 0.5rem;
         text-align: center;
         color: #64748b;
-        font-size: 0.85rem;
+        font-size: 0.8rem;
     }
 
-    #pdfTagStructuredToggle.pdf-tag-toggle-list {
-        min-width: 2.5rem;
+    #nudgePersistToDb.nudge-save-pending {
+        animation: nudge-save-pulse 1.4s ease-in-out infinite;
+        box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.45);
+    }
+
+    @@keyframes nudge-save-pulse {
+        0%, 100% { filter: brightness(1); }
+        50% { filter: brightness(1.08); }
     }
 
     .pdf-designer-scroll,
@@ -324,6 +379,41 @@
         z-index: 48;
     }
 
+    body.template-map-calibration-mode .field-overlay-box {
+        border: 1px dashed rgba(120, 120, 120, 0.45) !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        opacity: 1 !important;
+        pointer-events: auto;
+    }
+
+    body.template-map-calibration-mode .field-overlay-box.field-segment-active {
+        border-color: rgba(80, 80, 80, 0.75) !important;
+        box-shadow: 0 0 0 1px rgba(80, 80, 80, 0.35) !important;
+    }
+
+    body.template-map-calibration-mode .field-overlay-label {
+        display: none !important;
+    }
+
+    .calibration-text-layer {
+        position: absolute;
+        top: 0;
+        left: 0;
+        pointer-events: none;
+        z-index: 25;
+    }
+
+    .js-toggle-calibration.active {
+        color: #fff;
+        background-color: #198754;
+        border-color: #198754;
+    }
+
+    body.template-map-calibration-mode .field-overlay-box [data-handle] {
+        display: none !important;
+    }
+
     .field-overlay-label {
         line-height: 1.1;
         white-space: nowrap;
@@ -366,17 +456,157 @@
     .nudge-pad {
         position: fixed;
         z-index: 2000;
-        width: 278px;
-        max-width: 278px;
-        background: rgba(255, 255, 255, 0.96);
+        display: flex;
+        flex-direction: column;
+        width: var(--designer-nudge-width, 360px);
+        max-width: var(--designer-nudge-width, 360px);
+        max-height: calc(100vh - 70px);
+        background: rgba(255, 255, 255, 0.98);
         border: 1px solid #cfd7e3;
-        border-radius: 14px;
-        box-shadow: 0 16px 38px rgba(15, 23, 42, 0.2);
+        border-radius: 12px;
+        box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18);
         backdrop-filter: blur(8px);
-        padding: 8px 9px;
+        padding: 6px 14px 40px;
+        box-sizing: border-box;
         left: 12px;
-        top: 90px;
-        overflow: hidden;
+        top: 64px;
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
+
+    #overlayNudgePadHeader {
+        flex: 0 0 auto;
+    }
+
+    #overlayNudgePadScale.nudge-scale-row {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin: 0 0 4px;
+        padding: 2px 0 5px;
+        border-bottom: 1px solid #e8edf4;
+        background: rgba(255, 255, 255, 0.98);
+    }
+
+    #overlayNudgePadScale .nudge-scale-label {
+        flex: 0 0 auto;
+        font-size: 0.65rem;
+        font-weight: 600;
+        color: #66788a;
+        margin: 0;
+        white-space: nowrap;
+    }
+
+    #overlayNudgePadScale #overlayNudgeZoomSlider {
+        flex: 1 1 auto;
+        min-width: 0;
+        margin: 0;
+        height: 3px;
+        padding: 0;
+    }
+
+    #overlayNudgePadScale .nudge-scale-value {
+        flex: 0 0 auto;
+        font-size: 0.62rem;
+        font-weight: 600;
+        color: #64748b;
+        min-width: 2rem;
+        text-align: right;
+    }
+
+    #overlayNudgePadBody {
+        flex: 0 0 auto;
+        min-height: auto;
+        overflow: visible;
+        padding: 0 4px 4px 2px;
+    }
+
+    #overlayNudgePadBody .d-flex > .btn.flex-fill {
+        min-width: 0;
+    }
+
+    .nudge-switch-row {
+        padding-left: 2px;
+        padding-right: 2px;
+    }
+
+    .nudge-switch-row .form-check.form-switch {
+        flex: 1 1 0;
+        min-width: 8.25rem;
+        margin-bottom: 0;
+        padding-left: 2.75em;
+        overflow: visible;
+    }
+
+    #overlayNudgePadBody #nudgeModeSingle,
+    #overlayNudgePadBody #nudgeModeAll {
+        font-size: 0.72rem;
+        padding-left: 0.35rem;
+        padding-right: 0.35rem;
+        white-space: nowrap;
+    }
+
+    #overlayNudgePadBody.nudge-pad-scroll > hr {
+        margin: 5px 0;
+        opacity: 0.65;
+    }
+
+    #overlayNudgePadBody.nudge-pad-scroll .mb-2 {
+        margin-bottom: 0.35rem !important;
+    }
+
+    #overlayNudgePadBody.nudge-pad-scroll .form-check:not(.form-switch) {
+        margin-bottom: 0.3rem;
+        min-height: 1.25rem;
+        padding-left: 2em;
+    }
+
+    #overlayNudgePadBody.nudge-pad-scroll .nudge-switch-row .form-check.form-switch {
+        padding-left: 2.75em;
+    }
+
+    #overlayNudgePadBody.nudge-pad-scroll .form-check-label {
+        font-size: 0.72rem;
+        padding-top: 1px;
+    }
+
+    #overlayNudgePadFooter {
+        margin: 4px 0 0;
+        padding: 6px 0 10px;
+        border-top: 1px solid #dbe4f0;
+        background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+        border-radius: 0 0 12px 12px;
+    }
+
+    #nudgeTagListSection {
+        display: block;
+    }
+
+    #overlayNudgePadFooter .nudge-tag-list {
+        box-sizing: border-box;
+        overflow-x: hidden;
+        overflow-y: visible;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-y;
+        scrollbar-width: thin;
+        scrollbar-color: #64748b #edf2f7;
+        max-height: none;
+    }
+
+    .nudge-move-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 4px;
+        max-width: 108px;
+        margin: 0 auto 0.35rem;
+    }
+
+    .nudge-move-grid [data-nudge-move] {
+        min-width: 0;
+        min-height: 28px;
+        padding: 0;
     }
 
     .nudge-pad.nudge-sidebar-mode {
@@ -385,16 +615,42 @@
         left: auto !important;
         width: 100%;
         max-width: 100%;
+        max-height: calc(100vh - 70px);
+        overflow-x: hidden;
+        overflow-y: auto;
         z-index: 5;
     }
 
+    .nudge-pad.nudge-sidebar-mode #overlayNudgePadBody {
+        flex: 0 0 auto;
+        min-height: auto;
+    }
+
+    .nudge-pad.nudge-sidebar-mode #overlayNudgePadFooter {
+        max-height: none;
+    }
+
+    .nudge-pad.nudge-sidebar-mode #nudgeTagListSection {
+        min-height: auto;
+    }
+
+    .nudge-pad.nudge-sidebar-mode #overlayNudgePadFooter .nudge-tag-list {
+        max-height: none;
+        overflow-y: visible;
+    }
+
     .nudge-pad-header {
+        flex-shrink: 0;
         cursor: move;
         user-select: none;
-        margin: -8px -9px 8px;
-        padding: 8px 9px;
+        margin: 0 0 0;
+        padding: 5px 0;
         border-bottom: 1px solid #e8edf4;
         background: linear-gradient(180deg, rgba(248, 250, 253, 0.96), rgba(255, 255, 255, 0.92));
+    }
+
+    .nudge-pad-header .small.fw-semibold {
+        font-size: 0.78rem;
     }
 
     .nudge-pad.nudge-sidebar-mode .nudge-pad-header {
@@ -408,31 +664,60 @@
     }
 
     .nudge-tag-list {
-        max-height: 182px;
-        overflow: auto;
         border: 1px solid #e5ebf2;
         border-radius: 8px;
         background: #fafcff;
-        padding: 2px;
+        padding: 2px 6px 2px 2px;
     }
 
     .nudge-tag-list::-webkit-scrollbar {
-        width: 8px;
+        width: 10px;
     }
 
-    .nudge-tag-list::-webkit-scrollbar-thumb {
-        background: #cad5e4;
+    .nudge-tag-list::-webkit-scrollbar-track {
+        background: #edf2f7;
         border-radius: 10px;
     }
 
+    .nudge-tag-list::-webkit-scrollbar-thumb {
+        background: #94a3b8;
+        border: 2px solid #edf2f7;
+        border-radius: 10px;
+    }
+
+    .nudge-tag-list::-webkit-scrollbar-thumb:hover {
+        background: #64748b;
+    }
+
     .nudge-compact-item {
-        white-space: nowrap;
+        white-space: normal;
         overflow: hidden;
-        text-overflow: ellipsis;
         font-size: 0.78rem;
-        padding-top: 3px;
-        padding-bottom: 3px;
+        padding: 4px 6px;
         border-radius: 6px;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+        line-height: 1.25;
+    }
+
+    .nudge-placed-item__title {
+        font-weight: 600;
+        width: 100%;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        word-break: break-word;
+    }
+
+    .nudge-placed-item__meta {
+        font-size: 0.65rem;
+        opacity: 0.88;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        word-break: break-all;
+        width: 100%;
     }
 
     .nudge-size-btn {
@@ -495,6 +780,22 @@
         font-weight: 600;
     }
 
+    #overlayNudgePad .nudge-action-buttons {
+        flex-wrap: wrap;
+    }
+
+    #overlayNudgePad .nudge-action-buttons > .btn.flex-fill {
+        flex: 1 1 calc(50% - 4px);
+        min-width: 4.5rem;
+        padding-left: 0.4rem;
+        padding-right: 0.4rem;
+    }
+
+    #overlayNudgePad .nudge-action-buttons > #nudgeDelete {
+        flex: 0 0 auto;
+        min-width: 2.25rem;
+    }
+
     #overlayNudgePad .btn.btn-sm:focus-visible {
         box-shadow: 0 0 0 0.16rem rgba(13, 110, 253, 0.25);
     }
@@ -514,9 +815,117 @@
         box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.1);
     }
 
+    #overlayNudgePad .segment-text-settings .btn-group .btn {
+        min-width: 0;
+        flex: 1 1 0;
+        padding: 0.1rem 0.2rem;
+        line-height: 1.1;
+        font-size: 0.72rem;
+    }
+
+    #overlayNudgePad .segment-text-settings .btn-group .btn.active {
+        background: #0d6efd;
+        border-color: #0d6efd;
+        color: #fff;
+    }
+
+    #overlayNudgePad #segmentFontSize {
+        max-width: 4.2rem;
+        min-width: 3.2rem;
+        padding: 0.1rem 0.35rem;
+        font-size: 0.75rem;
+    }
+
+    #overlayNudgePad #nudgeTextSettingsToggle {
+        font-size: 0.72rem;
+        padding: 0.15rem 0.4rem;
+    }
+
     #overlayNudgePad #nudgeTagSearch {
         border-color: #d8e1ed;
         background: #fff;
+    }
+
+    .nudge-tag-composer {
+        border: 1px solid #dbe4f0;
+        border-radius: 10px;
+        background: linear-gradient(165deg, #f8fbff 0%, #ffffff 55%);
+        padding: 0.45rem 0.5rem 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .nudge-tag-live-preview {
+        margin-top: 0.35rem;
+        padding: 0.45rem 0.5rem;
+        border-radius: 8px;
+        border: 1px dashed #cbd5e1;
+        background: #fff;
+        min-height: 2.75rem;
+    }
+
+    .nudge-tag-live-preview.is-ready {
+        border-style: solid;
+        border-color: #93c5fd;
+        background: linear-gradient(180deg, #eff6ff 0%, #ffffff 100%);
+        box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.08);
+    }
+
+    .nudge-tag-live-preview__group {
+        display: inline-block;
+        font-size: 0.62rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #4338ca;
+        background: rgba(67, 56, 202, 0.1);
+        border-radius: 4px;
+        padding: 0.1rem 0.35rem;
+        margin-bottom: 0.25rem;
+        max-width: 100%;
+        word-break: break-word;
+    }
+
+    .nudge-tag-live-preview__key {
+        display: block;
+        font-size: 0.7rem;
+        font-weight: 600;
+        color: #334155;
+        word-break: break-all;
+        line-height: 1.3;
+        margin-bottom: 0.2rem;
+    }
+
+    .nudge-tag-live-preview__title {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #0f172a;
+        line-height: 1.35;
+        white-space: normal;
+        word-break: break-word;
+        margin: 0;
+    }
+
+    .nudge-tag-title-edit {
+        font-size: 0.78rem;
+        line-height: 1.35;
+        resize: vertical;
+        min-height: 2.6rem;
+        max-height: 6rem;
+        border-color: #d8e1ed;
+    }
+
+    #nudgeSubmitNewTag:not(:disabled) {
+        font-weight: 700;
+    }
+
+    .pdf-tag-panel-host-hidden {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
     }
 
     #overlayNudgePad hr {
@@ -545,6 +954,247 @@
         right: 0;
     }
 
+    .designer-layout-body {
+        margin: 0;
+        overflow: hidden;
+        background: #eef2f7;
+        height: 100vh;
+        height: 100dvh;
+    }
+
+    .designer-layout-main {
+        padding: 0;
+        max-width: none;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .designer-layout-body {
+        --designer-nudge-width: 360px;
+    }
+
+    .designer-layout-body .template-map-strip {
+        flex: 0 0 auto;
+        padding: 4px 8px 4px 4px;
+    }
+
+    .designer-layout-body .template-map-pdf-footer {
+        display: none;
+    }
+
+    /* Звичайний вигляд: прокрутка сторінки, PDF + таблиця нижче */
+    .designer-layout-body:not(.template-map-focus-mode) {
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+
+    .designer-layout-body:not(.template-map-focus-mode) .designer-layout-main {
+        height: auto;
+        min-height: 100dvh;
+        overflow: visible;
+    }
+
+    .designer-layout-body:not(.template-map-focus-mode) .pdf-overlay-card {
+        flex: 0 0 auto;
+        display: block;
+        margin: 0;
+    }
+
+    .designer-layout-body:not(.template-map-focus-mode) #pdfOverlayDesignerRoot {
+        height: min(72vh, 920px) !important;
+        min-height: 420px;
+        max-height: none !important;
+    }
+
+    .designer-layout-body:not(.template-map-focus-mode) #fieldMapForm {
+        flex: 0 0 auto;
+        padding: 0 8px 16px;
+    }
+
+    /* Режим конструктора: лише PDF на всю висоту + пульт праворуч */
+    body.template-map-focus-mode.designer-layout-body .designer-layout-main {
+        height: 100dvh;
+        overflow: hidden;
+    }
+
+    body.template-map-focus-mode.designer-layout-body .pdf-overlay-card {
+        flex: 1 1 auto;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        margin: 0;
+    }
+
+    body.template-map-focus-mode.designer-layout-body .pdf-designer-grid {
+        flex: 1 1 auto;
+        min-height: 0;
+        height: 100%;
+    }
+
+    body.template-map-focus-mode.designer-layout-body .pdf-designer-canvas {
+        flex: 1 1 auto;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        margin-right: var(--designer-nudge-width);
+    }
+
+    body.template-map-focus-mode.designer-layout-body #pdfOverlayDesignerRoot {
+        flex: 1 1 auto !important;
+        height: 100% !important;
+        max-height: none !important;
+        min-height: 0;
+    }
+
+    .nudge-pad.nudge-pad-docked {
+        top: 0 !important;
+        right: 0 !important;
+        left: auto !important;
+        bottom: auto !important;
+        height: auto !important;
+        max-height: calc(100vh - 70px) !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        padding-bottom: 40px !important;
+        width: var(--designer-nudge-width, 360px) !important;
+        max-width: var(--designer-nudge-width, 360px) !important;
+        border-radius: 0;
+        border-right: none;
+        border-top: none;
+        border-bottom: none;
+    }
+
+    .designer-focus-chrome {
+        display: none;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 10px;
+        padding: 4px 10px;
+        min-height: 32px;
+        background: #fff;
+        border-bottom: 1px solid #e2e8f0;
+        font-size: 0.82rem;
+        z-index: 1040;
+    }
+
+    .designer-focus-chrome__title {
+        font-weight: 600;
+        color: #334155;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        min-width: 0;
+        margin-left: auto;
+    }
+
+    .designer-focus-chrome__actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-shrink: 0;
+    }
+
+    body.template-map-focus-mode {
+        overflow: hidden;
+    }
+
+    body.template-map-focus-mode .designer-focus-chrome {
+        display: flex;
+    }
+
+    body.template-map-focus-mode .template-map-strip,
+    body.template-map-focus-mode .template-map-pdf-footer,
+    body.template-map-focus-mode #pdfTopControlsPanel,
+    body.template-map-focus-mode #fieldMapForm,
+    body.template-map-focus-mode .template-map-page-alerts {
+        display: none !important;
+    }
+
+    body.template-map-focus-mode .pdf-overlay-card {
+        border: none;
+        padding: 0;
+        margin: 0;
+        background: transparent;
+        border-radius: 0;
+    }
+
+    body.template-map-focus-mode {
+        --designer-chrome-height: 32px;
+    }
+
+    body.template-map-focus-mode .designer-focus-chrome {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: var(--designer-nudge-width, 360px);
+        z-index: 2100;
+    }
+
+    body.template-map-focus-mode .pdf-designer-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    body.template-map-focus-mode #pdfTopScroller {
+        flex: 0 0 auto;
+    }
+
+    body.template-map-focus-mode #pdfOverlayDesignerRoot {
+        flex: 1 1 auto;
+        height: auto;
+        min-height: 0;
+        max-height: none;
+        border-radius: 0;
+    }
+
+    body.template-map-focus-mode .nudge-pad:not(.nudge-sidebar-mode) {
+        display: flex;
+        flex-direction: column;
+    }
+
+    body.template-map-focus-mode .nudge-pad.nudge-pad-docked,
+    body.template-map-focus-mode .nudge-pad:not(.nudge-sidebar-mode) {
+        top: 0 !important;
+        height: auto !important;
+        max-height: calc(100vh - 70px) !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        padding-bottom: 40px !important;
+    }
+
+    body.template-map-focus-mode #overlayNudgePadFooter {
+        margin-top: 2px;
+        padding-bottom: 10px;
+    }
+
+    body.template-map-focus-mode #nudgeTagListSection {
+        display: block;
+        min-height: auto;
+    }
+
+    body.template-map-focus-mode #nudgeTagSearch {
+        min-height: 38px;
+        padding: 8px 10px;
+        font-size: 0.9rem;
+    }
+
+    body.template-map-focus-mode #overlayNudgePadFooter {
+        max-height: none;
+    }
+
+    body.template-map-focus-mode #overlayNudgePadFooter .nudge-tag-list {
+        max-height: none;
+        overflow-y: visible;
+        touch-action: pan-y;
+    }
+
+    body.template-map-focus-mode .nudge-compact-item {
+        padding: 6px 8px;
+        font-size: 0.82rem;
+    }
+
     @@media (max-width: 1200px) {
         .pdf-designer-grid {
             grid-template-columns: 1fr;
@@ -564,29 +1214,51 @@
     }
 </style>
 
-<div class="template-map-hero">
-    <div>
-        <h1 class="h3 template-map-title">Поля шаблону</h1>
-        <p class="template-map-subtitle">@Model.TemplateNameUk · v@(Model.VersionNumber)</p>
+@if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
+{
+    <div id="designerFocusChrome" class="designer-focus-chrome" hidden aria-hidden="true">
+        <div class="designer-focus-chrome__actions">
+            <button type="button" class="btn btn-sm btn-outline-secondary js-toggle-designer-focus" title="Показати таблицю полів (Esc)">↩ Звичайний вигляд</button>
+            <a class="btn btn-sm btn-link py-0 text-nowrap" asp-controller="TemplateVersions" asp-action="Details" asp-route-id="@Model.TemplateVersionId">До версії</a>
+            @if (Model.IsEditable)
+            {
+                <button type="button" class="btn btn-sm btn-outline-secondary js-toggle-calibration" title="Live калібрування тексту та позиції">⚙️ Калібрування</button>
+            }
+        </div>
+        <span class="designer-focus-chrome__title" title="@Model.TemplateNameUk">@Model.TemplateNameUk · v@(Model.VersionNumber)</span>
     </div>
-    <div class="template-map-actions">
-        @if (!string.IsNullOrEmpty(Model.OpenInWordUri))
-        {
-            <a class="btn btn-primary" href="@Model.OpenInWordUri">Відкрити в Microsoft Word (редагування)</a>
-        }
-        @if (Model.DocumentFormat == TemplateDocumentFormat.Pdf && !string.IsNullOrWhiteSpace(Model.PdfPreviewUrl))
-        {
-            <a class="btn btn-outline-secondary" href="@Model.PdfPreviewUrl" target="_blank" rel="noopener">Показати оригінал PDF</a>
-        }
-        else
-        {
-            <a class="btn btn-outline-secondary" asp-controller="TemplateVersions" asp-action="DownloadOriginal" asp-route-id="@Model.TemplateVersionId">
+    <div class="template-map-strip">
+        <div class="template-map-strip__actions">
+            <button type="button" class="btn btn-sm btn-outline-primary js-toggle-designer-focus" title="Тільки PDF і пульт (F)">⛶ Режим конструктора</button>
+            <a class="btn btn-link btn-sm py-0 px-1 text-nowrap" asp-controller="TemplateVersions" asp-action="Details" asp-route-id="@Model.TemplateVersionId">До версії</a>
+            @if (Model.IsEditable)
+            {
+                <button type="button" class="btn btn-sm btn-outline-secondary js-toggle-calibration" title="Live калібрування тексту та позиції">⚙️ Калібрування</button>
+            }
+        </div>
+        <span class="template-map-strip__title" title="@Model.TemplateNameUk">@Model.TemplateNameUk · v@(Model.VersionNumber)</span>
+    </div>
+}
+else
+{
+    <div class="template-map-hero">
+        <div>
+            <h1 class="h4 template-map-title mb-1">Поля шаблону</h1>
+            <p class="template-map-subtitle small mb-0">@Model.TemplateNameUk · v@(Model.VersionNumber)</p>
+        </div>
+        <div class="template-map-actions">
+            @if (!string.IsNullOrEmpty(Model.OpenInWordUri))
+            {
+                <a class="btn btn-sm btn-primary" href="@Model.OpenInWordUri">Відкрити в Word</a>
+            }
+            <a class="btn btn-sm btn-outline-secondary" asp-controller="TemplateVersions" asp-action="DownloadOriginal" asp-route-id="@Model.TemplateVersionId">
                 Завантажити файл
             </a>
-        }
+        </div>
     </div>
-</div>
+}
 
+<div class="template-map-page-alerts">
 @if (TempData["TemplateWarning"] is string warning)
 {
     <div class="alert alert-warning">@warning</div>
@@ -600,17 +1272,12 @@
 {
     <div class="alert alert-info">Опубліковану або замінену версію змінювати заборонено.</div>
 }
+</div>
 
 @if (isLegacyDocx)
 {
     <div class="alert alert-secondary">
         Legacy режим: система читає тільки Word Content Controls із заповненим <strong>Tag</strong>.
-    </div>
-}
-else
-{
-    <div class="alert alert-secondary">
-        PDF режим: поля керуються через overlay-конструктор (координати та властивості поля зберігаються в БД).
     </div>
 }
 
@@ -623,34 +1290,12 @@ else
 
 @if (Model.DocumentFormat == TemplateDocumentFormat.Pdf && Model.IsEditable)
 {
-    <form asp-controller="TemplateFields" asp-action="AddPdfField" method="post" class="mb-3 pdf-tag-panel">
+    <form id="addPdfFieldForm" asp-controller="TemplateFields" asp-action="AddPdfField" method="post" class="pdf-tag-panel-host-hidden" aria-hidden="true">
         @Html.AntiForgeryToken()
         <input type="hidden" name="TemplateVersionId" value="@Model.TemplateVersionId" />
-        <div class="pdf-tag-panel-head">
-            <p class="pdf-tag-panel-title">Бібліотека тегів PDF</p>
-            <div class="d-flex align-items-center gap-2">
-                <span class="pdf-tag-panel-note">Швидкий пошук і додавання поля</span>
-                <button id="togglePdfTagPanelDetach" type="button" class="btn btn-sm btn-outline-secondary py-0 px-2">⧉</button>
-                <button id="togglePdfTagPanelCollapse" type="button" class="btn btn-sm btn-outline-secondary py-0 px-2">−</button>
-            </div>
-        </div>
-        <div asp-validation-summary="ModelOnly" class="text-danger mb-2"></div>
-        <div class="mb-2 pdf-tag-panel-body">
-            <label class="form-label mb-1" for="pdfTagCategoryFilter">Група бібліотеки</label>
-            <select id="pdfTagCategoryFilter" class="form-select form-select-sm mb-2" aria-label="Фільтр за групою тегів"></select>
-            <label class="form-label mb-1" for="pdfTagLibrarySearch">Пошук тегів</label>
-            <div class="input-group input-group-sm mb-1">
-                <input id="pdfTagLibrarySearch" class="form-control pdf-library-search" type="text" autocomplete="off" placeholder="Шукати за тегом або описом…" aria-controls="pdfTagBrowsePanel" />
-                <button id="pdfTagStructuredToggle" type="button" class="btn btn-outline-secondary pdf-tag-toggle-list" title="Згорнути / показати список тегів (для пульта залиште відкритим)" aria-expanded="true" aria-controls="pdfTagBrowsePanel">▾</button>
-            </div>
-            <div id="pdfTagSearchContext" class="pdf-tag-search-context mb-2 d-none" aria-live="polite"></div>
-            <div id="pdfTagSelectedSummary" class="pdf-tag-selected-summary mb-2">
-                <div class="small text-muted mb-1">Обрано для поля overlay</div>
-                <div id="pdfTagSelectedGroup" class="pdf-tag-selected-group-badge d-none" role="note"></div>
-                <div id="pdfTagSelectedLabel" class="pdf-tag-selected-detail">— не обрано —</div>
-            </div>
-            <div id="pdfTagBrowsePanel" class="pdf-tag-browse-panel mb-2" role="region" aria-label="Список тегів PDF" tabindex="-1"></div>
-            <select id="pdfTagLibrary" class="pdf-tag-library-select-hidden" tabindex="-1" aria-hidden="true">
+        <input id="newPdfFieldTag" name="Tag" value="@Model.NewPdfField.Tag" tabindex="-1" />
+        <input id="newPdfFieldTitle" name="Title" value="@Model.NewPdfField.Title" tabindex="-1" />
+<select id="pdfTagLibrary" class="pdf-tag-library-select-hidden" tabindex="-1" aria-hidden="true">
                 <option value="">-- оберіть тег зі списку --</option>
                 <optgroup label="Глобальні теги (Шапка та загальні дані)">
                     <option value="Global.FacilityName" data-title="Найменування закладу">Global.FacilityName — Найменування закладу</option>
@@ -753,34 +1398,12 @@ else
                     <option value="Head_Laboratory" data-title="Завідувач лабораторії">Head_Laboratory — Завідувач лабораторії</option>
                 </optgroup>
             </select>
-            <div id="pdfTagLibraryHint" class="form-text">Крок 1 — за потреби оберіть «Група бібліотеки». Крок 2 — пошук; під полем зʼявиться підказка по збігах. Обраний тег показує групу «Джерело». У списку — ↑↓, Enter; Esc очищає пошук і групу.</div>
-        </div>
-        <div class="row g-2 align-items-end">
-            <div class="col-md-4">
-                <label class="form-label" for="newPdfFieldTag">Tag</label>
-                <input id="newPdfFieldTag" name="Tag" value="@Model.NewPdfField.Tag" class="form-control" />
-            </div>
-            <div class="col-md-4">
-                <label class="form-label" for="newPdfFieldTitle">Title</label>
-                <input id="newPdfFieldTitle" name="Title" value="@Model.NewPdfField.Title" class="form-control" />
-            </div>
-            <div class="col-md-4">
-                <button type="submit" class="btn btn-outline-primary">Додати поле PDF overlay</button>
-            </div>
-        </div>
     </form>
 }
 
 @if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
 {
-    <div class="card card-body mb-3">
-        <div class="d-flex justify-content-between align-items-center mb-2">
-            <strong>PDF Overlay Designer (multi-page)</strong>
-            <div class="d-flex align-items-center gap-2">
-                <span class="text-muted small">Drag + resize; теги працюють на всіх сторінках PDF</span>
-                
-            </div>
-        </div>
+    <div class="pdf-overlay-card">
         <div class="pdf-designer-grid">
             <div class="pdf-designer-canvas">
                 <div id="pdfTopScroller" class="pdf-h-scrollbar pdf-designer-scroll">
@@ -788,7 +1411,7 @@ else
                 </div>
                 <div id="pdfOverlayDesignerRoot"
                      class="pdf-designer-scroll position-relative border bg-light-subtle"
-                     style="max-width: 100%; height: 80vh;">
+                     style="max-width: 100%;">
                     <div id="pdfZoomContainer" class="p-2">
                         <div id="pdfPagesHost"></div>
                     </div>
@@ -815,6 +1438,10 @@ else
                             }
                         </select>
                         <div id="activeSegmentSummary" class="small text-muted mt-1">Оберіть сегмент на PDF.</div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label mb-1">DataField (словник)</label>
+                        <div id="overlayDataFieldCombo"></div>
                     </div>
                     <div class="mb-2">
                         <label class="form-label mb-1" for="overlayZoomSlider">Масштаб preview: <span id="overlayZoomValue">100%</span></label>
@@ -871,6 +1498,47 @@ else
                         </div>
                         <small class="text-muted" id="editModeHint">Тільки перегляд</small>
                     </div>
+                    <div id="calibrationPanel" class="mb-3 border rounded p-2 bg-light" style="display: none;">
+                        <div class="fw-semibold small mb-2">Калібрування Overlay</div>
+                        <p id="calibrationPanelHint" class="small text-muted mb-2">Оберіть поле на PDF — клік відкриє редактор тексту.</p>
+                        <div class="row g-2 mb-2">
+                            <div class="col-6">
+                                <label class="form-label small mb-0" for="calOffsetX">Offset X</label>
+                                <input id="calOffsetX" type="number" step="0.1" class="form-control form-control-sm" value="0" disabled />
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small mb-0" for="calOffsetY">Offset Y</label>
+                                <input id="calOffsetY" type="number" step="0.1" class="form-control form-control-sm" value="0" disabled />
+                            </div>
+                        </div>
+                        <div class="small text-muted mb-1">Зсув X (px)</div>
+                        <div class="d-flex flex-wrap gap-1 mb-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary py-0" data-cal-shift="x" data-cal-delta="-5" disabled>−5</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary py-0" data-cal-shift="x" data-cal-delta="-2" disabled>−2</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary py-0" data-cal-shift="x" data-cal-delta="-1" disabled>−1</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary py-0" data-cal-shift="x" data-cal-delta="-0.5" disabled>−.5</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary py-0" data-cal-shift="x" data-cal-delta="0.5" disabled>+.5</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary py-0" data-cal-shift="x" data-cal-delta="1" disabled>+1</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary py-0" data-cal-shift="x" data-cal-delta="2" disabled>+2</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary py-0" data-cal-shift="x" data-cal-delta="5" disabled>+5</button>
+                        </div>
+                        <div class="small text-muted mb-1">Зсув Y (px)</div>
+                        <div class="d-flex flex-wrap gap-1 mb-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary py-0" data-cal-shift="y" data-cal-delta="-5" disabled>−5</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary py-0" data-cal-shift="y" data-cal-delta="-2" disabled>−2</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary py-0" data-cal-shift="y" data-cal-delta="-1" disabled>−1</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary py-0" data-cal-shift="y" data-cal-delta="-0.5" disabled>−.5</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary py-0" data-cal-shift="y" data-cal-delta="0.5" disabled>+.5</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary py-0" data-cal-shift="y" data-cal-delta="1" disabled>+1</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary py-0" data-cal-shift="y" data-cal-delta="2" disabled>+2</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary py-0" data-cal-shift="y" data-cal-delta="5" disabled>+5</button>
+                        </div>
+                        <div class="d-flex flex-wrap gap-1">
+                            <button type="button" id="calResetOffsets" class="btn btn-sm btn-outline-warning" disabled>Скинути offset</button>
+                            <button type="button" id="calSaveOffsets" class="btn btn-sm btn-outline-primary" disabled>💾 Зберегти offset</button>
+                            <button type="button" id="calPreviewPdf" class="btn btn-sm btn-success" disabled>Preview PDF</button>
+                        </div>
+                    </div>
                     <div id="editControls" style="display: none;">
                         <div class="d-flex gap-2 mb-2">
                             <button id="btnSingleMode" type="button" class="btn btn-sm btn-outline-primary flex-fill active">
@@ -906,18 +1574,16 @@ else
                 </div>
                 </div>
         </div>
-        @if (string.IsNullOrWhiteSpace(Model.PdfPreviewUrl))
-        {
-            <div class="small text-muted mt-2">Preview URL не згенеровано. Перевірте наявність файлу версії.</div>
-        }
-        else
-        {
-            <div class="small text-muted mt-2">Показано всі сторінки PDF. Координати зберігаються у пікселях поточного preview.</div>
-        }
-        <div class="mt-2">
-            <a class="btn btn-sm btn-outline-secondary" href="@Model.PdfPreviewUrl" target="_blank" rel="noopener">
-                Відкрити оригінальний PDF
-            </a>
+        <div class="template-map-pdf-footer">
+            @if (string.IsNullOrWhiteSpace(Model.PdfPreviewUrl))
+            {
+                <span class="pdf-overlay-card__hint">Preview URL не згенеровано.</span>
+            }
+            else
+            {
+                <span class="pdf-overlay-card__hint">Drag + resize · координати в пікселях preview</span>
+                <a class="btn btn-sm btn-outline-secondary text-nowrap" href="@Model.PdfPreviewUrl" target="_blank" rel="noopener">Показати оригінал PDF</a>
+            }
         </div>
     </div>
 }
@@ -930,10 +1596,20 @@ else
 }
 else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
 {
+    <script src="~/js/searchable-combo.js" asp-append-version="true"></script>
+    <script src="~/js/pdf-overlay-text-layout.js" asp-append-version="true"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" referrerpolicy="no-referrer"></script>
     <script>
         window.__pdfPreviewUrl = "@Model.PdfPreviewUrl";
         window.__templateVersionId = "@Model.TemplateVersionId";
+        window.__dataFieldCatalog = @Html.Raw(JsonSerializer.Serialize(
+            Model.DataFields.Select(df => new
+            {
+                id = df.Id,
+                key = df.Key,
+                displayName = df.DisplayNameUk,
+                groupName = df.GroupName
+            })));
         window.__overlaySeedFields = @Html.Raw(JsonSerializer.Serialize(
             Model.Fields.Select((field, index) => new
             {
@@ -985,6 +1661,8 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         <input asp-for="Fields[i].Title" type="hidden" />
                         <input asp-for="Fields[i].WordControlType" type="hidden" />
                         <input asp-for="Fields[i].IsRequired" type="hidden" />
+                        <input asp-for="Fields[i].TextOffsetX" type="hidden" class="js-field-text-offset-x" data-field-id="@Model.Fields[i].FieldId" />
+                        <input asp-for="Fields[i].TextOffsetY" type="hidden" class="js-field-text-offset-y" data-field-id="@Model.Fields[i].FieldId" />
                         <code>@Model.Fields[i].Tag</code>
                     </td>
                     <td>@(Model.Fields[i].Title ?? "—")</td>
@@ -1050,44 +1728,91 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
     <a class="btn btn-link" asp-controller="TemplateVersions" asp-action="Details" asp-route-id="@Model.TemplateVersionId">До версії</a>
 </form>
 
+<div class="modal fade" id="calibrationTextModal" tabindex="-1" aria-labelledby="calibrationTextModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header py-2">
+                <h5 class="modal-title fs-6" id="calibrationTextModalLabel">Текст для preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрити"></button>
+            </div>
+            <div class="modal-body py-2">
+                <p id="calibrationTextModalTag" class="small text-muted mb-1"></p>
+                <textarea id="calibrationTextEditor" class="form-control form-control-sm" rows="4" placeholder="Введіть зразковий текст…"></textarea>
+            </div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Скасувати</button>
+                <button type="button" id="calibrationTextApply" class="btn btn-sm btn-primary">Застосувати</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div id="overlayToast"
      class="position-fixed bottom-0 start-50 translate-middle-x mb-4 alert alert-success py-2 px-3"
      style="display:none; z-index: 1080;"></div>
 <div id="overlayNudgePad" class="nudge-pad" style="display:none;">
-    <div id="overlayNudgePadHeader" class="nudge-pad-header d-flex justify-content-between align-items-center mb-2">
+    <div id="overlayNudgePadHeader" class="nudge-pad-header d-flex justify-content-between align-items-center">
         <div class="small fw-semibold">Точне позиціонування</div>
         <div class="d-flex gap-1">
+            <button id="toggleDesignerFocusMode" type="button" class="btn btn-sm btn-outline-primary py-0 px-2 js-toggle-designer-focus" title="Режим конструктора: лише PDF і пульт (F)">⛶</button>
             <button id="toggleNudgeInspectMode" type="button" class="btn btn-sm btn-outline-secondary py-0 px-2">👁</button>
             <button id="toggleNudgeDetachMode" type="button" class="btn btn-sm btn-outline-secondary py-0 px-2">⧉</button>
             <button id="toggleNudgePadVisibility" type="button" class="btn btn-sm btn-outline-secondary py-0 px-2">✕</button>
             <button id="toggleNudgePadBody" type="button" class="btn btn-sm btn-outline-secondary py-0 px-2">−</button>
         </div>
     </div>
-    <div id="overlayNudgePadBody">
-    <div class="small text-muted mb-1">Масштаб</div>
-    <input id="overlayNudgeZoomSlider" class="form-range mb-2" type="range" min="75" max="300" step="5" value="100" />
+    <div id="overlayNudgePadScale" class="nudge-scale-row" aria-label="Масштаб PDF">
+        <span class="nudge-scale-label">Масштаб</span>
+        <input id="overlayNudgeZoomSlider" class="form-range" type="range" min="75" max="300" step="5" value="100" />
+        <span id="nudgeZoomValue" class="nudge-scale-value">100%</span>
+    </div>
+    <div id="overlayNudgePadBody" class="nudge-pad-scroll">
+    <div class="nudge-tag-composer mb-2">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="small fw-semibold">➕ Новий тег</span>
+            <button id="toggleNudgeTagComposer" type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" aria-expanded="false">▸</button>
+        </div>
+        <div id="nudgeTagComposerBody" style="display:none">
+            <label class="form-label small text-muted mb-0">Тег з бібліотеки</label>
+            <div id="nudgeTagLibraryCombo"></div>
+            <div id="nudgeTagLivePreview" class="nudge-tag-live-preview" aria-live="polite">
+                <div class="nudge-tag-live-preview__placeholder small text-muted">Оберіть тег — ключ і повний опис зʼявляться тут</div>
+                <div class="nudge-tag-live-preview__content d-none">
+                    <span class="nudge-tag-live-preview__group"></span>
+                    <code class="nudge-tag-live-preview__key"></code>
+                    <p class="nudge-tag-live-preview__title"></p>
+                </div>
+            </div>
+            <label class="form-label small text-muted mb-0 mt-1" for="nudgeDraftTitle">Назва на PDF</label>
+            <textarea id="nudgeDraftTitle" class="form-control form-control-sm nudge-tag-title-edit" rows="2" placeholder="Повний опис поля…"></textarea>
+            <button type="button" id="nudgeSubmitNewTag" class="btn btn-sm btn-primary w-100 mt-2" disabled>➕ Додати на шаблон</button>
+        </div>
+    </div>
+    <hr class="my-2" />
     <div class="d-flex gap-1 mb-2">
         <button id="nudgeModeSingle" type="button" class="btn btn-sm btn-outline-primary flex-fill">✏️ Активний</button>
         <button id="nudgeModeAll" type="button" class="btn btn-sm btn-outline-warning flex-fill">🖱️ Всі</button>
     </div>
-    <div class="form-check form-switch mb-2">
-        <input class="form-check-input" type="checkbox" id="overlaySmartSnapToggle" checked />
-        <label class="form-check-label small" for="overlaySmartSnapToggle">Smart Snap</label>
-    </div>
-    <div class="form-check form-switch mb-2">
-        <input class="form-check-input" type="checkbox" id="overlayAutoInspectAfterOkToggle" checked />
-        <label class="form-check-label small" for="overlayAutoInspectAfterOkToggle">Auto 👁 після OK</label>
+    <div class="d-flex gap-2 mb-1 nudge-switch-row">
+        <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="overlaySmartSnapToggle" checked />
+            <label class="form-check-label small" for="overlaySmartSnapToggle">Snap</label>
+        </div>
+        <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="overlayAutoInspectAfterOkToggle" checked />
+            <label class="form-check-label small" for="overlayAutoInspectAfterOkToggle">Auto 👁</label>
+        </div>
     </div>
     <div class="d-flex gap-1 mb-2">
         <button type="button" class="btn btn-sm btn-outline-secondary flex-fill" data-nudge-step="1">1px</button>
         <button type="button" class="btn btn-sm btn-outline-secondary flex-fill" data-nudge-step="5">5px</button>
         <button type="button" class="btn btn-sm btn-outline-secondary flex-fill" data-nudge-step="10">10px</button>
     </div>
-    <div class="small text-muted mb-1">Рух</div>
-    <div class="d-flex justify-content-center mb-2">
+    <div class="small text-muted mb-0">Рух</div>
+    <div class="nudge-move-grid">
+        <span aria-hidden="true"></span>
         <button type="button" class="btn btn-sm btn-outline-primary" data-nudge-move="up">↑</button>
-    </div>
-    <div class="d-flex justify-content-center gap-1 mb-2">
+        <span aria-hidden="true"></span>
         <button type="button" class="btn btn-sm btn-outline-primary" data-nudge-move="left">←</button>
         <button type="button" class="btn btn-sm btn-outline-primary" data-nudge-move="down">↓</button>
         <button type="button" class="btn btn-sm btn-outline-primary" data-nudge-move="right">→</button>
@@ -1099,7 +1824,30 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
         <button type="button" class="btn btn-sm btn-outline-secondary flex-fill nudge-size-btn" data-nudge-size="h-plus"></button>
         <button type="button" class="btn btn-sm btn-outline-secondary flex-fill nudge-size-btn" data-nudge-size="h-minus"></button>
     </div>
-    <div class="d-flex gap-1">
+    <div class="mb-2">
+        <button id="nudgeTextSettingsToggle" type="button" class="btn btn-sm btn-outline-secondary w-100" data-bs-toggle="collapse" data-bs-target="#nudgeTextSettingsCollapse" aria-expanded="false" aria-controls="nudgeTextSettingsCollapse">
+            ⚙️ Налаштування тексту
+        </button>
+        <div id="nudgeTextSettingsCollapse" class="collapse mt-1">
+            <div class="segment-text-settings">
+                <div class="d-flex align-items-center gap-1 mb-1">
+                    <span class="small text-muted" style="min-width:2.1rem">A</span>
+                    <input id="segmentFontSize" type="number" class="form-control form-control-sm" placeholder="10" min="6" max="72" step="0.5" title="Розмір шрифту (порожньо = авто)" />
+                </div>
+                <div class="btn-group btn-group-sm w-100 mb-1" role="group" aria-label="Горизонтальне вирівнювання">
+                    <button type="button" class="btn btn-outline-secondary" data-segment-h-align="Left" title="Ліворуч" aria-label="Ліворуч">⬅</button>
+                    <button type="button" class="btn btn-outline-secondary" data-segment-h-align="Center" title="По центру" aria-label="По центру">☰</button>
+                    <button type="button" class="btn btn-outline-secondary" data-segment-h-align="Right" title="Праворуч" aria-label="Праворуч">➡</button>
+                </div>
+                <div class="btn-group btn-group-sm w-100" role="group" aria-label="Вертикальне вирівнювання">
+                    <button type="button" class="btn btn-outline-secondary" data-segment-v-align="Top" title="Зверху" aria-label="Зверху">⤒</button>
+                    <button type="button" class="btn btn-outline-secondary" data-segment-v-align="Middle" title="По центру" aria-label="По центру">▥</button>
+                    <button type="button" class="btn btn-outline-secondary" data-segment-v-align="Bottom" title="Знизу" aria-label="Знизу">⤓</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="d-flex gap-1 nudge-action-buttons">
         <button type="button" id="nudgeConfirm" class="btn btn-sm btn-success flex-fill">OK</button>
         <button type="button" id="nudgePersistToDb" class="btn btn-sm btn-primary flex-fill">💾 БД</button>
         <button type="button" id="nudgeCancel" class="btn btn-sm btn-outline-secondary flex-fill">Скасувати</button>
@@ -1110,15 +1858,16 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
         <button type="button" id="nudgeAddSegmentLine" class="btn btn-sm btn-outline-primary w-100" disabled>➕ Додати лінію</button>
     </div>
     <div id="nudgeSaveHint" class="small text-muted mt-1 nudge-save-hint"></div>
-    <hr class="my-2" />
-    <div class="d-flex justify-content-between align-items-center mb-1">
-        <div class="small fw-semibold">Розміщення тегів</div>
-        <button id="toggleNudgeTagList" type="button" class="btn btn-sm btn-outline-secondary py-0 px-2">▾</button>
     </div>
-    <div id="nudgeTagListSection">
-        <input id="nudgeTagSearch" class="form-control form-control-sm mb-1" type="text" placeholder="Пошук тегу..." />
-        <div id="nudgePlacedFields" class="small nudge-tag-list"></div>
-    </div>
+    <div id="overlayNudgePadFooter" class="nudge-pad-footer">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+            <div class="small fw-semibold">Розміщення тегів</div>
+            <button id="toggleNudgeTagList" type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" aria-expanded="true">▾</button>
+        </div>
+        <div id="nudgeTagListSection">
+            <input id="nudgeTagSearch" class="form-control form-control-sm mb-1" type="text" placeholder="Пошук тегу..." />
+            <div id="nudgePlacedFields" class="small nudge-tag-list"></div>
+        </div>
     </div>
 </div>
 <div id="nudgeHoverCard" class="nudge-hover-card"></div>
@@ -1150,16 +1899,6 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                 const topScroller = document.getElementById("pdfTopScroller");
                 const topScrollerTrack = document.getElementById("pdfTopScrollerTrack");
                 const pdfTagLibrary = document.getElementById("pdfTagLibrary");
-                const pdfTagLibrarySearch = document.getElementById("pdfTagLibrarySearch");
-                const pdfTagLibraryHint = document.getElementById("pdfTagLibraryHint");
-                const pdfTagBrowsePanel = document.getElementById("pdfTagBrowsePanel");
-                const pdfTagCategoryFilter = document.getElementById("pdfTagCategoryFilter");
-                const pdfTagSearchContext = document.getElementById("pdfTagSearchContext");
-                const pdfTagStructuredToggle = document.getElementById("pdfTagStructuredToggle");
-                const pdfTagSelectedLabel = document.getElementById("pdfTagSelectedLabel");
-                const pdfTagSelectedGroup = document.getElementById("pdfTagSelectedGroup");
-                const togglePdfTagPanelDetachBtn = document.getElementById("togglePdfTagPanelDetach");
-                const togglePdfTagPanelCollapseBtn = document.getElementById("togglePdfTagPanelCollapse");
                 const newPdfFieldTag = document.getElementById("newPdfFieldTag");
                 const newPdfFieldTitle = document.getElementById("newPdfFieldTitle");
                 const overlayPlacedFields = document.getElementById("nudgePlacedFields");
@@ -1174,6 +1913,11 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                 const toggleNudgePadVisibilityBtn = document.getElementById("toggleNudgePadVisibility");
                 const toggleNudgePadBodyBtn = document.getElementById("toggleNudgePadBody");
                 const nudgeZoomSlider = document.getElementById("overlayNudgeZoomSlider");
+                const nudgeZoomValue = document.getElementById("nudgeZoomValue");
+                const updateNudgeZoomLabel = () => {
+                    if (!nudgeZoomValue || !nudgeZoomSlider) return;
+                    nudgeZoomValue.textContent = `${nudgeZoomSlider.value}%`;
+                };
                 const nudgeModeSingle = document.getElementById("nudgeModeSingle");
                 const nudgeModeAll = document.getElementById("nudgeModeAll");
                 const toggleNudgeTagListBtn = document.getElementById("toggleNudgeTagList");
@@ -1184,11 +1928,30 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                 const openTopControlsPanel = document.getElementById("openTopControlsPanel");
                 const closeTopControlsPanel = document.getElementById("closeTopControlsPanel");
                 const topControlsPanel = document.getElementById("pdfTopControlsPanel");
+                const designerFocusChrome = document.getElementById("designerFocusChrome");
+                const toggleDesignerFocusModeBtn = document.getElementById("toggleDesignerFocusMode");
+                const designerFocusToggleButtons = document.querySelectorAll(".js-toggle-designer-focus");
                 const nudgeHoverCard = document.getElementById("nudgeHoverCard");
                 const fieldMapForm = document.getElementById("fieldMapForm");
                 const nudgePersistToDbBtn = document.getElementById("nudgePersistToDb");
                 const nudgeSaveHint = document.getElementById("nudgeSaveHint");
                 const nudgeAddSegmentLineButton = document.getElementById("nudgeAddSegmentLine");
+                const segmentFontSizeInput = document.getElementById("segmentFontSize");
+                const calibrationPanel = document.getElementById("calibrationPanel");
+                const calibrationPanelHint = document.getElementById("calibrationPanelHint");
+                const calOffsetXInput = document.getElementById("calOffsetX");
+                const calOffsetYInput = document.getElementById("calOffsetY");
+                const calResetOffsetsBtn = document.getElementById("calResetOffsets");
+                const calSaveOffsetsBtn = document.getElementById("calSaveOffsets");
+                const calPreviewPdfBtn = document.getElementById("calPreviewPdf");
+                const calibrationTextModalEl = document.getElementById("calibrationTextModal");
+                const calibrationTextEditor = document.getElementById("calibrationTextEditor");
+                const calibrationTextModalTagHint = document.getElementById("calibrationTextModalTag");
+                const calibrationTextApplyBtn = document.getElementById("calibrationTextApply");
+                const calibrationToggleButtons = document.querySelectorAll(".js-toggle-calibration");
+                const calibrationTextModal = calibrationTextModalEl && window.bootstrap
+                    ? window.bootstrap.Modal.getOrCreateInstance(calibrationTextModalEl)
+                    : null;
                 if (!root || !pagesHost) return;
 
                 const showPreviewError = (message) => {
@@ -1320,6 +2083,8 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         this.smartSnapEnabled = true;
                         this.autoInspectAfterOk = true;
                         this.isNudgeDetached = false;
+                        this.isFocusMode = false;
+                        this.focusModeStorageKey = "universal-lims.template-map.focus-mode";
                         this.sizeHoldTimeoutId = null;
                         this.sizeHoldIntervalId = null;
                         this.moveHoldTimeoutId = null;
@@ -1328,6 +2093,9 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         this.hasPendingDbSave = false;
                         this.isApplyingSavedDraft = false;
                         this.lastSavedSegmentFields = [];
+                        this.calibrationMode = false;
+                        this.calibrationByIndex = new Map();
+                        this.pageTextCanvases = new Map();
                     }
 
                     debugLog(...args) {
@@ -1412,6 +2180,12 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             this.setActive(previousActiveIndex);
                         }
 
+                        if (this.calibrationMode) {
+                            this.ensureCalibrationTextLayers();
+                            this.fieldByIndex.forEach((_field, index) => this.getCalibrationState(index));
+                            this.redrawAllCalibrationText();
+                        }
+
                         this.updateEditUI();
                         if (typeof syncHorizontalScrollbars === "function") {
                             syncHorizontalScrollbars();
@@ -1431,7 +2205,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             isInspectMode: this.isInspectMode,
                             manualPos: nudgePad.dataset.manualPos === "1",
                             left: this.normalizePixel(nudgePad.style.left, 12),
-                            top: this.normalizePixel(nudgePad.style.top, 90)
+                            top: this.normalizePixel(nudgePad.style.top, this.getDefaultNudgeTop())
                         };
                         try {
                             window.localStorage.setItem(this.storageKey, JSON.stringify(state));
@@ -1459,7 +2233,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             if (nudgePad && state.manualPos === true) {
                                 nudgePad.dataset.manualPos = "1";
                                 nudgePad.style.left = `${this.normalizePixel(state.left, 12)}px`;
-                                nudgePad.style.top = `${this.normalizePixel(state.top, 90)}px`;
+                                nudgePad.style.top = `${this.normalizePixel(state.top, this.getDefaultNudgeTop())}px`;
                             }
                         } catch {
                             // ignore broken JSON or blocked storage
@@ -1487,10 +2261,122 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         this.bindUiEvents();
                     }
 
+                    loadFocusModePreference() {
+                        try {
+                            const raw = window.localStorage.getItem(this.focusModeStorageKey);
+                            if (raw === null) {
+                                this.isFocusMode = true;
+                                return;
+                            }
+                            this.isFocusMode = raw === "1";
+                        } catch {
+                            this.isFocusMode = true;
+                        }
+                    }
+
+                    saveFocusModePreference() {
+                        try {
+                            window.localStorage.setItem(this.focusModeStorageKey, this.isFocusMode ? "1" : "0");
+                        } catch {
+                            // ignore storage errors
+                        }
+                    }
+
+                    applyFocusMode() {
+                        document.body.classList.toggle("template-map-focus-mode", this.isFocusMode);
+                        if (designerFocusChrome) {
+                            designerFocusChrome.hidden = !this.isFocusMode;
+                            designerFocusChrome.setAttribute("aria-hidden", this.isFocusMode ? "false" : "true");
+                        }
+                        if (this.isFocusMode) {
+                            this.isNudgeDetached = true;
+                        }
+                        this.applyNudgeLayoutMode();
+                        this.applyNudgeDockedLayout();
+                        if (!this.isNudgeDocked()) {
+                            this.updateNudgePadPosition();
+                        }
+                        this.renderFocusModeButtons();
+                        if (typeof syncHorizontalScrollbars === "function") {
+                            setTimeout(syncHorizontalScrollbars, 0);
+                        }
+                    }
+
+                    setFocusMode(enabled) {
+                        this.isFocusMode = enabled === true;
+                        this.saveFocusModePreference();
+                        this.applyFocusMode();
+                        this.applyNudgeLayoutMode();
+                        this.applyNudgeDockedLayout();
+                        if (!this.isFocusMode) {
+                            this.updateNudgePadPosition();
+                        }
+                        if (typeof syncHorizontalScrollbars === "function") {
+                            setTimeout(syncHorizontalScrollbars, 0);
+                        }
+                        showOverlayToast(this.isFocusMode ? "Режим конструктора увімкнено" : "Звичайний вигляд");
+                    }
+
+                    toggleFocusMode() {
+                        this.setFocusMode(!this.isFocusMode);
+                    }
+
+                    renderFocusModeButtons() {
+                        const isOn = this.isFocusMode === true;
+                        if (toggleDesignerFocusModeBtn) {
+                            toggleDesignerFocusModeBtn.classList.toggle("btn-primary", isOn);
+                            toggleDesignerFocusModeBtn.classList.toggle("btn-outline-primary", !isOn);
+                            toggleDesignerFocusModeBtn.title = isOn
+                                ? "Вийти з режиму конструктора (Esc)"
+                                : "Режим конструктора: лише PDF і пульт (F)";
+                        }
+                        designerFocusToggleButtons.forEach((button) => {
+                            if (button === toggleDesignerFocusModeBtn) return;
+                            button.textContent = isOn ? "↩ Звичайний вигляд" : "⛶ Режим конструктора";
+                        });
+                    }
+
+                    isNudgeDocked() {
+                        return document.body.classList.contains("designer-layout-body")
+                            && this.isFocusMode === true;
+                    }
+
+                    applyNudgeDockedLayout() {
+                        if (!nudgePad) return;
+                        if (!this.isNudgeDocked()) {
+                            nudgePad.classList.remove("nudge-pad-docked");
+                            nudgePad.style.height = "";
+                            nudgePad.style.maxHeight = "";
+                            if (!this.isFocusMode && this.isNudgeDetached) {
+                                nudgePad.style.top = `${this.getDefaultNudgeTop()}px`;
+                                nudgePad.style.left = `${Math.max(8, window.innerWidth - (nudgePad.offsetWidth || 360) - 12)}px`;
+                            }
+                            return;
+                        }
+                        nudgePad.classList.add("nudge-pad-docked");
+                        const padWidth = nudgePad.offsetWidth || 360;
+                        nudgePad.dataset.manualPos = "1";
+                        nudgePad.style.top = "0";
+                        nudgePad.style.left = `${Math.max(0, window.innerWidth - padWidth)}px`;
+                        nudgePad.style.height = "auto";
+                        nudgePad.style.maxHeight = "calc(100vh - 70px)";
+                    }
+
+                    getDefaultNudgeTop() {
+                        if (this.isNudgeDocked()) {
+                            return 0;
+                        }
+                        const strip = document.querySelector(".template-map-strip");
+                        if (strip && strip.offsetParent !== null) {
+                            return Math.max(8, Math.round(strip.getBoundingClientRect().bottom) + 6);
+                        }
+                        return 36;
+                    }
+
                     applyNudgeLayoutMode() {
                         if (!topControlsPanel || !nudgePad) return;
                         const grid = topControlsPanel.closest(".pdf-designer-grid");
-                        if (this.isNudgeDetached) {
+                        if (this.isFocusMode || this.isNudgeDetached) {
                             topControlsPanel.style.display = "none";
                             grid?.classList.add("nudge-detached");
                             if (nudgePad.parentElement !== document.body) {
@@ -1498,12 +2384,16 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             }
                             nudgePad.classList.remove("nudge-sidebar-mode");
                             nudgePad.style.display = "block";
-                            if (nudgePad.dataset.manualPos !== "1") {
-                                nudgePad.dataset.manualPos = "1";
-                                nudgePad.style.left = `${Math.max(8, window.innerWidth - (nudgePad.offsetWidth || 278) - 12)}px`;
-                                nudgePad.style.top = "90px";
+                            this.applyNudgeDockedLayout();
+                            if (!this.isNudgeDocked()) {
+                                if (nudgePad.dataset.manualPos !== "1") {
+                                    nudgePad.dataset.manualPos = "1";
+                                    nudgePad.style.left = `${Math.max(8, window.innerWidth - (nudgePad.offsetWidth || 360) - 12)}px`;
+                                    nudgePad.style.top = `${this.getDefaultNudgeTop()}px`;
+                                }
                             }
                         } else {
+                            nudgePad.classList.remove("nudge-pad-docked");
                             topControlsPanel.style.display = "block";
                             grid?.classList.remove("nudge-detached");
                             if (nudgePad.parentElement !== topControlsPanel) {
@@ -1624,6 +2514,9 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         this.fieldByIndex.clear();
                         this.fieldsByPage.clear();
                         this.pageLayers.forEach(layer => layer.innerHTML = "");
+                        if (this.calibrationMode) {
+                            this.redrawAllCalibrationText();
+                        }
                     }
 
                     renderAllFields(fields) {
@@ -1648,6 +2541,11 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                                 }
                             });
                         });
+
+                        if (this.calibrationMode) {
+                            this.fieldByIndex.forEach((_field, index) => this.getCalibrationState(index));
+                            this.redrawAllCalibrationText();
+                        }
                     }
 
                     expandApiFieldsToOverlayFields(fields) {
@@ -1717,14 +2615,37 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             segmentRowVersion: this.readRowVersionFromPayload(segmentSource),
                             tag: source.tag ?? source.Tag ?? `field_${overlayIndex + 1}`,
                             title: source.title ?? source.Title ?? "",
+                            dataFieldId: source.dataFieldId ?? source.DataFieldId ?? null,
                             page: segmentSource.page ?? segmentSource.pageNumber ?? segmentSource.PageNumber ?? 1,
                             x: segmentSource.x ?? segmentSource.positionX ?? segmentSource.PositionX ?? 24,
                             y: segmentSource.y ?? segmentSource.positionY ?? segmentSource.PositionY ?? 24,
                             width: segmentSource.width ?? segmentSource.Width ?? 220,
                             height: segmentSource.height ?? segmentSource.Height ?? 28,
                             isPrimary: segmentSource.isPrimary ?? segmentSource.IsPrimary ?? segmentSequence === 1,
-                            textAlignment: segmentSource.textAlignment ?? segmentSource.TextAlignment ?? "Left",
+                            ...this.readTypographyFromSegmentSource(segmentSource),
+                            textOffsetX: this.parsePixel(source.textOffsetX ?? source.TextOffsetX ?? 0),
+                            textOffsetY: this.parsePixel(source.textOffsetY ?? source.TextOffsetY ?? 0),
                             formIndex: this.getIndexByFieldId(fieldId)
+                        };
+                    }
+
+                    readTypographyFromSegmentSource(segmentSource) {
+                        const source = segmentSource ?? {};
+                        const horizontalAlignment = source.horizontalAlignment
+                            ?? source.HorizontalAlignment
+                            ?? source.textAlignment
+                            ?? source.TextAlignment
+                            ?? "Left";
+                        const verticalAlignment = source.verticalAlignment ?? source.VerticalAlignment ?? null;
+                        const fontSizeRaw = source.fontSize ?? source.FontSize;
+                        const parsedFontSize = Number.parseFloat(String(fontSizeRaw ?? ""));
+                        return {
+                            horizontalAlignment,
+                            verticalAlignment,
+                            textAlignment: horizontalAlignment,
+                            fontSize: Number.isFinite(parsedFontSize) && parsedFontSize > 0
+                                ? parsedFontSize
+                                : null
                         };
                     }
 
@@ -1748,7 +2669,13 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             width: Math.max(20, rect.width),
                             height: Math.max(14, rect.height),
                             isPrimary: field.isPrimary === true,
-                            textAlignment: field.textAlignment ?? "Left"
+                            textAlignment: field.textAlignment ?? field.horizontalAlignment ?? "Left",
+                            horizontalAlignment: field.horizontalAlignment ?? field.textAlignment ?? "Left",
+                            verticalAlignment: field.verticalAlignment ?? null,
+                            fontSize: field.fontSize ?? null,
+                            dataFieldId: field.dataFieldId ?? null,
+                            textOffsetX: this.parsePixel(field.textOffsetX ?? 0),
+                            textOffsetY: this.parsePixel(field.textOffsetY ?? 0)
                         };
                     }
 
@@ -2085,24 +3012,43 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         return words.join(" ");
                     }
 
-                    showNudgeHoverCard(event, details) {
+                    showNudgeHoverCard(event, details, anchorEl) {
                         if (!nudgeHoverCard) return;
                         nudgeHoverCard.innerHTML = details;
                         nudgeHoverCard.style.display = "block";
-                        this.positionNudgeHoverCard(event);
+                        this.positionNudgeHoverCard(event, anchorEl);
                     }
 
-                    positionNudgeHoverCard(event) {
+                    positionNudgeHoverCard(event, anchorEl) {
                         if (!nudgeHoverCard || nudgeHoverCard.style.display === "none") return;
                         const cardWidth = nudgeHoverCard.offsetWidth || 280;
                         const cardHeight = nudgeHoverCard.offsetHeight || 120;
-                        const offset = 12;
-                        const left = Math.min(
-                            window.innerWidth - cardWidth - 8,
-                            Math.max(8, event.clientX + offset));
-                        const top = Math.min(
-                            window.innerHeight - cardHeight - 8,
-                            Math.max(8, event.clientY + offset));
+                        const gap = 10;
+                        const margin = 8;
+                        const anchor = anchorEl || event?.currentTarget;
+                        let left;
+                        let top;
+
+                        if (anchor instanceof Element) {
+                            const itemRect = anchor.getBoundingClientRect();
+                            const listRect = overlayPlacedFields?.getBoundingClientRect();
+                            const anchorLeft = listRect?.left ?? itemRect.left;
+                            left = anchorLeft - cardWidth - gap;
+                            top = itemRect.top + Math.max(0, (itemRect.height - cardHeight) / 2);
+
+                            if (left < margin) {
+                                left = Math.max(margin, itemRect.right + gap);
+                            }
+                            if (top + cardHeight > window.innerHeight - margin) {
+                                top = window.innerHeight - cardHeight - margin;
+                            }
+                        } else {
+                            left = (event?.clientX ?? 0) + 12;
+                            top = (event?.clientY ?? 0) + 12;
+                        }
+
+                        left = Math.min(window.innerWidth - cardWidth - margin, Math.max(margin, left));
+                        top = Math.min(window.innerHeight - cardHeight - margin, Math.max(margin, top));
                         nudgeHoverCard.style.left = `${Math.round(left)}px`;
                         nudgeHoverCard.style.top = `${Math.round(top)}px`;
                     }
@@ -2135,6 +3081,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
 
                     canEditBox(box) {
                         if (!box) return false;
+                        if (this.calibrationMode) return false;
                         if (this.isInspectMode) return false;
                         if (this.editMode !== "edit") return false;
                         const boxIndex = Number.parseInt(box.dataset.index || "-1", 10);
@@ -2156,7 +3103,10 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         box.classList.toggle("linked", isLinked);
                         box.classList.toggle("field-segment-active", isActive);
                         box.classList.toggle("field-group-member", isLinked);
-                        if (this.editMode === "edit" && this.allEditable) {
+                        if (this.calibrationMode) {
+                            box.style.cursor = "text";
+                            box.style.opacity = isActive ? "1" : "0.9";
+                        } else if (this.editMode === "edit" && this.allEditable) {
                             box.style.border = isActive ? "3.5px solid #fd7e14" : (isLinked ? "2.5px solid #6610f2" : "2px solid #dc3545");
                             box.style.background = isActive ? "rgba(253, 126, 20, 0.24)" : (isLinked ? "rgba(102, 16, 242, 0.18)" : "rgba(220, 53, 69, 0.16)");
                         } else if (isActive) {
@@ -2174,8 +3124,10 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             ? "0 0 0 5px rgba(13, 110, 253, 0.35)"
                             : (isLinked ? "0 0 0 3px rgba(102, 16, 242, 0.28)" : "none");
                         box.style.zIndex = isActive ? "48" : (isLinked ? "34" : "20");
-                        box.style.cursor = isEditable ? "move" : "default";
-                        box.style.opacity = this.editMode === "locked" ? "0.68" : (isActive ? "1" : "0.82");
+                        if (!this.calibrationMode) {
+                            box.style.cursor = isEditable ? "move" : "default";
+                            box.style.opacity = this.editMode === "locked" ? "0.68" : (isActive ? "1" : "0.82");
+                        }
                         box.title = fullLabel;
 
                         if (label) {
@@ -2219,7 +3171,11 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                     bindBoxEvents(box) {
                         box.addEventListener("click", (event) => {
                             event.stopPropagation();
-                            this.setActive(Number(box.dataset.index));
+                            const index = Number.parseInt(box.dataset.index || "-1", 10);
+                            this.setActive(index);
+                            if (this.calibrationMode && Number.isInteger(index)) {
+                                this.openCalibrationTextEditor(index);
+                            }
                         });
 
                         box.querySelectorAll("[data-handle]").forEach((handleEl) => {
@@ -2277,7 +3233,11 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
 
                     bindUiEvents() {
                         this.loadNudgeUiState();
-                        this.applyNudgeLayoutMode();
+                        this.loadFocusModePreference();
+                        if (this.isFocusMode) {
+                            this.isNudgeDetached = true;
+                        }
+                        this.applyFocusMode();
                         document.addEventListener("mousemove", (event) => {
                             if (this.resizeState) {
                                 this.hideSmartGuides(this.resizeState.box?.parentElement ?? null);
@@ -2451,6 +3411,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         nudgeZoomSlider?.addEventListener("input", () => {
                             if (!zoomSlider) return;
                             zoomSlider.value = nudgeZoomSlider.value;
+                            updateNudgeZoomLabel();
                             zoomSlider.dispatchEvent(new Event("input", { bubbles: true }));
                         });
                         nudgeModeSingle?.addEventListener("click", () => {
@@ -2529,6 +3490,8 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                                 this.stopNudgeMoveHold();
                             }
                         });
+                        this.bindSegmentTextSettingsEvents();
+                        this.bindCalibrationEvents();
                         document.getElementById("nudgeConfirm")?.addEventListener("click", () => this.commitActiveSnapshot());
                         document.getElementById("nudgeCancel")?.addEventListener("click", () => this.rollbackActiveSnapshot());
                         document.getElementById("nudgeUndo")?.addEventListener("click", () => this.undoLastAction());
@@ -2542,6 +3505,14 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         fieldMapForm?.addEventListener("submit", async (event) => {
                             event.preventDefault();
                             this.renderSaveHint("Відправляємо зміни в БД...");
+                            if (this.calibrationMode) {
+                                this.collectCalibrationOffsetsPayload().forEach((item) => {
+                                    this.syncFieldTextOffsetsToForm(
+                                        item.fieldId,
+                                        item.textOffsetX,
+                                        item.textOffsetY);
+                                });
+                            }
                             if (this.hasPendingDbSave) {
                                 const saved = await this.persistSegmentsToApi();
                                 if (!saved) return;
@@ -2550,6 +3521,19 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             await this.persistFieldMapFormAsync();
                         });
                         nudgeTagSearch?.addEventListener("input", () => this.filterPlacedFields());
+                        overlayPlacedFields?.addEventListener("wheel", (event) => {
+                            const list = event.currentTarget;
+                            if (!(list instanceof HTMLElement) || list.scrollHeight <= list.clientHeight + 1) {
+                                return;
+                            }
+                            const delta = event.deltaY;
+                            const maxScroll = list.scrollHeight - list.clientHeight;
+                            if (delta < 0 && list.scrollTop > 0) {
+                                event.stopPropagation();
+                            } else if (delta > 0 && list.scrollTop < maxScroll - 1) {
+                                event.stopPropagation();
+                            }
+                        }, { passive: false });
                         toggleNudgePadBodyBtn?.addEventListener("click", () => {
                             this.isNudgeBodyCollapsed = !this.isNudgeBodyCollapsed;
                             if (nudgePadBody) nudgePadBody.style.display = this.isNudgeBodyCollapsed ? "none" : "block";
@@ -2570,6 +3554,9 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             this.renderNudgeModeButtons();
                             this.applyInspectModeUi();
                             this.saveNudgeUiState();
+                        });
+                        designerFocusToggleButtons.forEach((button) => {
+                            button.addEventListener("click", () => this.toggleFocusMode());
                         });
                         toggleNudgeDetachModeBtn?.addEventListener("click", () => {
                             this.isNudgeDetached = !this.isNudgeDetached;
@@ -2616,6 +3603,19 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                                 target instanceof HTMLSelectElement ||
                                 target?.isContentEditable;
                             if (isTypingContext) return;
+
+                            if (event.key === "Escape" && this.isFocusMode) {
+                                event.preventDefault();
+                                this.setFocusMode(false);
+                                return;
+                            }
+
+                            if ((event.key === "f" || event.key === "F") && !event.ctrlKey && !event.metaKey && !event.altKey) {
+                                event.preventDefault();
+                                this.toggleFocusMode();
+                                return;
+                            }
+
                             if (this.editMode !== "edit" || this.activeIndex === null) return;
 
                             if (event.key === "Delete") {
@@ -2699,7 +3699,10 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         this.renderNudgeSizeButtons();
                         this.renderSaveHint();
                         this.applyInspectModeUi();
-                        if (nudgeZoomSlider && zoomSlider) nudgeZoomSlider.value = zoomSlider.value;
+                        if (nudgeZoomSlider && zoomSlider) {
+                            nudgeZoomSlider.value = zoomSlider.value;
+                            updateNudgeZoomLabel();
+                        }
                         if (nudgePadBody) nudgePadBody.style.display = this.isNudgeBodyCollapsed ? "none" : "block";
                         if (toggleNudgePadBodyBtn) toggleNudgePadBodyBtn.textContent = this.isNudgeBodyCollapsed ? "+" : "−";
                         if (nudgeTagListSection) nudgeTagListSection.style.display = this.isTagListCollapsed ? "none" : "block";
@@ -2726,6 +3729,8 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             }
                             this.syncActiveSegmentToPanel();
                         }
+                        this.syncSegmentTextSettingsUi();
+                        this.syncOverlayDataFieldCombo();
                         this.renderNudgeSizeButtons();
                         this.updateDeleteButtonVisibility();
                         this.updateNudgePadVisibility();
@@ -2734,8 +3739,120 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         this.renderInspectModeButton();
                         this.applyInspectModeUi();
                         this.updateActiveSegmentSummary(activeField);
+                        this.syncCalibrationPanel();
                         this.renderPlacedFields();
                         this.renderDebugStats();
+                    }
+
+                    bindSegmentTextSettingsEvents() {
+                        segmentFontSizeInput?.addEventListener("input", () => this.applySegmentTextSettingsFromPanel());
+                        segmentFontSizeInput?.addEventListener("change", () => this.applySegmentTextSettingsFromPanel());
+                        nudgePad?.querySelectorAll("[data-segment-h-align]").forEach((buttonEl) => {
+                            buttonEl.addEventListener("click", () => {
+                                const value = buttonEl.getAttribute("data-segment-h-align");
+                                if (!value) return;
+                                this.setActiveSegmentHorizontalAlignment(value);
+                            });
+                        });
+                        nudgePad?.querySelectorAll("[data-segment-v-align]").forEach((buttonEl) => {
+                            buttonEl.addEventListener("click", () => {
+                                const value = buttonEl.getAttribute("data-segment-v-align");
+                                if (!value) return;
+                                this.setActiveSegmentVerticalAlignment(value);
+                            });
+                        });
+                    }
+
+                    setActiveSegmentHorizontalAlignment(value) {
+                        if (this.activeIndex === null) {
+                            return;
+                        }
+
+                        const field = this.fieldByIndex.get(this.activeIndex);
+                        if (!field) {
+                            return;
+                        }
+
+                        field.horizontalAlignment = value;
+                        field.textAlignment = value;
+                        this.fieldByIndex.set(this.activeIndex, field);
+                        this.syncSegmentTextSettingsUi();
+                        this.scheduleLayoutDraftSave();
+                        this.hasPendingDbSave = true;
+                        this.renderSaveHint();
+                    }
+
+                    setActiveSegmentVerticalAlignment(value) {
+                        if (this.activeIndex === null) {
+                            return;
+                        }
+
+                        const field = this.fieldByIndex.get(this.activeIndex);
+                        if (!field) {
+                            return;
+                        }
+
+                        field.verticalAlignment = value;
+                        this.fieldByIndex.set(this.activeIndex, field);
+                        this.syncSegmentTextSettingsUi();
+                        this.scheduleLayoutDraftSave();
+                        this.hasPendingDbSave = true;
+                        this.renderSaveHint();
+                    }
+
+                    applySegmentTextSettingsFromPanel() {
+                        if (this.activeIndex === null) {
+                            return;
+                        }
+
+                        const field = this.fieldByIndex.get(this.activeIndex);
+                        if (!field) {
+                            return;
+                        }
+
+                        const raw = String(segmentFontSizeInput?.value ?? "").trim();
+                        const parsed = Number.parseFloat(raw);
+                        field.fontSize = raw === "" || !Number.isFinite(parsed) || parsed <= 0 ? null : parsed;
+                        this.fieldByIndex.set(this.activeIndex, field);
+                        this.scheduleLayoutDraftSave();
+                        this.hasPendingDbSave = true;
+                        this.renderSaveHint();
+                    }
+
+                    syncSegmentTextSettingsUi() {
+                        if (!segmentFontSizeInput) {
+                            return;
+                        }
+
+                        const field = this.activeIndex !== null ? this.fieldByIndex.get(this.activeIndex) : null;
+                        const disabled = !field;
+                        segmentFontSizeInput.disabled = disabled;
+                        nudgePad?.querySelectorAll("[data-segment-h-align], [data-segment-v-align]").forEach((buttonEl) => {
+                            buttonEl.disabled = disabled;
+                        });
+
+                        if (!field) {
+                            segmentFontSizeInput.value = "";
+                            this.updateSegmentAlignmentToggleStates(null, null);
+                            return;
+                        }
+
+                        segmentFontSizeInput.value = field.fontSize != null ? String(field.fontSize) : "";
+                        this.updateSegmentAlignmentToggleStates(
+                            field.horizontalAlignment ?? field.textAlignment ?? "Left",
+                            field.verticalAlignment ?? "Bottom");
+                    }
+
+                    updateSegmentAlignmentToggleStates(horizontal, vertical) {
+                        nudgePad?.querySelectorAll("[data-segment-h-align]").forEach((buttonEl) => {
+                            const value = buttonEl.getAttribute("data-segment-h-align");
+                            buttonEl.classList.toggle("active", Boolean(horizontal) && value === horizontal);
+                        });
+                        nudgePad?.querySelectorAll("[data-segment-v-align]").forEach((buttonEl) => {
+                            const value = buttonEl.getAttribute("data-segment-v-align");
+                            const effectiveVertical = vertical || "Bottom";
+                            buttonEl.classList.toggle("active", value === effectiveVertical);
+                        });
                     }
 
                     syncActiveSegmentToPanel() {
@@ -2996,7 +4113,6 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             if (searchQuery && !searchableText.includes(searchQuery)) return;
                             const segmentCount = [...this.fieldByIndex.values()]
                                 .filter((item) => this.normalizeGuidKey(item.fieldId) === this.normalizeGuidKey(field.fieldId)).length;
-                            const shortLabel = `${this.getTwoThreeWordLabel(field.title || field.tag, field.tag)} (${segmentCount})`;
                             const details = `
                                 <div><strong>${field.title || field.tag}</strong></div>
                                 <div><strong>Tag:</strong> ${field.tag}</div>
@@ -3009,7 +4125,14 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             item.type = "button";
                             const isActiveGroup = this.activeFieldId && this.normalizeGuidKey(field.fieldId) === this.activeFieldId;
                             item.className = "btn btn-sm w-100 text-start mb-1 nudge-compact-item " + (isActiveGroup ? "btn-primary" : "btn-outline-secondary");
-                            item.textContent = shortLabel;
+                            const titleLine = document.createElement("span");
+                            titleLine.className = "nudge-placed-item__title";
+                            titleLine.textContent = field.title || field.tag;
+                            const metaLine = document.createElement("span");
+                            metaLine.className = "nudge-placed-item__meta";
+                            metaLine.textContent = `${field.tag} · ${segmentCount} сегм.`;
+                            item.appendChild(titleLine);
+                            item.appendChild(metaLine);
                             item.addEventListener("click", () => {
                                 const preferredIndex = this.lastActiveSegmentByFieldId.get(field.fieldId);
                                 const overlayIndex = this.getOverlayIndexForField(field.fieldId, preferredIndex ?? index);
@@ -3017,8 +4140,8 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                                 targetBox?.scrollIntoView({ behavior: "smooth", block: "center" });
                                 this.setActive(overlayIndex ?? index);
                             });
-                            item.addEventListener("mouseenter", (event) => this.showNudgeHoverCard(event, details));
-                            item.addEventListener("mousemove", (event) => this.positionNudgeHoverCard(event));
+                            item.addEventListener("mouseenter", (event) => this.showNudgeHoverCard(event, details, item));
+                            item.addEventListener("mousemove", (event) => this.positionNudgeHoverCard(event, item));
                             item.addEventListener("mouseleave", () => this.hideNudgeHoverCard());
                             overlayPlacedFields.appendChild(item);
                         });
@@ -3055,6 +4178,24 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         hidden.name = "DeletedFieldIds";
                         hidden.value = fieldId;
                         deletedFieldIdsHost.appendChild(hidden);
+                    }
+
+                    collectDeletedFieldIds() {
+                        if (!deletedFieldIdsHost) {
+                            return [];
+                        }
+
+                        return [...deletedFieldIdsHost.querySelectorAll('input[name="DeletedFieldIds"]')]
+                            .map((input) => this.normalizeGuidKey(input.value))
+                            .filter((fieldId) => Boolean(fieldId));
+                    }
+
+                    clearDeletedFieldIds() {
+                        if (!deletedFieldIdsHost) {
+                            return;
+                        }
+
+                        deletedFieldIdsHost.innerHTML = "";
                     }
 
                     removeFieldRow(index) {
@@ -3321,11 +4462,15 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                     updateNudgePadPosition() {
                         if (!nudgePad || nudgePad.style.display === "none") return;
                         if (nudgePad.classList.contains("nudge-sidebar-mode")) return;
+                        if (this.isNudgeDocked()) {
+                            this.applyNudgeDockedLayout();
+                            return;
+                        }
                         const padWidth = nudgePad.offsetWidth || 228;
                         const padHeight = nudgePad.offsetHeight || 200;
                         if (nudgePad.dataset.manualPos === "1") {
                             const currentLeft = this.normalizePixel(nudgePad.style.left, 12);
-                            const currentTop = this.normalizePixel(nudgePad.style.top, 90);
+                            const currentTop = this.normalizePixel(nudgePad.style.top, this.getDefaultNudgeTop());
                             const maxLeft = Math.max(8, window.innerWidth - padWidth - 8);
                             const maxTop = Math.max(8, window.innerHeight - padHeight - 8);
                             const safeLeft = Math.min(maxLeft, Math.max(8, currentLeft));
@@ -3337,7 +4482,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         }
                         const box = this.getActiveBox();
                         let left = 12;
-                        let top = 90;
+                        let top = this.getDefaultNudgeTop();
                         if (box) {
                             const rect = box.getBoundingClientRect();
                             const preferredLeft = rect.right + 12;
@@ -3564,17 +4709,67 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             nudgeSaveHint.classList.remove("text-warning");
                             nudgeSaveHint.classList.add("text-muted");
                             nudgeSaveHint.textContent = message;
+                            this.updateSaveDbButtonHighlight();
                             return;
                         }
                         if (this.hasPendingDbSave) {
                             nudgeSaveHint.classList.remove("text-muted");
                             nudgeSaveHint.classList.add("text-warning");
                             nudgeSaveHint.textContent = "Є локальні зміни. Для персисту в БД натисніть «💾 БД» або «Зберегти поля».";
+                            this.updateSaveDbButtonHighlight();
                             return;
                         }
                         nudgeSaveHint.classList.remove("text-warning");
                         nudgeSaveHint.classList.add("text-muted");
                         nudgeSaveHint.textContent = "Локальний draft синхронізовано.";
+                        this.updateSaveDbButtonHighlight();
+                    }
+
+                    updateSaveDbButtonHighlight() {
+                        nudgePersistToDbBtn?.classList.toggle("nudge-save-pending", this.hasPendingDbSave === true);
+                    }
+
+                    getActiveDataFieldSelect() {
+                        const activeField = this.activeIndex !== null ? this.fieldByIndex.get(this.activeIndex) : null;
+                        if (!activeField || activeField.formIndex === null || activeField.formIndex === undefined) {
+                            return null;
+                        }
+
+                        return document.getElementById(`Fields_${activeField.formIndex}__DataFieldId`);
+                    }
+
+                    syncOverlayDataFieldCombo() {
+                        if (!this.overlayDataFieldCombo) {
+                            return;
+                        }
+
+                        const select = this.getActiveDataFieldSelect();
+                        const value = select?.value || "";
+                        this.overlayDataFieldCombo.setValue(value || null);
+                        this.overlayDataFieldCombo.setDisabled(!select || select.disabled);
+                    }
+
+                    applyDataFieldToActiveField(dataFieldId) {
+                        const select = this.getActiveDataFieldSelect();
+                        if (!select) {
+                            return;
+                        }
+
+                        select.value = dataFieldId || "";
+                        const fieldKey = this.activeFieldId;
+                        if (fieldKey) {
+                            this.fieldByIndex.forEach((field, overlayIndex) => {
+                                if (this.normalizeGuidKey(field.fieldId) !== fieldKey) {
+                                    return;
+                                }
+
+                                field.dataFieldId = dataFieldId || null;
+                                this.fieldByIndex.set(overlayIndex, field);
+                            });
+                        }
+
+                        this.hasPendingDbSave = true;
+                        this.renderSaveHint();
                     }
 
                     getNextOverlayIndex() {
@@ -3622,7 +4817,10 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             width: sourceWidth,
                             height: sourceHeight,
                             isPrimary: false,
-                            textAlignment: source.textAlignment ?? "Left"
+                            horizontalAlignment: source.horizontalAlignment ?? source.textAlignment ?? "Left",
+                            verticalAlignment: source.verticalAlignment ?? null,
+                            textAlignment: source.horizontalAlignment ?? source.textAlignment ?? "Left",
+                            fontSize: source.fontSize ?? null
                         }, overlayIndex);
 
                         this.fieldByIndex.set(overlayIndex, newField);
@@ -3880,7 +5078,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                                     width: segment?.width ?? segment?.Width ?? 0,
                                     height: segment?.height ?? segment?.Height ?? 0,
                                     isPrimary: segment?.isPrimary ?? segment?.IsPrimary ?? false,
-                                    textAlignment: segment?.textAlignment ?? segment?.TextAlignment ?? "Left"
+                                    ...this.readTypographyFromSegmentSource(segment)
                                 };
                             })
                             .sort((left, right) => left.sequence - right.sequence)
@@ -4038,13 +5236,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             }
                         });
 
-                        this.boxesByIndex.forEach((box, overlayIndex) => {
-                            const field = this.fieldByIndex.get(overlayIndex)
-                                ?? this.fieldByIndex.get(Number.parseInt(box.dataset.index ?? "", 10));
-                            if (!field) {
-                                return;
-                            }
-
+                        const resolveServerSegment = (box, field) => {
                             const clientRef = String(box.dataset.clientRef ?? field.clientReferenceId ?? "").trim();
                             const segmentId = this.resolveSegmentIdForPayload(box.dataset.segmentId ?? field.segmentId);
                             const fieldId = this.normalizeGuidKey(field.fieldId ?? box.dataset.fieldId);
@@ -4052,19 +5244,65 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                                 { sequence: box.dataset.segmentSequence },
                                 this.readSegmentSequenceFromPayload(field, 0));
 
-                            const serverSeg = (clientRef && byClientRef.get(clientRef))
+                            return (clientRef && byClientRef.get(clientRef))
                                 || (segmentId && byId.get(segmentId))
                                 || (fieldId && sequence > 0 ? byFieldSequence.get(`${fieldId}|${sequence}`) : null);
+                        };
+
+                        const overlayIndexesToRemove = [];
+                        this.boxesByIndex.forEach((box, overlayIndex) => {
+                            const field = this.fieldByIndex.get(overlayIndex)
+                                ?? this.fieldByIndex.get(Number.parseInt(box.dataset.index ?? "", 10));
+                            if (!field) {
+                                overlayIndexesToRemove.push(overlayIndex);
+                                return;
+                            }
+
+                            if (!resolveServerSegment(box, field)) {
+                                overlayIndexesToRemove.push(overlayIndex);
+                            }
+                        });
+
+                        overlayIndexesToRemove
+                            .sort((left, right) => right - left)
+                            .forEach((overlayIndex) => {
+                                const box = this.boxesByIndex.get(overlayIndex);
+                                if (box) {
+                                    box.remove();
+                                }
+
+                                this.boxesByIndex.delete(overlayIndex);
+                                this.fieldByIndex.delete(overlayIndex);
+                                this.fieldsByPage.forEach((pageFields, page) => {
+                                    this.fieldsByPage.set(
+                                        page,
+                                        pageFields.filter((item) => item.index !== overlayIndex));
+                                });
+                            });
+
+                        this.boxesByIndex.forEach((box, overlayIndex) => {
+                            const field = this.fieldByIndex.get(overlayIndex)
+                                ?? this.fieldByIndex.get(Number.parseInt(box.dataset.index ?? "", 10));
+                            if (!field) {
+                                return;
+                            }
+
+                            const serverSeg = resolveServerSegment(box, field);
                             if (!serverSeg) {
                                 return;
                             }
 
+                            const clientRef = String(box.dataset.clientRef ?? field.clientReferenceId ?? "").trim();
+                            const fieldId = this.normalizeGuidKey(field.fieldId ?? box.dataset.fieldId);
+                            const localSequence = this.readSegmentSequenceFromPayload(
+                                { sequence: box.dataset.segmentSequence },
+                                this.readSegmentSequenceFromPayload(field, 0));
                             const savedId = this.readSegmentIdFromPayload(serverSeg);
                             const rowVersion = this.resolveRowVersionForPayload(
                                 this.readRowVersionFromPayload(serverSeg));
                             const nextSequence = this.readSegmentSequenceFromPayload(
                                 serverSeg,
-                                sequence > 0 ? sequence : overlayIndex + 1);
+                                localSequence > 0 ? localSequence : overlayIndex + 1);
                             const nextClientRef = String(
                                 serverSeg?.clientReferenceId ?? serverSeg?.ClientReferenceId ?? clientRef).trim();
 
@@ -4100,13 +5338,14 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                                 segmentRowVersion: rowVersion ?? null,
                                 segmentSequence: nextSequence,
                                 isPrimary: serverSeg?.isPrimary ?? serverSeg?.IsPrimary ?? field.isPrimary,
-                                textAlignment: serverSeg?.textAlignment ?? serverSeg?.TextAlignment ?? field.textAlignment
+                                ...this.readTypographyFromSegmentSource(serverSeg ?? field)
                             });
                         });
 
                         if (this.activeIndex !== null) {
                             const activeField = this.fieldByIndex.get(this.activeIndex);
                             this.activeSegmentId = activeField?.segmentId ?? null;
+                            this.syncSegmentTextSettingsUi();
                         }
                     }
 
@@ -4177,8 +5416,12 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             const fieldKey = this.normalizeGuidKey(field.fieldId);
                             const group = grouped.get(fieldKey) ?? {
                                 fieldId: this.normalizeGuidKey(field.fieldId),
+                                textOffsetX: this.parsePixel(field.textOffsetX ?? 0),
+                                textOffsetY: this.parsePixel(field.textOffsetY ?? 0),
                                 segments: []
                             };
+                            group.textOffsetX = this.parsePixel(field.textOffsetX ?? group.textOffsetX ?? 0);
+                            group.textOffsetY = this.parsePixel(field.textOffsetY ?? group.textOffsetY ?? 0);
                             const clientReferenceId = box.dataset.clientRef
                                 || field.clientReferenceId
                                 || this.createClientReferenceId();
@@ -4200,7 +5443,10 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                                 width: previewField.width,
                                 height: previewField.height,
                                 isPrimary: field.isPrimary === true,
-                                textAlignment: field.textAlignment ?? "Left",
+                                textAlignment: field.horizontalAlignment ?? field.textAlignment ?? "Left",
+                                fontSize: field.fontSize ?? null,
+                                horizontalAlignment: field.horizontalAlignment ?? field.textAlignment ?? "Left",
+                                verticalAlignment: field.verticalAlignment ?? null,
                                 rowVersionBase64: rowVersion
                             };
 
@@ -4232,6 +5478,8 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
 
                             return {
                                 fieldId: group.fieldId,
+                                textOffsetX: group.textOffsetX ?? 0,
+                                textOffsetY: group.textOffsetY ?? 0,
                                 segments: orderedSegments
                             };
                         });
@@ -4243,8 +5491,12 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
 
                     async persistSegmentsToApi() {
                         const versionId = window.__templateVersionId;
-                        const payload = { fields: this.collectSegmentsPayload() };
-                        if (!versionId || payload.fields.length === 0) {
+                        const deletedFieldIds = this.collectDeletedFieldIds();
+                        const payload = {
+                            fields: this.collectSegmentsPayload(),
+                            deletedFieldIds
+                        };
+                        if (!versionId || (payload.fields.length === 0 && deletedFieldIds.length === 0)) {
                             return true;
                         }
 
@@ -4271,6 +5523,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
 
                             const data = await response.json();
                             this.replaceAllSegmentsState(data.segments ?? data.Segments ?? []);
+                            this.clearDeletedFieldIds();
 
                             this.lastSavedSegmentFields = Array.isArray(data?.segments)
                                 ? data.segments
@@ -4283,6 +5536,8 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             } catch {
                                 // ignore storage issues
                             }
+
+                            await this.reloadFromServer();
 
                             this.renderSaveHint("Сегменти збережено в БД.");
                             showOverlayToast("Сегменти збережено в БД.");
@@ -4411,484 +5666,650 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         if (!Number.isInteger(parsed)) return fallback;
                         return Math.min(Math.max(parsed, min), max);
                     }
+
+                    parsePixel(value, fallback = 0) {
+                        const raw = Number.parseFloat(String(value));
+                        return Number.isFinite(raw) ? raw : fallback;
+                    }
+
+                    getCalibrationState(index) {
+                        const field = this.fieldByIndex.get(index);
+                        if (!field) return null;
+
+                        let state = this.calibrationByIndex.get(index);
+                        if (!state) {
+                            state = {
+                                offsetX: this.parsePixel(field.textOffsetX ?? 0),
+                                offsetY: this.parsePixel(field.textOffsetY ?? 0),
+                                text: ""
+                            };
+                            this.calibrationByIndex.set(index, state);
+                        }
+                        return state;
+                    }
+
+                    syncFieldTextOffsetsToForm(fieldId, offsetX, offsetY) {
+                        const normalized = this.normalizeGuidKey(fieldId);
+                        if (!normalized) return;
+                        document.querySelectorAll(`.js-field-text-offset-x[data-field-id="${normalized}"]`)
+                            .forEach((input) => { input.value = String(offsetX); });
+                        document.querySelectorAll(`.js-field-text-offset-y[data-field-id="${normalized}"]`)
+                            .forEach((input) => { input.value = String(offsetY); });
+                    }
+
+                    applyFieldTextOffsets(index, offsetX, offsetY) {
+                        const field = this.fieldByIndex.get(index);
+                        if (!field) return;
+
+                        field.textOffsetX = offsetX;
+                        field.textOffsetY = offsetY;
+                        this.fieldByIndex.set(index, field);
+
+                        const state = this.getCalibrationState(index);
+                        if (state) {
+                            state.offsetX = offsetX;
+                            state.offsetY = offsetY;
+                        }
+
+                        if (field.fieldId) {
+                            this.syncFieldTextOffsetsToForm(field.fieldId, offsetX, offsetY);
+                        }
+
+                        const page = field.page ?? Number.parseInt(this.boxesByIndex.get(index)?.dataset.page || "1", 10);
+                        this.redrawCalibrationPage(page);
+                        this.syncCalibrationPanel();
+                    }
+
+                    toggleCalibrationMode() {
+                        if (this.calibrationMode) {
+                            this.disableCalibrationMode();
+                        } else {
+                            this.enableCalibrationMode();
+                        }
+                    }
+
+                    enableCalibrationMode() {
+                        this.calibrationMode = true;
+                        this.isInspectMode = false;
+                        document.body.classList.add("template-map-calibration-mode");
+                        calibrationToggleButtons.forEach((btn) => btn.classList.add("active"));
+                        if (calibrationPanel) calibrationPanel.style.display = "";
+                        if (topControlsPanel) topControlsPanel.style.display = "block";
+                        this.calibrationByIndex.clear();
+                        this.ensureCalibrationTextLayers();
+                        this.fieldByIndex.forEach((_field, index) => this.getCalibrationState(index));
+                        this.updateAllBoxVisualStates();
+                        this.redrawAllCalibrationText();
+                        this.syncCalibrationPanel();
+                        showOverlayToast("Калібрування: текст на PDF, рамки — лише орієнтири");
+                    }
+
+                    disableCalibrationMode() {
+                        this.calibrationMode = false;
+                        document.body.classList.remove("template-map-calibration-mode");
+                        calibrationToggleButtons.forEach((btn) => btn.classList.remove("active"));
+                        if (calibrationPanel) calibrationPanel.style.display = "none";
+                        this.removeCalibrationTextLayers();
+                        this.calibrationByIndex.clear();
+                        this.updateAllBoxVisualStates();
+                        this.syncCalibrationPanel();
+                        showOverlayToast("Режим калібрування вимкнено");
+                    }
+
+                    ensureCalibrationTextLayers() {
+                        if (!pagesHost) return;
+                        const outputScale = this.getOutputScale();
+                        pagesHost.querySelectorAll("[data-page]").forEach((wrapper) => {
+                            const pageNumber = Number.parseInt(wrapper.dataset.page || "1", 10);
+                            if (!Number.isInteger(pageNumber)) return;
+                            if (wrapper.querySelector(".calibration-text-layer")) {
+                                const existing = wrapper.querySelector(".calibration-text-layer");
+                                this.pageTextCanvases.set(pageNumber, existing);
+                                return;
+                            }
+
+                            const pdfCanvas = wrapper.querySelector("canvas:not(.calibration-text-layer)");
+                            if (!pdfCanvas) return;
+
+                            const textCanvas = document.createElement("canvas");
+                            textCanvas.className = "calibration-text-layer";
+                            textCanvas.width = pdfCanvas.width;
+                            textCanvas.height = pdfCanvas.height;
+                            textCanvas.style.width = pdfCanvas.style.width;
+                            textCanvas.style.height = pdfCanvas.style.height;
+                            pdfCanvas.insertAdjacentElement("afterend", textCanvas);
+                            this.pageTextCanvases.set(pageNumber, textCanvas);
+                        });
+                    }
+
+                    removeCalibrationTextLayers() {
+                        pagesHost?.querySelectorAll(".calibration-text-layer").forEach((canvas) => canvas.remove());
+                        this.pageTextCanvases.clear();
+                    }
+
+                    openCalibrationTextEditor(index) {
+                        const field = this.fieldByIndex.get(index);
+                        const state = this.getCalibrationState(index);
+                        if (!field || !state) return;
+
+                        this.setActive(index);
+                        if (calibrationTextEditor) {
+                            calibrationTextEditor.value = state.text || field.title || "";
+                        }
+                        if (calibrationTextModalTagHint) {
+                            calibrationTextModalTagHint.textContent = field.tag
+                                ? `${field.tag} — ${field.title || "без опису"}`
+                                : "Поле";
+                        }
+                        calibrationTextModal?.show();
+                    }
+
+                    applyCalibrationEditorText() {
+                        if (this.activeIndex === null) return;
+                        const state = this.getCalibrationState(this.activeIndex);
+                        if (!state) return;
+
+                        state.text = calibrationTextEditor?.value ?? "";
+                        const field = this.fieldByIndex.get(this.activeIndex);
+                        const page = field?.page ?? 1;
+                        this.redrawCalibrationPage(page);
+                        calibrationTextModal?.hide();
+                    }
+
+                    setCalibrationOffset(index, offsetX, offsetY) {
+                        this.applyFieldTextOffsets(index, offsetX, offsetY);
+                    }
+
+                    shiftCalibrationOffset(axis, delta) {
+                        if (this.activeIndex === null) return;
+                        const state = this.getCalibrationState(this.activeIndex);
+                        if (!state) return;
+
+                        if (axis === "x") {
+                            this.setCalibrationOffset(this.activeIndex, state.offsetX + delta, state.offsetY);
+                        } else {
+                            this.setCalibrationOffset(this.activeIndex, state.offsetX, state.offsetY + delta);
+                        }
+                    }
+
+                    syncCalibrationPanel() {
+                        const panelEnabled = this.calibrationMode && this.activeIndex !== null;
+                        const state = panelEnabled ? this.getCalibrationState(this.activeIndex) : null;
+                        const field = panelEnabled ? this.fieldByIndex.get(this.activeIndex) : null;
+
+                        if (calOffsetXInput) {
+                            calOffsetXInput.disabled = !panelEnabled;
+                            calOffsetXInput.value = panelEnabled
+                                ? String(this.parsePixel(field?.textOffsetX ?? state?.offsetX ?? 0))
+                                : "0";
+                        }
+                        if (calOffsetYInput) {
+                            calOffsetYInput.disabled = !panelEnabled;
+                            calOffsetYInput.value = panelEnabled
+                                ? String(this.parsePixel(field?.textOffsetY ?? state?.offsetY ?? 0))
+                                : "0";
+                        }
+
+                        calibrationPanel?.querySelectorAll("[data-cal-shift]").forEach((buttonEl) => {
+                            buttonEl.disabled = !panelEnabled;
+                        });
+                        if (calResetOffsetsBtn) calResetOffsetsBtn.disabled = !panelEnabled;
+                        if (calSaveOffsetsBtn) calSaveOffsetsBtn.disabled = !this.calibrationMode;
+                        if (calPreviewPdfBtn) calPreviewPdfBtn.disabled = !this.calibrationMode;
+
+                        if (calibrationPanelHint) {
+                            calibrationPanelHint.textContent = !this.calibrationMode
+                                ? "Увімкніть режим калібрування."
+                                : (panelEnabled
+                                    ? `${field?.tag || "поле"} — клік на PDF для тексту, offset зміщує лише текст.`
+                                    : "Клікніть поле на PDF.");
+                        }
+                    }
+
+                    collectCalibrationOffsetsPayload() {
+                        const fields = [];
+                        const seen = new Set();
+                        this.fieldByIndex.forEach((field) => {
+                            const fieldId = this.normalizeGuidKey(field.fieldId);
+                            if (!fieldId || seen.has(fieldId)) return;
+                            seen.add(fieldId);
+                            fields.push({
+                                fieldId,
+                                textOffsetX: this.parsePixel(field.textOffsetX ?? 0),
+                                textOffsetY: this.parsePixel(field.textOffsetY ?? 0)
+                            });
+                        });
+                        return fields;
+                    }
+
+                    collectCalibrationSamplesPayload() {
+                        const samples = [];
+                        const seen = new Set();
+                        this.fieldByIndex.forEach((field, index) => {
+                            const fieldId = this.normalizeGuidKey(field.fieldId);
+                            if (!fieldId || seen.has(fieldId)) return;
+                            const state = this.calibrationByIndex.get(index);
+                            const text = state?.text?.trim();
+                            if (!text) return;
+                            seen.add(fieldId);
+                            samples.push({ fieldId, text });
+                        });
+                        return samples;
+                    }
+
+                    async persistCalibrationOffsetsToApi() {
+                        const versionId = window.__templateVersionId;
+                        const fields = this.collectCalibrationOffsetsPayload();
+                        if (!versionId || fields.length === 0) {
+                            return false;
+                        }
+
+                        try {
+                            const response = await fetch(`/api/template-fields/${versionId}/text-offsets`, {
+                                method: "PUT",
+                                credentials: "same-origin",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                    "Accept": "application/json",
+                                    "RequestVerificationToken": this.getAntiForgeryToken()
+                                },
+                                body: JSON.stringify({ fields })
+                            });
+                            if (!response.ok) {
+                                const message = await parseServerErrorMessageFromResponse(
+                                    response,
+                                    "Не вдалося зберегти offset.");
+                                showOverlayToast(message, true);
+                                return false;
+                            }
+                            showOverlayToast("Text offset збережено в БД.");
+                            return true;
+                        } catch {
+                            showOverlayToast("Помилка збереження offset.", true);
+                            return false;
+                        }
+                    }
+
+                    async openCalibrationPreviewPdf() {
+                        const versionId = window.__templateVersionId;
+                        const samples = this.collectCalibrationSamplesPayload();
+                        if (!versionId) return;
+                        if (samples.length === 0) {
+                            showOverlayToast("Введіть текст хоча в одному полі (клік на PDF).", true);
+                            return;
+                        }
+
+                        await this.persistCalibrationOffsetsToApi();
+
+                        const prevLabel = calPreviewPdfBtn?.textContent ?? "";
+                        if (calPreviewPdfBtn) {
+                            calPreviewPdfBtn.disabled = true;
+                            calPreviewPdfBtn.textContent = "Генеруємо…";
+                        }
+
+                        try {
+                            const response = await fetch(`/api/template-fields/${versionId}/calibration-preview`, {
+                                method: "POST",
+                                credentials: "same-origin",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                    "Accept": "application/pdf",
+                                    "RequestVerificationToken": this.getAntiForgeryToken()
+                                },
+                                body: JSON.stringify({ samples })
+                            });
+                            if (!response.ok) {
+                                const message = await parseServerErrorMessageFromResponse(
+                                    response,
+                                    "Не вдалося згенерувати PDF.");
+                                showOverlayToast(message, true);
+                                return;
+                            }
+                            const blob = await response.blob();
+                            const url = URL.createObjectURL(blob);
+                            window.open(url, "_blank", "noopener");
+                            window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+                        } catch {
+                            showOverlayToast("Помилка генерації preview PDF.", true);
+                        } finally {
+                            if (calPreviewPdfBtn) {
+                                calPreviewPdfBtn.disabled = false;
+                                calPreviewPdfBtn.textContent = prevLabel || "Preview PDF";
+                            }
+                        }
+                    }
+
+                    redrawAllCalibrationText() {
+                        this.fieldsByPage.forEach((_fields, page) => this.redrawCalibrationPage(page));
+                    }
+
+                    redrawCalibrationPage(pageNumber) {
+                        const layout = window.PdfOverlayTextLayout;
+                        const canvas = this.pageTextCanvases.get(pageNumber);
+                        if (!canvas || !layout) return;
+
+                        const ctx = canvas.getContext("2d");
+                        if (!ctx) return;
+
+                        const outputScale = this.getOutputScale();
+                        ctx.setTransform(1, 0, 0, 1, 0, 0);
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+                        ctx.setTransform(outputScale, 0, 0, outputScale, 0, 0);
+
+                        const coordScale = this.getCoordinateScale();
+                        const pageFields = this.fieldsByPage.get(pageNumber) ?? [];
+
+                        pageFields.forEach((field) => {
+                            const state = this.calibrationByIndex.get(field.index);
+                            const text = state?.text?.trim();
+                            if (!text) return;
+
+                            const previewX = this.parsePixel(field.x ?? 0);
+                            const previewY = this.parsePixel(field.y ?? 0);
+                            const previewW = this.parsePixel(field.width ?? 220, 220);
+                            const previewH = this.parsePixel(field.height ?? 28, 28);
+                            const bounds = layout.getPreviewBounds(
+                                previewX,
+                                previewY,
+                                previewW,
+                                previewH,
+                                field.textOffsetX ?? state?.offsetX ?? 0,
+                                field.textOffsetY ?? state?.offsetY ?? 0,
+                                coordScale);
+
+                            layout.drawText(ctx, {
+                                text,
+                                bounds,
+                                fontSizePx: layout.resolveFontSizePx(field.fontSize, coordScale),
+                                horizontalAlignment: field.horizontalAlignment ?? field.textAlignment ?? "Left",
+                                verticalAlignment: field.verticalAlignment ?? "Top",
+                                fontFamily: field.fontName ? `${field.fontName}, Arial, sans-serif` : "Arial, sans-serif"
+                            });
+                        });
+
+                        ctx.setTransform(1, 0, 0, 1, 0, 0);
+                    }
+
+                    bindCalibrationEvents() {
+                        calibrationToggleButtons.forEach((buttonEl) => {
+                            buttonEl.addEventListener("click", () => this.toggleCalibrationMode());
+                        });
+
+                        calOffsetXInput?.addEventListener("input", () => {
+                            if (this.activeIndex === null) return;
+                            const state = this.getCalibrationState(this.activeIndex);
+                            if (!state) return;
+                            const nextX = Number.parseFloat(calOffsetXInput.value);
+                            if (!Number.isFinite(nextX)) return;
+                            this.setCalibrationOffset(this.activeIndex, nextX, state.offsetY);
+                        });
+
+                        calOffsetYInput?.addEventListener("input", () => {
+                            if (this.activeIndex === null) return;
+                            const state = this.getCalibrationState(this.activeIndex);
+                            if (!state) return;
+                            const nextY = Number.parseFloat(calOffsetYInput.value);
+                            if (!Number.isFinite(nextY)) return;
+                            this.setCalibrationOffset(this.activeIndex, state.offsetX, nextY);
+                        });
+
+                        calibrationPanel?.querySelectorAll("[data-cal-shift]").forEach((buttonEl) => {
+                            buttonEl.addEventListener("click", () => {
+                                const axis = buttonEl.getAttribute("data-cal-shift");
+                                const delta = Number.parseFloat(buttonEl.getAttribute("data-cal-delta") || "0");
+                                if (!axis || !Number.isFinite(delta)) return;
+                                this.shiftCalibrationOffset(axis, delta);
+                            });
+                        });
+
+                        calResetOffsetsBtn?.addEventListener("click", () => {
+                            if (this.activeIndex === null) return;
+                            this.setCalibrationOffset(this.activeIndex, 0, 0);
+                        });
+
+                        calSaveOffsetsBtn?.addEventListener("click", () => this.persistCalibrationOffsetsToApi());
+                        calPreviewPdfBtn?.addEventListener("click", () => this.openCalibrationPreviewPdf());
+                        calibrationTextApplyBtn?.addEventListener("click", () => this.applyCalibrationEditorText());
+                    }
                 }
 
                 const engine = new FieldEngine();
                 window.__fieldEngine = engine;
+                Object.defineProperty(window, "__pdfSegments", {
+                    configurable: true,
+                    get() {
+                        if (!window.__fieldEngine) {
+                            return [];
+                        }
+
+                        const items = [];
+                        window.__fieldEngine.fieldByIndex.forEach((field, overlayIndex) => {
+                            items.push({ overlayIndex, ...field });
+                        });
+                        return items;
+                    }
+                });
+
+                const overlayDataFieldComboRoot = document.getElementById("overlayDataFieldCombo");
+                if (overlayDataFieldComboRoot && typeof initSearchableCombo === "function" && Array.isArray(window.__dataFieldCatalog)) {
+                    engine.overlayDataFieldCombo = initSearchableCombo(overlayDataFieldComboRoot, {
+                        items: window.__dataFieldCatalog,
+                        placeholder: "Оберіть тег з словника...",
+                        onChange: (value) => engine.applyDataFieldToActiveField(value)
+                    });
+                }
 
                 if (pdfTagLibrary && newPdfFieldTag && newPdfFieldTitle) {
-                    const pdfTagPanel = pdfTagLibrary.closest(".pdf-tag-panel");
-                    const panelStorageKey = `universal-lims.overlay.tag-panel.${window.__templateVersionId || "default"}`;
-                    const allTagOptions = [...pdfTagLibrary.querySelectorAll("option")].filter((option) => option.value);
-                    let panelDragState = null;
+                    const addPdfFieldForm = document.getElementById("addPdfFieldForm");
+                    const nudgeDraftTitle = document.getElementById("nudgeDraftTitle");
+                    const nudgeSubmitNewTag = document.getElementById("nudgeSubmitNewTag");
+                    const nudgeTagPreview = document.getElementById("nudgeTagLivePreview");
+                    const nudgeTagPreviewPlaceholder = nudgeTagPreview?.querySelector(".nudge-tag-live-preview__placeholder");
+                    const nudgeTagPreviewContent = nudgeTagPreview?.querySelector(".nudge-tag-live-preview__content");
+                    const nudgeTagPreviewGroup = nudgeTagPreview?.querySelector(".nudge-tag-live-preview__group");
+                    const nudgeTagPreviewKey = nudgeTagPreview?.querySelector(".nudge-tag-live-preview__key");
+                    const nudgeTagPreviewTitle = nudgeTagPreview?.querySelector(".nudge-tag-live-preview__title");
+                    const toggleNudgeTagComposerBtn = document.getElementById("toggleNudgeTagComposer");
+                    const nudgeTagComposerBody = document.getElementById("nudgeTagComposerBody");
 
-                    const savePanelState = () => {
-                        if (!pdfTagPanel) return;
-                        try {
-                            window.localStorage.setItem(panelStorageKey, JSON.stringify({
-                                detached: pdfTagPanel.classList.contains("floating"),
-                                collapsed: pdfTagPanel.classList.contains("pdf-tag-panel-collapsed"),
-                                left: pdfTagPanel.style.left || "",
-                                top: pdfTagPanel.style.top || ""
-                            }));
-                        } catch {
-                            // ignore storage issues
-                        }
+                    let draftTagKey = (newPdfFieldTag.value || "").trim();
+                    let draftItem = null;
+
+                    const buildTagLibraryItems = () => {
+                        const items = [];
+                        pdfTagLibrary.querySelectorAll("optgroup").forEach((group) => {
+                            const groupName = (group.label || "").trim();
+                            group.querySelectorAll("option").forEach((option) => {
+                                if (!option.value) return;
+                                items.push({
+                                    id: option.value,
+                                    key: option.value,
+                                    displayName: option.getAttribute("data-title") || option.value,
+                                    groupName
+                                });
+                            });
+                        });
+                        return items;
                     };
 
-                    const setPanelCollapsed = (collapsed) => {
-                        if (!pdfTagPanel) return;
-                        pdfTagPanel.classList.toggle("pdf-tag-panel-collapsed", collapsed);
-                        if (togglePdfTagPanelCollapseBtn) {
-                            togglePdfTagPanelCollapseBtn.textContent = collapsed ? "+" : "−";
-                            togglePdfTagPanelCollapseBtn.title = collapsed ? "Розгорнути панель" : "Згорнути панель";
-                        }
+                    const setSubmitEnabled = () => {
+                        if (!nudgeSubmitNewTag) return;
+                        const title = (nudgeDraftTitle?.value || "").trim();
+                        nudgeSubmitNewTag.disabled = !draftTagKey || !title;
                     };
 
-                    const setPanelDetached = (detached, preservePosition = true) => {
-                        if (!pdfTagPanel) return;
-                        pdfTagPanel.classList.toggle("floating", detached);
-                        if (togglePdfTagPanelDetachBtn) {
-                            togglePdfTagPanelDetachBtn.textContent = detached ? "⇲" : "⧉";
-                            togglePdfTagPanelDetachBtn.title = detached ? "Прикріпити панель" : "Відкріпити панель";
+                    const updateNudgeTagPreview = (item, titleOverride) => {
+                        if (!nudgeTagPreview) return;
+                        const key = (item?.key ?? item?.id ?? draftTagKey ?? "").trim();
+                        const title = String(titleOverride ?? item?.displayName ?? "").trim();
+                        const group = (item?.groupName ?? "").trim();
+                        const hasContent = Boolean(key);
+                        nudgeTagPreview.classList.toggle("is-ready", hasContent);
+                        nudgeTagPreviewPlaceholder?.classList.toggle("d-none", hasContent);
+                        nudgeTagPreviewContent?.classList.toggle("d-none", !hasContent);
+                        if (!hasContent) {
+                            setSubmitEnabled();
+                            return;
                         }
-                        if (detached && !preservePosition) {
-                            pdfTagPanel.style.left = "12px";
-                            pdfTagPanel.style.top = "74px";
-                        }
-                        if (!detached) {
-                            pdfTagPanel.style.left = "";
-                            pdfTagPanel.style.top = "";
-                        }
-                        savePanelState();
-                    };
-
-                    try {
-                        const rawPanelState = window.localStorage.getItem(panelStorageKey);
-                        if (rawPanelState) {
-                            const state = JSON.parse(rawPanelState);
-                            const detached = state?.detached === true;
-                            setPanelDetached(detached, true);
-                            setPanelCollapsed(state?.collapsed === true);
-                            if (detached) {
-                                pdfTagPanel.style.left = state?.left || "12px";
-                                pdfTagPanel.style.top = state?.top || "74px";
-                            }
-                        } else {
-                            setPanelCollapsed(false);
-                        }
-                    } catch {
-                        // ignore invalid persisted state
-                        setPanelCollapsed(false);
-                    }
-
-                    togglePdfTagPanelDetachBtn?.addEventListener("click", () => {
-                        const detached = !(pdfTagPanel?.classList.contains("floating"));
-                        setPanelDetached(detached, false);
-                    });
-                    togglePdfTagPanelCollapseBtn?.addEventListener("click", () => {
-                        if (!pdfTagPanel) return;
-                        setPanelCollapsed(!pdfTagPanel.classList.contains("pdf-tag-panel-collapsed"));
-                        savePanelState();
-                    });
-
-                    pdfTagPanel?.querySelector(".pdf-tag-panel-head")?.addEventListener("mousedown", (event) => {
-                        if (!(event.target instanceof HTMLElement) || event.target.closest("button")) return;
-                        if (!pdfTagPanel.classList.contains("floating")) return;
-                        panelDragState = {
-                            startX: event.clientX,
-                            startY: event.clientY,
-                            left: parseFloat(pdfTagPanel.style.left || "12"),
-                            top: parseFloat(pdfTagPanel.style.top || "74")
-                        };
-                        event.preventDefault();
-                    });
-                    document.addEventListener("mousemove", (event) => {
-                        if (!panelDragState || !pdfTagPanel || !pdfTagPanel.classList.contains("floating")) return;
-                        const nextLeft = Math.max(8, Math.min(window.innerWidth - pdfTagPanel.offsetWidth - 8, panelDragState.left + (event.clientX - panelDragState.startX)));
-                        const nextTop = Math.max(8, Math.min(window.innerHeight - 40, panelDragState.top + (event.clientY - panelDragState.startY)));
-                        pdfTagPanel.style.left = `${Math.round(nextLeft)}px`;
-                        pdfTagPanel.style.top = `${Math.round(nextTop)}px`;
-                    });
-                    document.addEventListener("mouseup", () => {
-                        if (!panelDragState) return;
-                        panelDragState = null;
-                        savePanelState();
-                    });
-
-                    const syncSelectedSummary = () => {
-                        const sel = pdfTagLibrary.options[pdfTagLibrary.selectedIndex];
-                        const valid = Boolean(sel?.value);
-                        if (pdfTagSelectedGroup) {
-                            if (!valid) {
-                                pdfTagSelectedGroup.textContent = "";
-                                pdfTagSelectedGroup.classList.add("d-none");
+                        if (nudgeTagPreviewGroup) {
+                            if (group) {
+                                nudgeTagPreviewGroup.textContent = group;
+                                nudgeTagPreviewGroup.style.display = "";
                             } else {
-                                const parent = sel.parentElement;
-                                const grp = parent?.tagName === "OPTGROUP" ? String(parent.label || "").trim() : "";
-                                if (grp) {
-                                    pdfTagSelectedGroup.textContent = `Джерело: «${grp}»`;
-                                    pdfTagSelectedGroup.classList.remove("d-none");
-                                    pdfTagSelectedGroup.title = grp;
-                                } else {
-                                    pdfTagSelectedGroup.textContent = "";
-                                    pdfTagSelectedGroup.classList.add("d-none");
+                                nudgeTagPreviewGroup.textContent = "";
+                                nudgeTagPreviewGroup.style.display = "none";
+                            }
+                        }
+                        if (nudgeTagPreviewKey) nudgeTagPreviewKey.textContent = key;
+                        if (nudgeTagPreviewTitle) nudgeTagPreviewTitle.textContent = title || key;
+                        setSubmitEnabled();
+                    };
+
+                    const applyTagDraft = (item) => {
+                        draftItem = item ?? null;
+                        draftTagKey = String(item?.key ?? item?.id ?? "").trim();
+                        if (draftTagKey) {
+                            pdfTagLibrary.value = draftTagKey;
+                            newPdfFieldTag.value = draftTagKey;
+                        }
+                        const defaultTitle = String(item?.displayName ?? "").trim();
+                        if (nudgeDraftTitle && defaultTitle) {
+                            nudgeDraftTitle.value = defaultTitle;
+                        }
+                        updateNudgeTagPreview(item, nudgeDraftTitle?.value ?? defaultTitle);
+                    };
+
+                    nudgeDraftTitle?.addEventListener("input", () => {
+                        updateNudgeTagPreview(draftItem, nudgeDraftTitle.value);
+                    });
+
+                    nudgeSubmitNewTag?.addEventListener("click", () => {
+                        submitAddPdfField();
+                    });
+
+                    toggleNudgeTagComposerBtn?.addEventListener("click", () => {
+                        if (!nudgeTagComposerBody) return;
+                        const collapsed = nudgeTagComposerBody.style.display === "none";
+                        nudgeTagComposerBody.style.display = collapsed ? "" : "none";
+                        toggleNudgeTagComposerBtn.setAttribute("aria-expanded", collapsed ? "true" : "false");
+                        toggleNudgeTagComposerBtn.textContent = collapsed ? "▾" : "▸";
+                    });
+
+                    let nudgeTagComboApi = null;
+
+                    const resetTagComposer = () => {
+                        draftTagKey = "";
+                        draftItem = null;
+                        if (nudgeDraftTitle) nudgeDraftTitle.value = "";
+                        newPdfFieldTag.value = "";
+                        newPdfFieldTitle.value = "";
+                        if (pdfTagLibrary) pdfTagLibrary.value = "";
+                        nudgeTagComboApi?.setValue(null);
+                        updateNudgeTagPreview(null);
+                    };
+
+                    const submitAddPdfField = async () => {
+                        if (!draftTagKey || !addPdfFieldForm) return;
+                        const title = (nudgeDraftTitle?.value || "").trim();
+                        if (!title) return;
+
+                        const token = addPdfFieldForm.querySelector('input[name="__RequestVerificationToken"]')?.value
+                            ?? fieldMapForm?.querySelector('input[name="__RequestVerificationToken"]')?.value
+                            ?? "";
+                        const formData = new FormData(addPdfFieldForm);
+                        formData.set("Tag", draftTagKey);
+                        formData.set("Title", title);
+
+                        const prevLabel = nudgeSubmitNewTag?.textContent ?? "";
+                        if (nudgeSubmitNewTag) {
+                            nudgeSubmitNewTag.disabled = true;
+                            nudgeSubmitNewTag.textContent = "Додаємо…";
+                        }
+
+                        try {
+                            const response = await fetch(addPdfFieldForm.action, {
+                                method: "POST",
+                                credentials: "same-origin",
+                                headers: {
+                                    Accept: "application/json",
+                                    RequestVerificationToken: token
+                                },
+                                body: formData
+                            });
+
+                            if (!response.ok) {
+                                const message = await parseServerErrorMessageFromResponse(
+                                    response,
+                                    "Не вдалося додати тег.");
+                                showOverlayToast(message, true);
+                                return;
+                            }
+
+                            const data = await response.json();
+                            const createdFieldId = data?.fieldId ?? data?.FieldId ?? null;
+                            showOverlayToast(data?.message ?? "Поле додано.");
+
+                            const engine = window.__fieldEngine;
+                            if (engine) {
+                                await engine.reloadFromServer();
+                                if (createdFieldId) {
+                                    engine.editMode = "edit";
+                                    engine.allEditable = false;
+                                    engine.updateEditUI();
+                                    const overlayIndex = engine.getOverlayIndexForField(createdFieldId);
+                                    if (overlayIndex !== null) {
+                                        engine.setActive(overlayIndex);
+                                        engine.boxesByIndex.get(overlayIndex)?.scrollIntoView({
+                                            behavior: "smooth",
+                                            block: "center"
+                                        });
+                                    }
                                 }
                             }
-                        }
-                        if (!pdfTagSelectedLabel) return;
-                        if (!valid) {
-                            pdfTagSelectedLabel.textContent = "— не обрано —";
-                            return;
-                        }
-                        const t = sel.getAttribute("data-title") || "";
-                        pdfTagSelectedLabel.textContent = t ? `${sel.value} — ${t}` : (sel.textContent?.trim() || sel.value);
-                    };
 
-                    const applyTagSelection = (option, fillTitleAlways = false) => {
-                        if (!option || !option.value) return;
-                        pdfTagLibrary.value = option.value;
-                        newPdfFieldTag.value = option.value;
-                        const title = option.getAttribute("data-title");
-                        if (title && (fillTitleAlways || !newPdfFieldTitle.value.trim())) {
-                            newPdfFieldTitle.value = title;
-                        }
-                        syncSelectedSummary();
-                    };
-
-                    const optGroups = [...pdfTagLibrary.querySelectorAll(":scope > optgroup")];
-                    const shortenChipLabel = (text, maxLen) => {
-                        const t = (text || "").trim();
-                        if (t.length <= maxLen) return t;
-                        return `${t.slice(0, Math.max(0, maxLen - 1))}…`;
-                    };
-
-                    /** null = усі групи; інакше індекс optgroup */
-                    let activeCategoryIndex = null;
-                    let tagPickerRows = [];
-                    let tagPickerFocusIdx = 0;
-                    let tagListCollapsed = false;
-
-                    const syncListCollapsedUi = () => {
-                        if (!pdfTagBrowsePanel || !pdfTagStructuredToggle) return;
-                        pdfTagBrowsePanel.classList.toggle("pdf-tag-picker-collapsed", tagListCollapsed);
-                        pdfTagStructuredToggle.setAttribute("aria-expanded", tagListCollapsed ? "false" : "true");
-                        pdfTagStructuredToggle.title = tagListCollapsed
-                            ? "Показати список тегів"
-                            : "Згорнути список тегів";
-                    };
-
-                    const syncRowSelectedState = () => {
-                        const currentVal = pdfTagLibrary.value;
-                        tagPickerRows.forEach(({ button, option }) => {
-                            const sel = option.value === currentVal;
-                            button.classList.toggle("is-selected", sel);
-                            button.setAttribute("aria-current", sel ? "true" : "false");
-                        });
-                    };
-
-                    const focusTagPickerRow = (index, { scroll = true } = {}) => {
-                        if (!tagPickerRows.length) return;
-                        tagPickerFocusIdx = Math.max(0, Math.min(index, tagPickerRows.length - 1));
-                        tagPickerRows.forEach(({ button }, i) => {
-                            button.tabIndex = i === tagPickerFocusIdx ? 0 : -1;
-                        });
-                        const btn = tagPickerRows[tagPickerFocusIdx]?.button;
-                        btn?.focus({ preventScroll: true });
-                        if (scroll) btn?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-                    };
-
-                    const syncCategoryFilterSelect = () => {
-                        if (!pdfTagCategoryFilter) return;
-                        pdfTagCategoryFilter.value =
-                            activeCategoryIndex === null ? "" : String(activeCategoryIndex);
-                    };
-
-                    const ensureCategoryFilterOptions = () => {
-                        if (!pdfTagCategoryFilter || pdfTagCategoryFilter.dataset.ready === "1") return;
-                        pdfTagCategoryFilter.innerHTML = "";
-                        const allOpt = document.createElement("option");
-                        allOpt.value = "";
-                        allOpt.textContent = "Усі групи бібліотеки";
-                        pdfTagCategoryFilter.appendChild(allOpt);
-                        optGroups.forEach((group, idx) => {
-                            const o = document.createElement("option");
-                            o.value = String(idx);
-                            o.textContent = group.label || `Група ${idx + 1}`;
-                            pdfTagCategoryFilter.appendChild(o);
-                        });
-                        pdfTagCategoryFilter.dataset.ready = "1";
-                        pdfTagCategoryFilter.addEventListener("change", () => {
-                            const v = pdfTagCategoryFilter.value;
-                            activeCategoryIndex = v === "" ? null : Number.parseInt(v, 10);
-                            applyPdfTagLibraryFilter();
-                        });
-                        syncCategoryFilterSelect();
-                    };
-
-                    const collectVisibleOptionsOrdered = () => {
-                        const out = [];
-                        optGroups.forEach((group) => {
-                            [...group.querySelectorAll("option")].forEach((o) => {
-                                if (o.value && !o.hidden) out.push(o);
-                            });
-                        });
-                        return out;
-                    };
-
-                    const describeOptionOneLine = (option) => {
-                        const t = option.getAttribute("data-title") || "";
-                        return t ? `${option.value} — ${t}` : option.textContent?.trim() || option.value;
-                    };
-
-                    const applyPdfTagSearchContext = (visibleOpts, queryRaw) => {
-                        if (!pdfTagSearchContext) return;
-                        const query = (queryRaw || "").trim().toLowerCase();
-                        if (!query) {
-                            pdfTagSearchContext.textContent = "";
-                            pdfTagSearchContext.classList.add("d-none");
-                            return;
-                        }
-                        if (visibleOpts.length === 0) {
-                            pdfTagSearchContext.textContent =
-                                "Збігів немає — змініть запит або оберіть іншу групу у списку вище.";
-                            pdfTagSearchContext.classList.remove("d-none");
-                            return;
-                        }
-                        if (visibleOpts.length === 1) {
-                            const o = visibleOpts[0];
-                            const grp = o.parentElement?.tagName === "OPTGROUP"
-                                ? String(o.parentElement.label || "").trim()
-                                : "";
-                            pdfTagSearchContext.innerHTML = "";
-                            const bold = document.createElement("strong");
-                            bold.textContent = "Єдиний збіг";
-                            pdfTagSearchContext.appendChild(bold);
-                            pdfTagSearchContext.appendChild(document.createTextNode(": "));
-                            const span = document.createElement("span");
-                            span.textContent = grp ? `${grp} → ${describeOptionOneLine(o)}` : describeOptionOneLine(o);
-                            pdfTagSearchContext.appendChild(span);
-                            pdfTagSearchContext.classList.remove("d-none");
-                            return;
-                        }
-                        const summary = document.createElement("span");
-                        summary.textContent =
-                            `Знайдено ${visibleOpts.length} збігів за запитом «${queryRaw.trim()}». На кожній картці вказано групу; нижче можна пройтися стрілками або обрати мишею.`;
-                        pdfTagSearchContext.innerHTML = "";
-                        pdfTagSearchContext.appendChild(summary);
-                        pdfTagSearchContext.classList.remove("d-none");
-                    };
-
-                    const buildTagPickerList = () => {
-                        if (!pdfTagBrowsePanel) return;
-                        const prevFocusedValue = tagPickerRows[tagPickerFocusIdx]?.option?.value;
-                        const wasSearchFocused = document.activeElement === pdfTagLibrarySearch;
-
-                        pdfTagBrowsePanel.innerHTML = "";
-                        tagPickerRows = [];
-
-                        optGroups.forEach((group) => {
-                            const opts = [...group.querySelectorAll("option")].filter((o) => o.value && !o.hidden);
-                            if (opts.length === 0) return;
-                            const groupTitle = (group.label || "").trim();
-
-                            opts.forEach((opt) => {
-                                const title = opt.getAttribute("data-title") || "";
-                                const b = document.createElement("button");
-                                b.type = "button";
-                                b.className = "pdf-tag-picker-row";
-                                b.setAttribute("aria-current", "false");
-                                b.dataset.tagValue = opt.value;
-
-                                const grpLine = document.createElement("span");
-                                grpLine.className = "pdf-tag-picker-group-inline";
-                                grpLine.textContent = groupTitle || "Група";
-                                grpLine.title = groupTitle;
-
-                                const code = document.createElement("span");
-                                code.className = "pdf-tag-picker-code";
-                                code.textContent = opt.value;
-
-                                const desc = document.createElement("span");
-                                desc.className = "pdf-tag-picker-desc";
-                                desc.textContent = title || (opt.textContent || "").replace(/^[^—]+—\s*/, "").trim() || opt.value;
-
-                                b.appendChild(grpLine);
-                                b.appendChild(code);
-                                b.appendChild(desc);
-
-                                b.addEventListener("click", () => {
-                                    applyTagSelection(opt, false);
-                                    syncRowSelectedState();
-                                    const i = tagPickerRows.findIndex((r) => r.option === opt);
-                                    if (i >= 0) focusTagPickerRow(i, { scroll: false });
-                                });
-
-                                tagPickerRows.push({ button: b, option: opt });
-                                pdfTagBrowsePanel.appendChild(b);
-                            });
-                        });
-
-                        if (tagPickerRows.length === 0) {
-                            const empty = document.createElement("div");
-                            empty.className = "pdf-tag-picker-empty";
-                            empty.textContent = "Немає збігів. Спробуйте інший пошук або оберіть іншу групу.";
-                            pdfTagBrowsePanel.appendChild(empty);
-                            return;
-                        }
-
-                        syncRowSelectedState();
-
-                        let nextFocus = 0;
-                        const currentVal = pdfTagLibrary.value;
-                        const byValue = tagPickerRows.findIndex((r) => r.option.value === currentVal);
-                        if (byValue >= 0) nextFocus = byValue;
-                        else if (prevFocusedValue) {
-                            const j = tagPickerRows.findIndex((r) => r.option.value === prevFocusedValue);
-                            if (j >= 0) nextFocus = j;
-                        }
-                        tagPickerFocusIdx = nextFocus;
-                        tagPickerRows.forEach(({ button }, i) => {
-                            button.tabIndex = i === nextFocus ? 0 : -1;
-                        });
-                        if (wasSearchFocused) {
-                            pdfTagLibrarySearch?.focus();
-                        } else {
-                            const btn = tagPickerRows[nextFocus]?.button;
-                            btn?.focus({ preventScroll: true });
-                            btn?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+                            resetTagComposer();
+                        } catch {
+                            showOverlayToast("Не вдалося додати тег. Перевірте зʼєднання.", true);
+                        } finally {
+                            if (nudgeSubmitNewTag) {
+                                nudgeSubmitNewTag.textContent = prevLabel || "➕ Додати на шаблон";
+                                setSubmitEnabled();
+                            }
                         }
                     };
 
-                    let tagFilterTimer = null;
-                    const SCHEDULE_MS = 120;
-
-                    const updatePdfTagLibraryHint = (visibleCount, totalCount, query = "") => {
-                        if (!pdfTagLibraryHint) return;
-                        if (!query && activeCategoryIndex === null) {
-                            pdfTagLibraryHint.textContent =
-                                "Спочатку можна звузити список «Група бібліотеки», потім шукати. На картці тегу завжди видно групу-джерело; у списку — ↑↓ і Enter.";
-                            return;
-                        }
-                        const parts = [];
-                        if (activeCategoryIndex !== null) {
-                            parts.push(`група: ${shortenChipLabel(optGroups[activeCategoryIndex]?.label || "", 48)}`);
-                        }
-                        if (query) parts.push(`запит «${query}»`);
-                        pdfTagLibraryHint.textContent = `Знайдено ${visibleCount} з ${totalCount} тегів${parts.length ? ` (${parts.join("; ")})` : ""}.`;
-                    };
-
-                    const applyPdfTagLibraryFilter = () => {
-                        const queryRaw = (pdfTagLibrarySearch?.value || "").trim();
-                        const query = queryRaw.toLowerCase();
-                        let visibleCount = 0;
-                        allTagOptions.forEach((option) => {
-                            const g = option.parentElement && option.parentElement.tagName === "OPTGROUP"
-                                ? option.parentElement
-                                : null;
-                            const gIdx = g ? optGroups.indexOf(g) : -1;
-                            const groupOk = activeCategoryIndex === null || gIdx === activeCategoryIndex;
-                            const haystack = `${option.value} ${option.getAttribute("data-title") || ""} ${option.textContent || ""}`.toLowerCase();
-                            const isMatch = groupOk && (!query || haystack.includes(query));
-                            option.hidden = !isMatch;
-                            if (isMatch) visibleCount++;
-                        });
-                        pdfTagLibrary.querySelectorAll("optgroup").forEach((group) => {
-                            const hasVisible = [...group.querySelectorAll("option")].some((option) => !option.hidden && option.value);
-                            group.hidden = !hasVisible;
-                        });
-                        const current = pdfTagLibrary.selectedOptions?.[0];
-                        if (current && current.hidden) {
-                            pdfTagLibrary.selectedIndex = 0;
-                        }
-                        syncSelectedSummary();
-                        syncCategoryFilterSelect();
-                        const orderedVisible = collectVisibleOptionsOrdered();
-                        applyPdfTagSearchContext(orderedVisible, queryRaw);
-                        updatePdfTagLibraryHint(visibleCount, allTagOptions.length, query);
-                        if (!tagListCollapsed) buildTagPickerList();
-                    };
-
-                    pdfTagLibrarySearch?.addEventListener("input", () => {
-                        window.clearTimeout(tagFilterTimer);
-                        tagFilterTimer = window.setTimeout(() => applyPdfTagLibraryFilter(), SCHEDULE_MS);
+                    addPdfFieldForm?.addEventListener("submit", (event) => {
+                        event.preventDefault();
                     });
 
-                    pdfTagLibrarySearch?.addEventListener("keydown", (event) => {
-                        if (event.key === "ArrowDown") {
-                            if (tagListCollapsed || !tagPickerRows.length) return;
-                            event.preventDefault();
-                            focusTagPickerRow(0);
-                            return;
-                        }
-                        if (event.key === "Enter") {
-                            event.preventDefault();
-                            const firstVisible = allTagOptions.find((option) => !option.hidden && option.value);
-                            if (firstVisible) applyTagSelection(firstVisible, false);
-                            applyPdfTagLibraryFilter();
-                            return;
-                        }
-                        if (event.key !== "Escape") return;
-                        pdfTagLibrarySearch.value = "";
-                        activeCategoryIndex = null;
-                        syncCategoryFilterSelect();
-                        applyPdfTagLibraryFilter();
-                    });
-
-                    pdfTagStructuredToggle?.addEventListener("click", (event) => {
-                        event.stopPropagation();
-                        tagListCollapsed = !tagListCollapsed;
-                        syncListCollapsedUi();
-                        if (!tagListCollapsed) applyPdfTagLibraryFilter();
-                    });
-
-                    pdfTagBrowsePanel?.addEventListener("keydown", (event) => {
-                        if (!tagPickerRows.length) return;
-                        if (event.key === "ArrowDown") {
-                            event.preventDefault();
-                            focusTagPickerRow(tagPickerFocusIdx + 1);
-                            return;
-                        }
-                        if (event.key === "ArrowUp") {
-                            event.preventDefault();
-                            focusTagPickerRow(tagPickerFocusIdx - 1);
-                            return;
-                        }
-                        if (event.key === "Home") {
-                            event.preventDefault();
-                            focusTagPickerRow(0);
-                            return;
-                        }
-                        if (event.key === "End") {
-                            event.preventDefault();
-                            focusTagPickerRow(tagPickerRows.length - 1);
-                            return;
-                        }
-                        if (event.key === "Enter" || event.key === " ") {
-                            event.preventDefault();
-                            const row = tagPickerRows[tagPickerFocusIdx];
-                            if (row?.option) applyTagSelection(row.option, false);
-                            syncRowSelectedState();
-                            return;
-                        }
-                    });
-
-                    pdfTagLibrary.addEventListener("change", () => {
-                        const selected = pdfTagLibrary.options[pdfTagLibrary.selectedIndex];
-                        if (!selected || !selected.value) return;
-                        applyTagSelection(selected, false);
-                        if (!tagListCollapsed) syncRowSelectedState();
-                    });
-
-                    const prefillTag = (newPdfFieldTag?.value || "").trim();
-                    if (prefillTag) {
-                        const match = allTagOptions.find((o) => o.value === prefillTag);
-                        if (match) applyTagSelection(match, false);
+                    const libraryItems = buildTagLibraryItems();
+                    const nudgeTagComboRoot = document.getElementById("nudgeTagLibraryCombo");
+                    if (nudgeTagComboRoot && typeof initSearchableCombo === "function") {
+                        nudgeTagComboApi = initSearchableCombo(nudgeTagComboRoot, {
+                            items: libraryItems,
+                            placeholder: "Оберіть тег зі словника...",
+                            value: draftTagKey || null,
+                            onPreview: (item) => {
+                                if (!item) return;
+                                draftItem = item;
+                                updateNudgeTagPreview(item, nudgeDraftTitle?.value ?? item.displayName);
+                            },
+                            onChange: (_value, item) => applyTagDraft(item)
+                        });
                     }
 
-                    ensureCategoryFilterOptions();
-                    syncListCollapsedUi();
-                    applyPdfTagLibraryFilter();
+                    if (draftTagKey) {
+                        const match = libraryItems.find((item) => item.id === draftTagKey);
+                        if (match) {
+                            applyTagDraft(match);
+                        } else {
+                            updateNudgeTagPreview(
+                                { key: draftTagKey, displayName: newPdfFieldTitle.value },
+                                newPdfFieldTitle.value);
+                        }
+                    } else {
+                        updateNudgeTagPreview(null);
+                    }
                 }
 
                 let syncingHorizontalScroll = false;
@@ -4921,6 +6342,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         const clamped = Math.max(75, Math.min(300, zoomPercent));
                         zoomValue.textContent = `${clamped}%`;
                         if (nudgeZoomSlider) nudgeZoomSlider.value = String(clamped);
+                        if (typeof updateNudgeZoomLabel === "function") updateNudgeZoomLabel();
                         engine.schedulePdfZoomRefresh(clamped);
                     };
                     zoomSlider.addEventListener("input", applyZoom);
@@ -4937,4 +6359,3 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
         </script>
     }
 }
-

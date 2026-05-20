@@ -20,4 +20,7 @@ public sealed record TemplateFieldSegmentSavedState(
     decimal Height,
     bool IsPrimary,
     string TextAlignment,
+    decimal? FontSize,
+    string? HorizontalAlignment,
+    string? VerticalAlignment,
     byte[] RowVersion);

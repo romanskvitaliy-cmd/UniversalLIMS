@@ -451,6 +451,8 @@ public sealed class TemplateVersionService : ITemplateVersionService
                     Height = sourceSegment.Height,
                     IsPrimary = sourceSegment.IsPrimary,
                     TextAlignment = sourceSegment.TextAlignment,
+                    HorizontalAlignment = sourceSegment.HorizontalAlignment,
+                    VerticalAlignment = sourceSegment.VerticalAlignment,
                     FontName = sourceSegment.FontName,
                     FontSize = sourceSegment.FontSize,
                     LineHeight = sourceSegment.LineHeight,
