@@ -47,4 +47,13 @@ public sealed class PdfWorkspaceSaveResult
     public int SkippedEmpty { get; init; }
 
     public string Message { get; init; } = string.Empty;
+
+    public IReadOnlyList<PdfWorkspaceSaveFieldFailure> FailedFields { get; init; } = [];
+}
+
+public sealed class PdfWorkspaceSaveFieldFailure
+{
+    public Guid? TemplateFieldId { get; init; }
+
+    public string Reason { get; init; } = string.Empty;
 }

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using UniversalLIMS.Application.Registration.Abstractions;
 using UniversalLIMS.Application.Security;
 using UniversalLIMS.Application.Templates.Abstractions;
@@ -17,15 +18,18 @@ public sealed class PdfWorkspaceController : Controller
     private readonly ApplicationDbContext _context;
     private readonly ITemplateOriginalOpenTokenIssuer _openTokenIssuer;
     private readonly IPdfWorkspaceFillService _fillService;
+    private readonly ILogger<PdfWorkspaceController> _logger;
 
     public PdfWorkspaceController(
         ApplicationDbContext context,
         ITemplateOriginalOpenTokenIssuer openTokenIssuer,
-        IPdfWorkspaceFillService fillService)
+        IPdfWorkspaceFillService fillService,
+        ILogger<PdfWorkspaceController> logger)
     {
         _context = context;
         _openTokenIssuer = openTokenIssuer;
         _fillService = fillService;
+        _logger = logger;
     }
 
     [HttpGet]
@@ -84,7 +88,14 @@ public sealed class PdfWorkspaceController : Controller
 
         try
         {
-            var values = (request.Values ?? [])
+            var rawValues = request.Values ?? [];
+            _logger.LogInformation(
+                "PdfWorkspace SaveValues: version={TemplateVersionId}, order={OrderId}, items={Count}",
+                templateVersionId,
+                request.OrderId,
+                rawValues.Count);
+
+            var values = rawValues
                 .Select(item => new PdfWorkspaceFieldValueDto
                 {
                     TemplateFieldId = Guid.TryParse(item.TemplateFieldId, out var fieldId) ? fieldId : null,
@@ -92,11 +103,27 @@ public sealed class PdfWorkspaceController : Controller
                 })
                 .ToList();
 
+            foreach (var item in values)
+            {
+                _logger.LogDebug(
+                    "PdfWorkspace SaveValues item: templateFieldId={TemplateFieldId}, length={Length}",
+                    item.TemplateFieldId,
+                    item.Value?.Length ?? 0);
+            }
+
             var result = await _fillService.SaveValuesAsync(
                 templateVersionId,
                 request.OrderId,
                 values,
                 cancellationToken);
+
+            _logger.LogInformation(
+                "PdfWorkspace SaveValues result: order={OrderId}, received={Received}, saved={Saved}, unmapped={Unmapped}, failed={Failed}",
+                result.OrderId,
+                result.Received,
+                result.Saved,
+                result.SkippedUnmapped,
+                result.FailedFields.Count);
 
             return Json(new
             {
@@ -106,7 +133,12 @@ public sealed class PdfWorkspaceController : Controller
                 saved = result.Saved,
                 skippedUnmapped = result.SkippedUnmapped,
                 skippedEmpty = result.SkippedEmpty,
-                message = result.Message
+                message = result.Message,
+                failedFields = result.FailedFields.Select(failure => new
+                {
+                    templateFieldId = failure.TemplateFieldId,
+                    reason = failure.Reason
+                })
             });
         }
         catch (InvalidOperationException exception)

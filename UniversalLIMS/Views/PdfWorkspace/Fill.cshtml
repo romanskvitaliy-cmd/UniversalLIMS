@@ -27,51 +27,52 @@
         background: #f8f9fa;
     }
 
+    .pdf-fill-overlay-layer {
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 20;
+        pointer-events: none;
+    }
+
     .pdf-fill-field-box {
-        position: relative;
-        border: 2px solid #6c757d;
-        background: rgba(108, 117, 125, 0.12);
-        border-radius: 4px;
+        position: absolute;
         box-sizing: border-box;
         overflow: hidden;
         pointer-events: auto;
+        border: 1px dashed transparent;
+        background: transparent;
+        cursor: text;
     }
 
-    /* Значення прижато до нижньої межі рамки тега (не зміщуємо саму рамку на PDF). */
+    .pdf-fill-field-box--active {
+        border-color: rgba(13, 110, 253, 0.6);
+        background: rgba(255, 255, 255, 0.12);
+    }
+
     .pdf-fill-field-box .pdf-fill-input {
-        position: absolute;
-        left: 0;
-        bottom: 0;
+        display: block;
         width: 100%;
-        max-height: 100%;
-        min-height: 14px;
-        height: auto;
+        height: 100%;
         margin: 0;
+        padding: 0 2px;
         border: 0;
-        border-bottom: 2px solid #6c757d;
-        border-radius: 0;
-        background: rgba(255, 255, 255, 0.92);
+        outline: none;
         resize: none;
+        background: transparent;
+        color: #111;
+        font-family: Arial, Helvetica, sans-serif;
         font-size: 12px;
         line-height: 1.15;
-        padding: 0 4px 2px;
-        box-sizing: border-box;
         box-shadow: none;
-    }
-
-    .pdf-fill-field-box textarea.pdf-fill-input {
-        top: 0;
-        height: 100%;
-        border-bottom-width: 2px;
+        pointer-events: auto;
+        cursor: text;
     }
 
     .pdf-fill-field-box .pdf-fill-input:focus {
-        outline: 2px solid #0d6efd;
-        background: #fff;
-    }
-
-    .field-overlay-layer {
-        pointer-events: none;
+        background: rgba(255, 255, 255, 0.25);
+        outline: 1px solid rgba(13, 110, 253, 0.8);
+        color: #111 !important;
     }
 
     .pdf-fill-page canvas {
@@ -83,6 +84,7 @@
     <div>
         <h1 class="h4 mb-1">PDF Workspace — заповнення</h1>
         <p class="text-muted mb-0">@Model.TemplateNameUk · v@(Model.VersionNumber)</p>
+        <p class="small text-muted mb-0">Клікніть поле на PDF і вводьте текст прямо на бланку (без модалок).</p>
     </div>
     <div class="d-flex flex-wrap gap-2 justify-content-end">
         <a class="btn btn-outline-secondary btn-sm" asp-action="Index">Список версій</a>

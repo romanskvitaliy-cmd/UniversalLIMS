@@ -41,6 +41,13 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
         var saved = 0;
         var skippedUnmapped = 0;
         var skippedEmpty = 0;
+        var failures = new List<PdfWorkspaceSaveFieldFailure>();
+
+        _logger.LogInformation(
+            "PdfWorkspaceFill SaveValuesAsync: version={VersionId}, order={OrderId}, received={Received}",
+            templateVersionId,
+            orderId,
+            received);
 
         await EnsureTemplateVersionExistsAsync(templateVersionId, cancellationToken);
 
@@ -61,32 +68,76 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
                                 !field.IsAnnulled)
                 .ToDictionaryAsync(field => field.Id, cancellationToken);
 
-        var mappedDataFieldIds = templateFields.Values
-            .Where(field => field.DataFieldId.HasValue)
-            .Select(field => field.DataFieldId!.Value)
-            .Distinct()
-            .ToList();
+        _logger.LogInformation(
+            "PdfWorkspaceFill resolved template fields: requested={Requested}, found={Found}",
+            templateFieldIds.Count,
+            templateFields.Count);
 
-        var existingValues = mappedDataFieldIds.Count == 0
+        var workspaceDataFieldIdByTemplateFieldId = await EnsureWorkspaceDataFieldsAsync(
+            templateFields.Values,
+            cancellationToken);
+
+        foreach (var pair in workspaceDataFieldIdByTemplateFieldId)
+        {
+            _logger.LogDebug(
+                "PdfWorkspaceFill workspace DataField: templateField={TemplateFieldId}, dataField={DataFieldId}",
+                pair.Key,
+                pair.Value);
+        }
+
+        var workspaceDataFieldIds = workspaceDataFieldIdByTemplateFieldId.Values.Distinct().ToList();
+        var existingValues = workspaceDataFieldIds.Count == 0
             ? []
             : await _context.OrderFieldValues
                 .Where(fieldValue => fieldValue.OrderId == order.Id &&
                                      fieldValue.SampleId == null &&
-                                     mappedDataFieldIds.Contains(fieldValue.DataFieldId))
+                                     workspaceDataFieldIds.Contains(fieldValue.DataFieldId))
                 .ToListAsync(cancellationToken);
 
         foreach (var item in values)
         {
-            if (!item.TemplateFieldId.HasValue ||
-                !templateFields.TryGetValue(item.TemplateFieldId.Value, out var field) ||
-                !field.DataFieldId.HasValue)
+            if (!item.TemplateFieldId.HasValue)
             {
                 skippedUnmapped++;
+                failures.Add(new PdfWorkspaceSaveFieldFailure
+                {
+                    TemplateFieldId = null,
+                    Reason = "templateFieldId порожній або невалідний."
+                });
+                _logger.LogWarning("PdfWorkspaceFill skip: missing templateFieldId");
+                continue;
+            }
+
+            var templateFieldId = item.TemplateFieldId.Value;
+            if (!templateFields.TryGetValue(templateFieldId, out _))
+            {
+                skippedUnmapped++;
+                failures.Add(new PdfWorkspaceSaveFieldFailure
+                {
+                    TemplateFieldId = templateFieldId,
+                    Reason = "Поле шаблону не знайдено у цій версії."
+                });
+                _logger.LogWarning(
+                    "PdfWorkspaceFill skip: template field not found {TemplateFieldId}",
+                    templateFieldId);
+                continue;
+            }
+
+            if (!workspaceDataFieldIdByTemplateFieldId.TryGetValue(templateFieldId, out var dataFieldId))
+            {
+                skippedUnmapped++;
+                failures.Add(new PdfWorkspaceSaveFieldFailure
+                {
+                    TemplateFieldId = templateFieldId,
+                    Reason = "Не вдалося підготувати DataField для збереження."
+                });
+                _logger.LogWarning(
+                    "PdfWorkspaceFill skip: workspace DataField missing for {TemplateFieldId}",
+                    templateFieldId);
                 continue;
             }
 
             mapped++;
-            var dataFieldId = field.DataFieldId.Value;
             var trimmedValue = item.Value?.Trim();
 
             if (string.IsNullOrEmpty(trimmedValue))
@@ -96,6 +147,10 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
                 {
                     _context.OrderFieldValues.Remove(existing);
                     existingValues.Remove(existing);
+                    _logger.LogDebug(
+                        "PdfWorkspaceFill cleared empty value: templateField={TemplateFieldId}, dataField={DataFieldId}",
+                        templateFieldId,
+                        dataFieldId);
                 }
 
                 skippedEmpty++;
@@ -114,10 +169,22 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
                 };
                 _context.OrderFieldValues.Add(created);
                 existingValues.Add(created);
+                _logger.LogInformation(
+                    "PdfWorkspaceFill insert: order={OrderId}, templateField={TemplateFieldId}, dataField={DataFieldId}, length={Length}",
+                    order.Id,
+                    templateFieldId,
+                    dataFieldId,
+                    trimmedValue.Length);
             }
             else
             {
                 stored.StoredValue = trimmedValue;
+                _logger.LogInformation(
+                    "PdfWorkspaceFill update: order={OrderId}, templateField={TemplateFieldId}, dataField={DataFieldId}, length={Length}",
+                    order.Id,
+                    templateFieldId,
+                    dataFieldId,
+                    trimmedValue.Length);
             }
 
             saved++;
@@ -126,8 +193,28 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
         if (mapped > 0)
         {
             await _context.SaveChangesAsync(cancellationToken);
+            _logger.LogInformation(
+                "PdfWorkspaceFill SaveChanges OK: order={OrderId}, saved={Saved}",
+                order.Id,
+                saved);
         }
 
+        if (failures.Count > 0)
+        {
+            _logger.LogWarning(
+                "PdfWorkspaceFill save failures: {Failures}",
+                string.Join(", ", failures.Select(f => $"{f.TemplateFieldId}:{f.Reason}")));
+        }
+
+        _logger.LogInformation(
+            "PdfWorkspaceFill save complete: order={OrderId}, received={Received}, mapped={Mapped}, saved={Saved}, failed={Failed}",
+            order.Id,
+            received,
+            mapped,
+            saved,
+            failures.Count);
+
+        var message = BuildSaveMessage(received, mapped, saved, skippedUnmapped, skippedEmpty, failures);
         return new PdfWorkspaceSaveResult
         {
             OrderId = order.Id,
@@ -136,7 +223,8 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
             Saved = saved,
             SkippedUnmapped = skippedUnmapped,
             SkippedEmpty = skippedEmpty,
-            Message = BuildSaveMessage(received, mapped, saved, skippedUnmapped, skippedEmpty)
+            FailedFields = failures,
+            Message = message
         };
     }
 
@@ -306,9 +394,15 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
             return new Dictionary<string, string?>(StringComparer.Ordinal);
         }
 
-        var dataFieldIds = templateFields
-            .Where(field => field.DataFieldId.HasValue)
-            .Select(field => field.DataFieldId!.Value)
+        var workspaceKeys = templateFields.Select(field => WorkspaceDataFieldKey(field.Id)).ToList();
+        var workspaceDataFieldIds = await _context.DataFields
+            .AsNoTracking()
+            .Where(dataField => workspaceKeys.Contains(dataField.Key) && dataField.IsActive)
+            .Select(dataField => new { dataField.Key, dataField.Id })
+            .ToDictionaryAsync(item => item.Key, item => item.Id, cancellationToken);
+
+        var dataFieldIds = workspaceDataFieldIds.Values
+            .Concat(templateFields.Where(field => field.DataFieldId.HasValue).Select(field => field.DataFieldId!.Value))
             .Distinct()
             .ToList();
 
@@ -333,8 +427,13 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
         var result = new Dictionary<string, string?>(StringComparer.Ordinal);
         foreach (var field in templateFields)
         {
-            if (!field.DataFieldId.HasValue ||
-                !storedByDataFieldId.TryGetValue(field.DataFieldId.Value, out var storedValue) ||
+            var workspaceKey = WorkspaceDataFieldKey(field.Id);
+            var dataFieldId = workspaceDataFieldIds.TryGetValue(workspaceKey, out var workspaceId)
+                ? workspaceId
+                : field.DataFieldId;
+
+            if (!dataFieldId.HasValue ||
+                !storedByDataFieldId.TryGetValue(dataFieldId.Value, out var storedValue) ||
                 string.IsNullOrWhiteSpace(storedValue))
             {
                 continue;
@@ -363,14 +462,98 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
         return result;
     }
 
+    private static string WorkspaceDataFieldKey(Guid templateFieldId) =>
+        templateFieldId.ToString("D");
+
+    private async Task<Dictionary<Guid, Guid>> EnsureWorkspaceDataFieldsAsync(
+        IEnumerable<TemplateField> fields,
+        CancellationToken cancellationToken)
+    {
+        var fieldList = fields.ToList();
+        if (fieldList.Count == 0)
+        {
+            return new Dictionary<Guid, Guid>();
+        }
+
+        var keys = fieldList.Select(field => WorkspaceDataFieldKey(field.Id)).ToList();
+        var existingByKey = await _context.DataFields
+            .Where(dataField => keys.Contains(dataField.Key) && dataField.IsActive)
+            .ToDictionaryAsync(dataField => dataField.Key, cancellationToken);
+
+        var result = new Dictionary<Guid, Guid>();
+        var created = 0;
+
+        foreach (var field in fieldList)
+        {
+            var key = WorkspaceDataFieldKey(field.Id);
+            if (existingByKey.TryGetValue(key, out var existing))
+            {
+                result[field.Id] = existing.Id;
+                if (!field.DataFieldId.HasValue)
+                {
+                    field.DataFieldId = existing.Id;
+                }
+
+                continue;
+            }
+
+            var dataField = new DataField
+            {
+                Key = key,
+                DisplayNameUk = string.IsNullOrWhiteSpace(field.Title) ? field.Tag : field.Title.Trim(),
+                FieldType = DataFieldType.Text,
+                Scope = DataFieldScope.Registration,
+                IsActive = true,
+                IsRequired = field.IsRequired
+            };
+
+            _context.DataFields.Add(dataField);
+            existingByKey[key] = dataField;
+            result[field.Id] = dataField.Id;
+            if (!field.DataFieldId.HasValue)
+            {
+                field.DataFieldId = dataField.Id;
+            }
+
+            created++;
+            _logger.LogInformation(
+                "PdfWorkspaceFill created workspace DataField for TemplateField {TemplateFieldId}, key={Key}",
+                field.Id,
+                key);
+        }
+
+        if (created > 0 || fieldList.Any(field => _context.Entry(field).State == EntityState.Modified))
+        {
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+
+        return result;
+    }
+
     private static string BuildSaveMessage(
         int received,
         int mapped,
         int saved,
         int skippedUnmapped,
-        int skippedEmpty) =>
-        $"Прийнято: {received}, зіставлено: {mapped}, збережено: {saved}, " +
-        $"пропущено (без мапінгу): {skippedUnmapped}, очищено порожніх: {skippedEmpty}.";
+        int skippedEmpty,
+        IReadOnlyList<PdfWorkspaceSaveFieldFailure> failures)
+    {
+        var message =
+            $"Прийнято: {received}, зіставлено: {mapped}, збережено: {saved}, " +
+            $"пропущено (без мапінгу): {skippedUnmapped}, очищено порожніх: {skippedEmpty}.";
+
+        if (failures.Count == 0)
+        {
+            return message;
+        }
+
+        var details = string.Join(
+            "; ",
+            failures.Take(5).Select(failure =>
+                $"{failure.TemplateFieldId?.ToString("D") ?? "(null)"}: {failure.Reason}"));
+
+        return $"{message} Помилки полів: {details}{(failures.Count > 5 ? "…" : "")}.";
+    }
 
     private async Task EnsureTemplateVersionExistsAsync(Guid templateVersionId, CancellationToken cancellationToken)
     {
@@ -562,7 +745,21 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
             return ([], []);
         }
 
-        var dataFieldIds = layoutRows.Select(row => row.DataFieldId).Distinct().ToList();
+        var templateFieldIds = layoutRows.Select(row => row.TemplateFieldId).Distinct().ToList();
+        var workspaceKeys = templateFieldIds.Select(WorkspaceDataFieldKey).ToList();
+        var workspaceDataFieldIdByTemplateFieldId = await _context.DataFields
+            .AsNoTracking()
+            .Where(dataField => workspaceKeys.Contains(dataField.Key) && dataField.IsActive)
+            .Select(dataField => new { dataField.Key, dataField.Id })
+            .ToDictionaryAsync(
+                item => Guid.Parse(item.Key),
+                item => item.Id,
+                cancellationToken);
+
+        var dataFieldIds = layoutRows
+            .Select(row => workspaceDataFieldIdByTemplateFieldId.GetValueOrDefault(row.TemplateFieldId, row.DataFieldId))
+            .Distinct()
+            .ToList();
 
         var valuesByDataFieldId = OrderFieldValueSelection.ResolveByDataFieldId(
             await _context.OrderFieldValues
@@ -586,7 +783,11 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
 
         foreach (var fieldGroup in layoutRows.GroupBy(row => row.TemplateFieldId))
         {
-            var dataFieldId = fieldGroup.First().DataFieldId;
+            var templateFieldId = fieldGroup.Key;
+            var dataFieldId = workspaceDataFieldIdByTemplateFieldId.GetValueOrDefault(
+                templateFieldId,
+                fieldGroup.First().DataFieldId);
+
             if (!valuesByDataFieldId.TryGetValue(dataFieldId, out var storedValue) ||
                 string.IsNullOrWhiteSpace(storedValue))
             {

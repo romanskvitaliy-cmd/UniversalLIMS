@@ -131,12 +131,15 @@ public sealed class PdfWorkspaceFillServiceTests
         var stored = await context.OrderFieldValues
             .SingleAsync(fieldValue => fieldValue.OrderId == result.OrderId);
 
-        Assert.Equal(dataFieldId, stored.DataFieldId);
+        var workspaceDataField = await context.DataFields
+            .SingleAsync(field => field.Key == templateField.Id.ToString("D"));
+
+        Assert.Equal(workspaceDataField.Id, stored.DataFieldId);
         Assert.Equal("м. Житомир", stored.StoredValue);
     }
 
     [Fact]
-    public async Task SaveValuesAsync_SkipsUnmappedTemplateFieldsWithoutCreatingDataFields()
+    public async Task SaveValuesAsync_CreatesWorkspaceDataFieldsPerTemplateFieldId()
     {
         await using var context = CreateContext();
         var branchId = Guid.NewGuid();
@@ -234,11 +237,22 @@ public sealed class PdfWorkspaceFillServiceTests
         var result = await service.SaveValuesAsync(versionId, null, submissions);
 
         Assert.Equal(tags.Length, result.Received);
-        Assert.Equal(0, result.Mapped);
-        Assert.Equal(0, result.Saved);
-        Assert.Equal(tags.Length, result.SkippedUnmapped);
-        Assert.Empty(await context.OrderFieldValues.ToListAsync());
-        Assert.Equal(0, await context.DataFields.CountAsync(field => templateFieldIds.Select(id => id.ToString("D")).Contains(field.Key)));
+        Assert.Equal(tags.Length, result.Mapped);
+        Assert.Equal(tags.Length, result.Saved);
+        Assert.Equal(0, result.SkippedUnmapped);
+        Assert.Empty(result.FailedFields);
+
+        var stored = await context.OrderFieldValues
+            .Where(fieldValue => fieldValue.OrderId == result.OrderId)
+            .ToListAsync();
+        Assert.Equal(tags.Length, stored.Count);
+        Assert.All(stored, fieldValue => Assert.False(string.IsNullOrWhiteSpace(fieldValue.StoredValue)));
+
+        var workspaceKeys = templateFieldIds.Select(id => id.ToString("D")).ToHashSet();
+        var workspaceDataFields = await context.DataFields
+            .Where(field => workspaceKeys.Contains(field.Key))
+            .ToListAsync();
+        Assert.Equal(tags.Length, workspaceDataFields.Count);
     }
 
     [Fact]
@@ -611,11 +625,22 @@ public sealed class PdfWorkspaceFillServiceTests
             ]
         });
 
+        var workspaceDataFieldId = Guid.NewGuid();
+        context.DataFields.Add(new DataField
+        {
+            Id = workspaceDataFieldId,
+            Key = templateFieldId.ToString("D"),
+            DisplayNameUk = "Примітка",
+            FieldType = DataFieldType.Text,
+            Scope = DataFieldScope.Registration,
+            IsActive = true
+        });
+
         context.OrderFieldValues.Add(new OrderFieldValue
         {
             OrderId = orderId,
             SampleId = null,
-            DataFieldId = dataFieldId,
+            DataFieldId = workspaceDataFieldId,
             StoredValue = "старе значення"
         });
 
