@@ -404,6 +404,33 @@
         z-index: 25;
     }
 
+    body.template-map-calibration-mode .calibration-inline-input {
+        position: absolute;
+        margin: 0;
+        padding: 0 2px;
+        border: 0;
+        outline: none;
+        resize: none;
+        overflow: hidden;
+        background: transparent;
+        color: #111;
+        font-family: Arial, Helvetica, sans-serif;
+        line-height: 1.15;
+        box-shadow: none;
+        z-index: 50;
+        pointer-events: auto;
+        cursor: text;
+        opacity: 0;
+    }
+
+    body.template-map-calibration-mode .calibration-inline-input:focus {
+        background: rgba(255, 255, 255, 0.35);
+        outline: 1px solid rgba(13, 110, 253, 0.55);
+        outline-offset: 0;
+        box-shadow: none;
+        opacity: 1 !important;
+    }
+
     .js-toggle-calibration.active {
         color: #fff;
         background-color: #198754;
@@ -425,32 +452,11 @@
         font-size: 11px;
     }
 
-    .field-overlay-box[data-size-level="tiny"] .field-overlay-label {
-        font-size: 9px;
-        letter-spacing: 0.2px;
-    }
-
     .field-overlay-box[data-size-level="critical"] .field-overlay-label {
         font-size: 9px;
         font-weight: 800;
         text-align: center;
         letter-spacing: 0.2px;
-    }
-
-    .field-overlay-box[data-size-level="tiny"] {
-        outline: 3px solid #0a3d91;
-        outline-offset: -2px;
-    }
-
-    .field-overlay-box[data-size-level="critical"] {
-        outline: 3px solid #7a1b1b;
-        outline-offset: -2px;
-    }
-
-    .field-overlay-box[data-size-level="tiny"]:hover,
-    .field-overlay-box[data-size-level="critical"]:hover {
-        transform: scale(1.35);
-        z-index: 80 !important;
     }
 
     .nudge-pad {
@@ -1500,7 +1506,7 @@ else
                     </div>
                     <div id="calibrationPanel" class="mb-3 border rounded p-2 bg-light" style="display: none;">
                         <div class="fw-semibold small mb-2">Калібрування Overlay</div>
-                        <p id="calibrationPanelHint" class="small text-muted mb-2">Оберіть поле на PDF — клік відкриє редактор тексту.</p>
+                        <p id="calibrationPanelHint" class="small text-muted mb-2">Клікніть поле на PDF — текст редагується прямо на бланку.</p>
                         <div class="row g-2 mb-2">
                             <div class="col-6">
                                 <label class="form-label small mb-0" for="calOffsetX">Offset X</label>
@@ -1728,25 +1734,6 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
     <a class="btn btn-link" asp-controller="TemplateVersions" asp-action="Details" asp-route-id="@Model.TemplateVersionId">До версії</a>
 </form>
 
-<div class="modal fade" id="calibrationTextModal" tabindex="-1" aria-labelledby="calibrationTextModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header py-2">
-                <h5 class="modal-title fs-6" id="calibrationTextModalLabel">Текст для preview</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрити"></button>
-            </div>
-            <div class="modal-body py-2">
-                <p id="calibrationTextModalTag" class="small text-muted mb-1"></p>
-                <textarea id="calibrationTextEditor" class="form-control form-control-sm" rows="4" placeholder="Введіть зразковий текст…"></textarea>
-            </div>
-            <div class="modal-footer py-2">
-                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Скасувати</button>
-                <button type="button" id="calibrationTextApply" class="btn btn-sm btn-primary">Застосувати</button>
-            </div>
-        </div>
-    </div>
-</div>
-
 <div id="overlayToast"
      class="position-fixed bottom-0 start-50 translate-middle-x mb-4 alert alert-success py-2 px-3"
      style="display:none; z-index: 1080;"></div>
@@ -1944,14 +1931,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                 const calResetOffsetsBtn = document.getElementById("calResetOffsets");
                 const calSaveOffsetsBtn = document.getElementById("calSaveOffsets");
                 const calPreviewPdfBtn = document.getElementById("calPreviewPdf");
-                const calibrationTextModalEl = document.getElementById("calibrationTextModal");
-                const calibrationTextEditor = document.getElementById("calibrationTextEditor");
-                const calibrationTextModalTagHint = document.getElementById("calibrationTextModalTag");
-                const calibrationTextApplyBtn = document.getElementById("calibrationTextApply");
                 const calibrationToggleButtons = document.querySelectorAll(".js-toggle-calibration");
-                const calibrationTextModal = calibrationTextModalEl && window.bootstrap
-                    ? window.bootstrap.Modal.getOrCreateInstance(calibrationTextModalEl)
-                    : null;
                 if (!root || !pagesHost) return;
 
                 const showPreviewError = (message) => {
@@ -2095,6 +2075,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         this.lastSavedSegmentFields = [];
                         this.calibrationMode = false;
                         this.calibrationByIndex = new Map();
+                        this.calibrationEditingIndex = null;
                         this.pageTextCanvases = new Map();
                     }
 
@@ -2183,6 +2164,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         if (this.calibrationMode) {
                             this.ensureCalibrationTextLayers();
                             this.fieldByIndex.forEach((_field, index) => this.getCalibrationState(index));
+                            this.syncAllCalibrationInlineEditors();
                             this.redrawAllCalibrationText();
                         }
 
@@ -2544,6 +2526,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
 
                         if (this.calibrationMode) {
                             this.fieldByIndex.forEach((_field, index) => this.getCalibrationState(index));
+                            this.syncAllCalibrationInlineEditors();
                             this.redrawAllCalibrationText();
                         }
                     }
@@ -2810,6 +2793,9 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         }
                         this.bindBoxEvents(box);
                         this.applyBoxVisualState(box, field.index === this.activeIndex);
+                        if (this.calibrationMode) {
+                            this.ensureCalibrationInlineEditor(box, field);
+                        }
                     }
 
                     normalizePixel(value, fallback = 0) {
@@ -2992,7 +2978,6 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
 
                     getSizeLevel(height) {
                         if (height < 12) return "critical";
-                        if (height <= 16) return "tiny";
                         if (height <= 22) return "small";
                         return "normal";
                     }
@@ -3096,7 +3081,9 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         const fullLabel = field
                             ? `${field.title || field.tag} #${field.segmentSequence ?? 1}`
                             : "Тег";
-                        const level = this.getSizeLevel(Math.round(box.offsetHeight));
+                        const level = this.calibrationMode
+                            ? "normal"
+                            : this.getSizeLevel(Math.round(box.offsetHeight));
                         box.dataset.sizeLevel = level;
 
                         box.classList.toggle("active", isActive);
@@ -3140,9 +3127,6 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             if (level === "small") {
                                 label.style.fontSize = "11px";
                                 label.textContent = this.getCompactLabel(fullLabel, 24, field?.tag || "T");
-                            } else if (level === "tiny") {
-                                label.style.fontSize = "9px";
-                                label.textContent = this.getCompactLabel(fullLabel, 3, field?.tag?.slice(0, 3) || "T");
                             } else if (level === "critical") {
                                 label.style.fontSize = "9px";
                                 label.textContent = (field?.tag || fullLabel || "T").slice(0, 1).toUpperCase();
@@ -3174,7 +3158,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             const index = Number.parseInt(box.dataset.index || "-1", 10);
                             this.setActive(index);
                             if (this.calibrationMode && Number.isInteger(index)) {
-                                this.openCalibrationTextEditor(index);
+                                this.focusCalibrationInlineEditor(index);
                             }
                         });
 
@@ -5716,6 +5700,10 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         }
 
                         const page = field.page ?? Number.parseInt(this.boxesByIndex.get(index)?.dataset.page || "1", 10);
+                        const box = this.boxesByIndex.get(index);
+                        if (box) {
+                            this.layoutCalibrationInlineEditor(box, field, box.querySelector(".calibration-inline-input"));
+                        }
                         this.redrawCalibrationPage(page);
                         this.syncCalibrationPanel();
                     }
@@ -5738,17 +5726,20 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         this.calibrationByIndex.clear();
                         this.ensureCalibrationTextLayers();
                         this.fieldByIndex.forEach((_field, index) => this.getCalibrationState(index));
+                        this.syncAllCalibrationInlineEditors();
                         this.updateAllBoxVisualStates();
                         this.redrawAllCalibrationText();
                         this.syncCalibrationPanel();
-                        showOverlayToast("Калібрування: текст на PDF, рамки — лише орієнтири");
+                        showOverlayToast("Калібрування: клік по полю — введення тексту на PDF");
                     }
 
                     disableCalibrationMode() {
                         this.calibrationMode = false;
+                        this.calibrationEditingIndex = null;
                         document.body.classList.remove("template-map-calibration-mode");
                         calibrationToggleButtons.forEach((btn) => btn.classList.remove("active"));
                         if (calibrationPanel) calibrationPanel.style.display = "none";
+                        this.removeAllCalibrationInlineEditors();
                         this.removeCalibrationTextLayers();
                         this.calibrationByIndex.clear();
                         this.updateAllBoxVisualStates();
@@ -5787,33 +5778,186 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         this.pageTextCanvases.clear();
                     }
 
-                    openCalibrationTextEditor(index) {
-                        const field = this.fieldByIndex.get(index);
-                        const state = this.getCalibrationState(index);
-                        if (!field || !state) return;
+                    /** Текст/offset у базових preview-координатах (як PdfOverlayTextLayout у C#); field.x/y — уже viewport. */
+                    getCalibrationTextBounds(field, state) {
+                        const layout = window.PdfOverlayTextLayout;
+                        if (!layout || !field) {
+                            return null;
+                        }
 
-                        this.setActive(index);
-                        if (calibrationTextEditor) {
-                            calibrationTextEditor.value = state.text || field.title || "";
+                        const coordScale = this.getCoordinateScale();
+                        if (!Number.isFinite(coordScale) || coordScale <= 0) {
+                            return null;
                         }
-                        if (calibrationTextModalTagHint) {
-                            calibrationTextModalTagHint.textContent = field.tag
-                                ? `${field.tag} — ${field.title || "без опису"}`
-                                : "Поле";
-                        }
-                        calibrationTextModal?.show();
+
+                        const calibrationState = state ?? this.getCalibrationState(field.index);
+                        return layout.getPreviewBounds(
+                            this.parsePixel(field.x ?? 0) / coordScale,
+                            this.parsePixel(field.y ?? 0) / coordScale,
+                            this.parsePixel(field.width ?? 220, 220) / coordScale,
+                            this.parsePixel(field.height ?? 28, 28) / coordScale,
+                            field.textOffsetX ?? calibrationState?.offsetX ?? 0,
+                            field.textOffsetY ?? calibrationState?.offsetY ?? 0,
+                            coordScale);
                     }
 
-                    applyCalibrationEditorText() {
-                        if (this.activeIndex === null) return;
-                        const state = this.getCalibrationState(this.activeIndex);
-                        if (!state) return;
+                    getCalibrationInputRect(field) {
+                        const layout = window.PdfOverlayTextLayout;
+                        if (!layout || !field) {
+                            return null;
+                        }
 
-                        state.text = calibrationTextEditor?.value ?? "";
-                        const field = this.fieldByIndex.get(this.activeIndex);
-                        const page = field?.page ?? 1;
-                        this.redrawCalibrationPage(page);
-                        calibrationTextModal?.hide();
+                        const state = this.getCalibrationState(field.index);
+                        const coordScale = this.getCoordinateScale();
+                        const boxX = this.parsePixel(field.x ?? 0);
+                        const boxY = this.parsePixel(field.y ?? 0);
+                        const bounds = this.getCalibrationTextBounds(field, state);
+                        if (!bounds) {
+                            return null;
+                        }
+
+                        return {
+                            left: Math.max(0, bounds.left - boxX),
+                            top: Math.max(0, bounds.top - boxY),
+                            width: Math.max(24, bounds.width),
+                            height: Math.max(14, bounds.height),
+                            fontSize: layout.resolveFontSizePx(field.fontSize, coordScale)
+                        };
+                    }
+
+                    layoutCalibrationInlineEditor(box, field, input) {
+                        const rect = this.getCalibrationInputRect(field);
+                        if (!rect || !input) {
+                            return;
+                        }
+
+                        input.style.left = `${rect.left}px`;
+                        input.style.top = `${rect.top}px`;
+                        input.style.width = `${rect.width}px`;
+                        input.style.height = `${rect.height}px`;
+                        input.style.fontSize = `${rect.fontSize}px`;
+                    }
+
+                    ensureCalibrationInlineEditor(box, field) {
+                        if (!box || !field || !this.calibrationMode) {
+                            return null;
+                        }
+
+                        let input = box.querySelector(".calibration-inline-input");
+                        if (!input) {
+                            const useMultiline = (field.height ?? 28) > 36;
+                            input = document.createElement(useMultiline ? "textarea" : "input");
+                            input.className = "calibration-inline-input";
+                            input.spellcheck = false;
+                            if (!useMultiline) {
+                                input.type = "text";
+                                input.autocomplete = "off";
+                            } else {
+                                input.rows = Math.max(2, Math.floor((field.height ?? 28) / 14));
+                            }
+
+                            input.addEventListener("mousedown", (event) => event.stopPropagation());
+                            input.addEventListener("click", (event) => event.stopPropagation());
+                            input.addEventListener("focus", () => {
+                                const index = Number.parseInt(box.dataset.index || "-1", 10);
+                                if (!Number.isInteger(index)) {
+                                    return;
+                                }
+
+                                this.calibrationEditingIndex = index;
+                                this.setActive(index);
+                                const pageField = this.fieldByIndex.get(index);
+                                if (pageField) {
+                                    this.redrawCalibrationPage(pageField.page ?? 1);
+                                }
+                            });
+                            input.addEventListener("input", () => {
+                                const index = Number.parseInt(box.dataset.index || "-1", 10);
+                                const state = this.getCalibrationState(index);
+                                if (!state) {
+                                    return;
+                                }
+
+                                state.text = input.value ?? "";
+                                const pageField = this.fieldByIndex.get(index);
+                                if (pageField) {
+                                    this.redrawCalibrationPage(pageField.page ?? 1);
+                                }
+                            });
+                            input.addEventListener("blur", () => {
+                                const index = Number.parseInt(box.dataset.index || "-1", 10);
+                                const state = this.getCalibrationState(index);
+                                if (state) {
+                                    state.text = input.value ?? "";
+                                }
+
+                                if (this.calibrationEditingIndex === index) {
+                                    this.calibrationEditingIndex = null;
+                                }
+
+                                const pageField = this.fieldByIndex.get(index);
+                                if (pageField) {
+                                    this.redrawCalibrationPage(pageField.page ?? 1);
+                                }
+                            });
+                            input.addEventListener("keydown", (event) => {
+                                if (input.tagName !== "TEXTAREA" && event.key === "Enter") {
+                                    event.preventDefault();
+                                    input.blur();
+                                }
+                            });
+
+                            box.appendChild(input);
+                        }
+
+                        const state = this.getCalibrationState(field.index);
+                        if (state && !state.text && field.title) {
+                            state.text = "";
+                        }
+
+                        input.value = state?.text ?? "";
+                        this.layoutCalibrationInlineEditor(box, field, input);
+                        return input;
+                    }
+
+                    syncAllCalibrationInlineEditors() {
+                        if (!this.calibrationMode) {
+                            return;
+                        }
+
+                        this.boxesByIndex.forEach((box, index) => {
+                            const field = this.fieldByIndex.get(index);
+                            if (field) {
+                                this.ensureCalibrationInlineEditor(box, field);
+                            }
+                        });
+                    }
+
+                    removeAllCalibrationInlineEditors() {
+                        this.boxesByIndex.forEach((box) => {
+                            box.querySelectorAll(".calibration-inline-input").forEach((input) => input.remove());
+                        });
+                    }
+
+                    focusCalibrationInlineEditor(index) {
+                        const field = this.fieldByIndex.get(index);
+                        const box = this.boxesByIndex.get(index);
+                        if (!field || !box) {
+                            return;
+                        }
+
+                        this.setActive(index);
+                        const input = this.ensureCalibrationInlineEditor(box, field);
+                        if (!input) {
+                            return;
+                        }
+
+                        window.setTimeout(() => {
+                            input.focus();
+                            if (typeof input.select === "function") {
+                                input.select();
+                            }
+                        }, 0);
                     }
 
                     setCalibrationOffset(index, offsetX, offsetY) {
@@ -5861,8 +6005,8 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             calibrationPanelHint.textContent = !this.calibrationMode
                                 ? "Увімкніть режим калібрування."
                                 : (panelEnabled
-                                    ? `${field?.tag || "поле"} — клік на PDF для тексту, offset зміщує лише текст.`
-                                    : "Клікніть поле на PDF.");
+                                    ? `${field?.tag || "поле"} — друкуйте на PDF, offset зміщує текст.`
+                                    : "Клікніть поле на PDF і вводьте текст.");
                         }
                     }
 
@@ -6000,22 +6144,16 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         const pageFields = this.fieldsByPage.get(pageNumber) ?? [];
 
                         pageFields.forEach((field) => {
+                            if (field.index === this.calibrationEditingIndex) {
+                                return;
+                            }
+
                             const state = this.calibrationByIndex.get(field.index);
                             const text = state?.text?.trim();
                             if (!text) return;
 
-                            const previewX = this.parsePixel(field.x ?? 0);
-                            const previewY = this.parsePixel(field.y ?? 0);
-                            const previewW = this.parsePixel(field.width ?? 220, 220);
-                            const previewH = this.parsePixel(field.height ?? 28, 28);
-                            const bounds = layout.getPreviewBounds(
-                                previewX,
-                                previewY,
-                                previewW,
-                                previewH,
-                                field.textOffsetX ?? state?.offsetX ?? 0,
-                                field.textOffsetY ?? state?.offsetY ?? 0,
-                                coordScale);
+                            const bounds = this.getCalibrationTextBounds(field, state);
+                            if (!bounds) return;
 
                             layout.drawText(ctx, {
                                 text,
@@ -6069,7 +6207,6 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
 
                         calSaveOffsetsBtn?.addEventListener("click", () => this.persistCalibrationOffsetsToApi());
                         calPreviewPdfBtn?.addEventListener("click", () => this.openCalibrationPreviewPdf());
-                        calibrationTextApplyBtn?.addEventListener("click", () => this.applyCalibrationEditorText());
                     }
                 }
 
