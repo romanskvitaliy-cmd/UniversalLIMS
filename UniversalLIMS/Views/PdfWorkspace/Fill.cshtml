@@ -31,7 +31,7 @@
         position: absolute;
         top: 0;
         left: 0;
-        z-index: 20;
+        z-index: 10;
         pointer-events: none;
     }
 
@@ -46,8 +46,8 @@
     }
 
     .pdf-fill-field-box--active {
-        border-color: rgba(13, 110, 253, 0.6);
-        background: rgba(255, 255, 255, 0.12);
+        border-color: rgba(13, 110, 253, 0.45);
+        background: rgba(255, 255, 255, 0.15);
     }
 
     .pdf-fill-field-box .pdf-fill-input {
@@ -59,24 +59,23 @@
         border: 0;
         outline: none;
         resize: none;
+        overflow: hidden;
         background: transparent;
         color: #111;
         font-family: Arial, Helvetica, sans-serif;
-        font-size: 12px;
         line-height: 1.15;
-        box-shadow: none;
         pointer-events: auto;
         cursor: text;
     }
 
     .pdf-fill-field-box .pdf-fill-input:focus {
-        background: rgba(255, 255, 255, 0.25);
-        outline: 1px solid rgba(13, 110, 253, 0.8);
-        color: #111 !important;
+        background: rgba(255, 255, 255, 0.3);
+        outline: 1px solid rgba(13, 110, 253, 0.5);
     }
 
-    .pdf-fill-page canvas {
+    .pdf-fill-page-canvas {
         display: block;
+        pointer-events: none;
     }
 </style>
 
@@ -169,7 +168,13 @@ else
                     y = segment.PositionY,
                     width = segment.Width,
                     height = segment.Height,
-                    allowMultiline = segment.AllowMultiline
+                    allowMultiline = segment.AllowMultiline,
+                    textOffsetX = segment.TextOffsetX,
+                    textOffsetY = segment.TextOffsetY,
+                    fontSize = segment.FontSize,
+                    fontName = segment.FontName,
+                    horizontalAlignment = segment.HorizontalAlignment,
+                    verticalAlignment = segment.VerticalAlignment
                 })));
         </script>
         <script src="~/js/pdf-workspace-fill.js" asp-append-version="true"></script>

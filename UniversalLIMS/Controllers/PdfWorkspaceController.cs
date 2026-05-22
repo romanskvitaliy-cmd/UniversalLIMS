@@ -105,10 +105,16 @@ public sealed class PdfWorkspaceController : Controller
 
             foreach (var item in values)
             {
-                _logger.LogDebug(
-                    "PdfWorkspace SaveValues item: templateFieldId={TemplateFieldId}, length={Length}",
+                var preview = item.Value?.Length > 0
+                    ? item.Value.Length <= 80
+                        ? item.Value
+                        : $"{item.Value[..80]}…"
+                    : "(empty)";
+                _logger.LogInformation(
+                    "PdfWorkspace SaveValues item: templateFieldId={TemplateFieldId}, length={Length}, preview={Preview}",
                     item.TemplateFieldId,
-                    item.Value?.Length ?? 0);
+                    item.Value?.Length ?? 0,
+                    preview);
             }
 
             var result = await _fillService.SaveValuesAsync(
@@ -222,7 +228,13 @@ public sealed class PdfWorkspaceController : Controller
                     PositionY = segment.PositionY,
                     Width = segment.Width,
                     Height = segment.Height,
-                    AllowMultiline = field.AllowMultiline
+                    AllowMultiline = field.AllowMultiline,
+                    TextOffsetX = field.TextOffsetX,
+                    TextOffsetY = field.TextOffsetY,
+                    FontSize = segment.FontSize,
+                    FontName = segment.FontName,
+                    HorizontalAlignment = segment.HorizontalAlignment ?? segment.TextAlignment.ToString(),
+                    VerticalAlignment = segment.VerticalAlignment
                 }))
             .ToList();
 

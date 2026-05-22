@@ -62,4 +62,16 @@ public sealed class PdfWorkspaceFillSegmentViewModel
     public decimal Height { get; set; }
 
     public bool AllowMultiline { get; set; }
+
+    public decimal TextOffsetX { get; set; }
+
+    public decimal TextOffsetY { get; set; }
+
+    public decimal? FontSize { get; set; }
+
+    public string? FontName { get; set; }
+
+    public string? HorizontalAlignment { get; set; }
+
+    public string? VerticalAlignment { get; set; }
 }
