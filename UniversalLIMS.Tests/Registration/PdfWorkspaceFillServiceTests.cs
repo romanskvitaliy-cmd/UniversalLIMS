@@ -396,18 +396,17 @@ public sealed class PdfWorkspaceFillServiceTests
     }
 
     [Fact]
-    public async Task GenerateCalibrationPreviewPdfAsync_FallbackToDatabaseLayout_WhenGeometryMissing()
+    public async Task GenerateCalibrationPreviewPdfAsync_WithoutClientGeometry_Throws()
     {
         await using var context = CreateContext();
         var versionId = Guid.NewGuid();
         var templateId = Guid.NewGuid();
-        var fieldId = Guid.NewGuid();
 
         context.Templates.Add(new Template
         {
             Id = templateId,
-            Code = "PDF-CAL-DB",
-            NameUk = "Calibration DB fallback",
+            Code = "PDF-CAL-EMPTY",
+            NameUk = "Calibration empty geometry",
             Status = TemplateStatus.Draft
         });
 
@@ -423,33 +422,7 @@ public sealed class PdfWorkspaceFillServiceTests
             ContentType = "application/pdf",
             FileSizeBytes = 1,
             Sha256Hash = new string('d', 64),
-            UploadedAtUtc = DateTime.UtcNow,
-            Fields =
-            [
-                new TemplateField
-                {
-                    Id = fieldId,
-                    TemplateVersionId = versionId,
-                    Tag = "PatientName",
-                    Title = "Пацієнт",
-                    SortOrder = 1,
-                    Segments =
-                    [
-                        new TemplateFieldSegment
-                        {
-                            Id = Guid.NewGuid(),
-                            Sequence = 1,
-                            PageNumber = 1,
-                            PositionX = 60,
-                            PositionY = 90,
-                            Width = 240,
-                            Height = 24,
-                            IsPrimary = true,
-                            FontSize = 10
-                        }
-                    ]
-                }
-            ]
+            UploadedAtUtc = DateTime.UtcNow
         });
 
         await context.SaveChangesAsync();
@@ -460,18 +433,10 @@ public sealed class PdfWorkspaceFillServiceTests
             new OrderFieldValueService(context),
             NullLogger<PdfWorkspaceFillService>.Instance);
 
-        var overlays = new List<CalibrationPreviewOverlayDto>
-        {
-            new()
-            {
-                FieldId = fieldId,
-                Text = "Іваненко"
-            }
-        };
-
-        var pdf = await service.GenerateCalibrationPreviewPdfAsync(versionId, overlays);
-        Assert.NotEmpty(pdf);
-        Assert.True(pdf.Length > CreateBlankPdf().Length);
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.GenerateCalibrationPreviewPdfAsync(
+                versionId,
+                [new CalibrationPreviewOverlayDto { Text = "   " }]));
     }
 
     [Fact]

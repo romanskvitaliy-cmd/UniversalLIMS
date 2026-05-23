@@ -19,8 +19,8 @@ public interface IPdfWorkspaceFillService
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// PDF preview калібрування: рендер із координат і тексту з клієнта (WYSIWYG),
-    /// без залежності від збереження в БД.
+    /// PDF preview калібрування: WYSIWYG лише з payload клієнта (текст, координати, offset).
+    /// БД не використовується для layout або значень.
     /// </summary>
     Task<byte[]> GenerateCalibrationPreviewPdfAsync(
         Guid templateVersionId,

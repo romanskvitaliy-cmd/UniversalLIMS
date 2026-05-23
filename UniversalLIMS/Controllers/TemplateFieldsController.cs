@@ -418,50 +418,25 @@ public sealed class TemplateFieldsController : Controller
         }
     }
 
+    [HttpPost("/api/template/preview-calibration/{templateVersionId:guid}")]
     [HttpPost("/api/template-fields/{templateVersionId:guid}/calibration-preview")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> CalibrationPreviewPdf(
+    public Task<IActionResult> PreviewCalibrationPdf(
         Guid templateVersionId,
         [FromBody] CalibrationPreviewPdfRequest request,
+        CancellationToken cancellationToken) =>
+        RenderCalibrationPreviewPdfAsync(templateVersionId, request, cancellationToken);
+
+    private async Task<IActionResult> RenderCalibrationPreviewPdfAsync(
+        Guid templateVersionId,
+        CalibrationPreviewPdfRequest request,
         CancellationToken cancellationToken)
     {
         try
         {
             await _fieldMappingService.EnsureEditableTemplateVersionAsync(templateVersionId, cancellationToken);
 
-            var overlays = (request.Overlays ?? [])
-                .Where(item => !string.IsNullOrWhiteSpace(item.Text))
-                .Select(item => new CalibrationPreviewOverlayDto
-                {
-                    FieldId = item.FieldId,
-                    Tag = item.Tag,
-                    Text = item.Text.Trim(),
-                    PageNumber = item.Page < 1 ? 1 : item.Page,
-                    PositionX = item.X,
-                    PositionY = item.Y,
-                    Width = item.Width,
-                    Height = item.Height,
-                    TextOffsetX = item.TextOffsetX,
-                    TextOffsetY = item.TextOffsetY,
-                    FontSize = item.FontSize,
-                    FontName = item.FontName,
-                    HorizontalAlignment = item.HorizontalAlignment,
-                    VerticalAlignment = item.VerticalAlignment
-                })
-                .ToList();
-
-            if (overlays.Count == 0 && request.Samples is { Count: > 0 })
-            {
-                overlays = request.Samples
-                    .Where(sample => sample.FieldId != Guid.Empty && !string.IsNullOrWhiteSpace(sample.Text))
-                    .Select(sample => new CalibrationPreviewOverlayDto
-                    {
-                        FieldId = sample.FieldId,
-                        Text = sample.Text.Trim()
-                    })
-                    .ToList();
-            }
-
+            var overlays = MapCalibrationPreviewFields(request);
             if (overlays.Count == 0)
             {
                 return BadRequest(new { message = "Немає полів з текстом для preview." });
@@ -478,6 +453,64 @@ public sealed class TemplateFieldsController : Controller
         {
             return BadRequest(new { message = exception.Message });
         }
+    }
+
+    private static List<CalibrationPreviewOverlayDto> MapCalibrationPreviewFields(CalibrationPreviewPdfRequest request)
+    {
+        if (request.Fields is { Count: > 0 })
+        {
+            return request.Fields
+                .Where(item => !string.IsNullOrWhiteSpace(item.Text))
+                .Select(item => new CalibrationPreviewOverlayDto
+                {
+                    FieldId = item.TemplateFieldId,
+                    Tag = item.Tag ?? item.DataFieldKey,
+                    Text = item.Text.Trim(),
+                    PageNumber = item.Page < 1 ? 1 : item.Page,
+                    PositionX = item.X,
+                    PositionY = item.Y,
+                    Width = item.Width,
+                    Height = item.Height,
+                    TextOffsetX = item.OffsetX,
+                    TextOffsetY = item.OffsetY,
+                    FontSize = item.FontSize,
+                    FontName = item.FontName,
+                    HorizontalAlignment = ResolveHorizontalAlignment(item),
+                    VerticalAlignment = item.VerticalAlignment ?? "Top"
+                })
+                .ToList();
+        }
+
+        return (request.Overlays ?? [])
+            .Where(item => !string.IsNullOrWhiteSpace(item.Text))
+            .Select(item => new CalibrationPreviewOverlayDto
+            {
+                FieldId = item.FieldId,
+                Tag = item.Tag,
+                Text = item.Text.Trim(),
+                PageNumber = item.Page < 1 ? 1 : item.Page,
+                PositionX = item.X,
+                PositionY = item.Y,
+                Width = item.Width,
+                Height = item.Height,
+                TextOffsetX = item.TextOffsetX,
+                TextOffsetY = item.TextOffsetY,
+                FontSize = item.FontSize,
+                FontName = item.FontName,
+                HorizontalAlignment = item.HorizontalAlignment ?? "Left",
+                VerticalAlignment = item.VerticalAlignment ?? "Top"
+            })
+            .ToList();
+    }
+
+    private static string ResolveHorizontalAlignment(CalibrationPreviewFieldDto item)
+    {
+        if (!string.IsNullOrWhiteSpace(item.HorizontalAlignment))
+        {
+            return item.HorizontalAlignment.Trim();
+        }
+
+        return string.IsNullOrWhiteSpace(item.Alignment) ? "Left" : item.Alignment.Trim();
     }
 
     [HttpPut("/api/template-fields/{templateVersionId:guid}/segments")]

@@ -7372,10 +7372,25 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         };
                     }
 
-                    collectCalibrationPreviewOverlays() {
+                    resolveDataFieldKey(field) {
+                        const catalog = Array.isArray(window.__dataFieldCatalog) ? window.__dataFieldCatalog : [];
+                        const dataFieldId = field?.dataFieldId ?? null;
+                        if (dataFieldId) {
+                            const match = catalog.find((item) =>
+                                String(item.id ?? item.Id ?? "") === String(dataFieldId));
+                            const key = match?.key ?? match?.Key;
+                            if (key) {
+                                return String(key);
+                            }
+                        }
+
+                        return field?.tag ? String(field.tag) : null;
+                    }
+
+                    collectCalibrationPreviewFields() {
                         this.applyCalibrationPanelToActiveField();
                         this.syncAllCalibrationTextFromDom();
-                        const overlays = [];
+                        const fields = [];
 
                         this.fieldByIndex.forEach((field, index) => {
                             const text = this.readCalibrationTextForIndex(index);
@@ -7385,10 +7400,12 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
 
                             const layout = this.getCalibrationPreviewLayout(index, field);
                             const fieldIdRaw = String(field.fieldId ?? "").trim();
-                            const fieldId = /^[0-9a-f-]{36}$/i.test(fieldIdRaw) ? fieldIdRaw : null;
+                            const templateFieldId = /^[0-9a-f-]{36}$/i.test(fieldIdRaw) ? fieldIdRaw : null;
+                            const alignment = field.horizontalAlignment ?? field.textAlignment ?? "Left";
 
-                            overlays.push({
-                                fieldId,
+                            fields.push({
+                                templateFieldId,
+                                dataFieldKey: this.resolveDataFieldKey(field),
                                 tag: field.tag || null,
                                 text,
                                 page: layout.page,
@@ -7396,25 +7413,17 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                                 y: layout.y,
                                 width: layout.width,
                                 height: layout.height,
-                                textOffsetX: this.parsePixel(field.textOffsetX ?? 0),
-                                textOffsetY: this.parsePixel(field.textOffsetY ?? 0),
+                                offsetX: this.parsePixel(field.textOffsetX ?? 0),
+                                offsetY: this.parsePixel(field.textOffsetY ?? 0),
                                 fontSize: field.fontSize ?? null,
                                 fontName: field.fontName || null,
-                                horizontalAlignment: field.horizontalAlignment ?? field.textAlignment ?? "Left",
+                                alignment,
+                                horizontalAlignment: alignment,
                                 verticalAlignment: field.verticalAlignment ?? "Top"
                             });
                         });
 
-                        return overlays;
-                    }
-
-                    collectCalibrationPreviewSamples(overlays) {
-                        return overlays
-                            .filter((item) => item.fieldId && item.text)
-                            .map((item) => ({
-                                fieldId: item.fieldId,
-                                text: item.text
-                            }));
+                        return fields;
                     }
 
                     async persistCalibrationOffsetsToApi(options = {}) {
@@ -7463,19 +7472,17 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             return;
                         }
 
-                        const overlays = this.collectCalibrationPreviewOverlays();
-                        if (overlays.length === 0) {
+                        const fields = this.collectCalibrationPreviewFields();
+                        if (fields.length === 0) {
                             showOverlayToast("Введіть текст хоча в одному полі (клік на PDF).", true);
                             return;
                         }
 
-                        const samples = this.collectCalibrationPreviewSamples(overlays);
-
                         console.info(
-                            "[Calibration] Preview PDF (WYSIWYG):",
-                            overlays.length,
-                            "сегментів із текстом",
-                            overlays);
+                            "[Calibration] Preview PDF (client-only WYSIWYG):",
+                            fields.length,
+                            "полів",
+                            fields);
 
                         const prevLabel = calPreviewPdfBtn?.textContent ?? "";
                         if (calPreviewPdfBtn) {
@@ -7484,7 +7491,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         }
 
                         try {
-                            const response = await fetch(`/api/template-fields/${versionId}/calibration-preview`, {
+                            const response = await fetch(`/api/template/preview-calibration/${versionId}`, {
                                 method: "POST",
                                 credentials: "same-origin",
                                 headers: {
@@ -7492,7 +7499,10 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                                     "Accept": "application/pdf",
                                     "RequestVerificationToken": this.getAntiForgeryToken()
                                 },
-                                body: JSON.stringify({ overlays, samples })
+                                body: JSON.stringify({
+                                    isCalibrationPreview: true,
+                                    fields
+                                })
                             });
                             if (!response.ok) {
                                 const message = await parseServerErrorMessageFromResponse(
