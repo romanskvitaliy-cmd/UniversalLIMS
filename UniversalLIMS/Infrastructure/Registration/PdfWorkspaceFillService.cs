@@ -267,7 +267,7 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
 
     public async Task<byte[]> GenerateCalibrationPreviewPdfAsync(
         Guid templateVersionId,
-        IReadOnlyDictionary<Guid, string> sampleTextsByFieldId,
+        IReadOnlyList<CalibrationPreviewOverlayDto> overlays,
         CancellationToken cancellationToken = default)
     {
         var version = await _context.TemplateVersions
@@ -285,6 +285,78 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
             throw new InvalidOperationException("Оригінальний PDF шаблону не знайдено у сховищі.");
         }
 
+        var overlaySegments = await BuildCalibrationOverlaySegmentsAsync(
+            overlays,
+            templateVersionId,
+            cancellationToken);
+
+        _logger.LogInformation(
+            "PdfWorkspaceFill calibration preview: version={VersionId}, input={InputCount}, segments={SegmentCount}",
+            templateVersionId,
+            overlays.Count,
+            overlaySegments.Count);
+
+        await using var originalPdfStream = await _templateDocumentStorage.OpenReadAsync(
+            version.StorageKey,
+            cancellationToken);
+
+        if (originalPdfStream.CanSeek)
+        {
+            originalPdfStream.Position = 0;
+        }
+
+        return _overlayRenderer.Render(originalPdfStream, overlaySegments, new Dictionary<Guid, string?>());
+    }
+
+    private async Task<List<ReferralOverlaySegment>> BuildCalibrationOverlaySegmentsAsync(
+        IReadOnlyList<CalibrationPreviewOverlayDto> overlays,
+        Guid templateVersionId,
+        CancellationToken cancellationToken)
+    {
+        var clientOverlays = overlays
+            .Where(item => !string.IsNullOrWhiteSpace(item.Text))
+            .ToList();
+
+        if (clientOverlays.Count == 0)
+        {
+            return [];
+        }
+
+        var hasGeometry = clientOverlays.Any(item => item.Width > 0 && item.Height > 0);
+
+        if (hasGeometry)
+        {
+            return clientOverlays
+                .Select(item => new ReferralOverlaySegment
+                {
+                    Text = item.Text.Trim(),
+                    PageNumber = item.PageNumber < 1 ? 1 : item.PageNumber,
+                    PositionX = item.PositionX,
+                    PositionY = item.PositionY,
+                    Width = item.Width > 0 ? item.Width : 120,
+                    Height = item.Height > 0 ? item.Height : 24,
+                    TextAlignment = ParseTextAlignment(item.HorizontalAlignment),
+                    HorizontalAlignment = item.HorizontalAlignment ?? "Left",
+                    VerticalAlignment = item.VerticalAlignment ?? "Top",
+                    FontName = item.FontName,
+                    FontSize = item.FontSize,
+                    TextOffsetX = item.TextOffsetX,
+                    TextOffsetY = item.TextOffsetY
+                })
+                .ToList();
+        }
+
+        return await BuildCalibrationOverlaySegmentsFromDatabaseAsync(
+            templateVersionId,
+            clientOverlays,
+            cancellationToken);
+    }
+
+    private async Task<List<ReferralOverlaySegment>> BuildCalibrationOverlaySegmentsFromDatabaseAsync(
+        Guid templateVersionId,
+        IReadOnlyList<CalibrationPreviewOverlayDto> clientOverlays,
+        CancellationToken cancellationToken)
+    {
         var layoutRows = await (
                 from segment in _context.TemplateFieldSegments.AsNoTracking()
                 join field in _context.TemplateFields.AsNoTracking() on segment.TemplateFieldId equals field.Id
@@ -292,9 +364,10 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
                       && !field.IsAnnulled
                       && !segment.IsAnnulled
                 orderby field.SortOrder, segment.Sequence
-                select new OverlaySegmentJoinRow(
+                select new
+                {
                     field.Id,
-                    field.DataFieldId ?? Guid.Empty,
+                    field.Tag,
                     field.TextOffsetX,
                     field.TextOffsetY,
                     segment.PageNumber,
@@ -307,20 +380,55 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
                     segment.HorizontalAlignment,
                     segment.VerticalAlignment,
                     segment.FontName,
-                    segment.FontSize))
+                    segment.FontSize
+                })
             .ToListAsync(cancellationToken);
 
+        var textByFieldId = clientOverlays
+            .Where(item => item.FieldId.HasValue && item.FieldId.Value != Guid.Empty)
+            .GroupBy(item => item.FieldId!.Value)
+            .ToDictionary(
+                group => group.Key,
+                group => string.Join(
+                    "\n",
+                    group.Select(item => item.Text.Trim()).Where(text => !string.IsNullOrWhiteSpace(text))));
+
+        var textByTag = clientOverlays
+            .Where(item => !string.IsNullOrWhiteSpace(item.Tag))
+            .GroupBy(item => item.Tag!.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => string.Join(
+                    "\n",
+                    group.Select(item => item.Text.Trim()).Where(text => !string.IsNullOrWhiteSpace(text))),
+                StringComparer.OrdinalIgnoreCase);
+
         var overlaySegments = new List<ReferralOverlaySegment>();
-        foreach (var fieldGroup in layoutRows.GroupBy(row => row.TemplateFieldId))
+
+        foreach (var fieldGroup in layoutRows.GroupBy(row => row.Id))
         {
-            if (!sampleTextsByFieldId.TryGetValue(fieldGroup.Key, out var sampleText) ||
-                string.IsNullOrWhiteSpace(sampleText))
+            string? sampleText = null;
+            if (textByFieldId.TryGetValue(fieldGroup.Key, out var byId))
+            {
+                sampleText = byId;
+            }
+            else
+            {
+                var tag = fieldGroup.First().Tag;
+                if (!string.IsNullOrWhiteSpace(tag) && textByTag.TryGetValue(tag, out var byTag))
+                {
+                    sampleText = byTag;
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(sampleText))
             {
                 continue;
             }
 
             var orderedSegments = fieldGroup.OrderBy(row => row.Sequence).ToList();
             var lines = SplitStoredLines(sampleText);
+            var first = orderedSegments[0];
 
             for (var index = 0; index < orderedSegments.Count; index++)
             {
@@ -349,23 +457,22 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
                     VerticalAlignment = row.VerticalAlignment,
                     FontName = row.FontName,
                     FontSize = row.FontSize,
-                    TextOffsetX = row.TextOffsetX,
-                    TextOffsetY = row.TextOffsetY
+                    TextOffsetX = first.TextOffsetX,
+                    TextOffsetY = first.TextOffsetY
                 });
             }
         }
 
-        await using var originalPdfStream = await _templateDocumentStorage.OpenReadAsync(
-            version.StorageKey,
-            cancellationToken);
-
-        if (originalPdfStream.CanSeek)
-        {
-            originalPdfStream.Position = 0;
-        }
-
-        return _overlayRenderer.Render(originalPdfStream, overlaySegments, new Dictionary<Guid, string?>());
+        return overlaySegments;
     }
+
+    private static TextAlignment ParseTextAlignment(string? value) =>
+        value?.Trim().ToLowerInvariant() switch
+        {
+            "center" => TextAlignment.Center,
+            "right" => TextAlignment.Right,
+            _ => TextAlignment.Left
+        };
 
     public async Task<IReadOnlyDictionary<string, string?>> GetSavedValuesByKeyAsync(
         Guid orderId,
@@ -720,11 +827,10 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
                 where field.TemplateVersionId == templateVersionId
                       && !field.IsAnnulled
                       && !segment.IsAnnulled
-                      && field.DataFieldId != null
                 orderby field.SortOrder, segment.Sequence
                 select new OverlaySegmentJoinRow(
                     field.Id,
-                    field.DataFieldId!.Value,
+                    field.DataFieldId ?? Guid.Empty,
                     field.TextOffsetX,
                     field.TextOffsetY,
                     segment.PageNumber,
@@ -757,7 +863,17 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
                 cancellationToken);
 
         var dataFieldIds = layoutRows
-            .Select(row => workspaceDataFieldIdByTemplateFieldId.GetValueOrDefault(row.TemplateFieldId, row.DataFieldId))
+            .Select(row =>
+            {
+                if (workspaceDataFieldIdByTemplateFieldId.TryGetValue(row.TemplateFieldId, out var workspaceId))
+                {
+                    return workspaceId;
+                }
+
+                return row.DataFieldId != Guid.Empty ? row.DataFieldId : (Guid?)null;
+            })
+            .Where(id => id.HasValue)
+            .Select(id => id!.Value)
             .Distinct()
             .ToList();
 
@@ -784,11 +900,15 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
         foreach (var fieldGroup in layoutRows.GroupBy(row => row.TemplateFieldId))
         {
             var templateFieldId = fieldGroup.Key;
-            var dataFieldId = workspaceDataFieldIdByTemplateFieldId.GetValueOrDefault(
-                templateFieldId,
-                fieldGroup.First().DataFieldId);
+            var rowDataFieldId = fieldGroup.First().DataFieldId;
+            var dataFieldId = workspaceDataFieldIdByTemplateFieldId.TryGetValue(templateFieldId, out var workspaceId)
+                ? workspaceId
+                : rowDataFieldId != Guid.Empty
+                    ? rowDataFieldId
+                    : (Guid?)null;
 
-            if (!valuesByDataFieldId.TryGetValue(dataFieldId, out var storedValue) ||
+            if (!dataFieldId.HasValue ||
+                !valuesByDataFieldId.TryGetValue(dataFieldId.Value, out var storedValue) ||
                 string.IsNullOrWhiteSpace(storedValue))
             {
                 continue;
@@ -813,7 +933,7 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
 
                 overlaySegments.Add(new ReferralOverlaySegment
                 {
-                    DataFieldId = row.DataFieldId,
+                    DataFieldId = dataFieldId,
                     Text = text,
                     PageNumber = row.PageNumber,
                     PositionX = row.PositionX,

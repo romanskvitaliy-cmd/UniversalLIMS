@@ -27,6 +27,11 @@
         background: #f8f9fa;
     }
 
+    #pdfFillZoomContainer {
+        transform-origin: top center;
+        transition: transform 0.12s ease-out;
+    }
+
     .pdf-fill-overlay-layer {
         position: absolute;
         top: 0;
@@ -38,13 +43,19 @@
     .pdf-fill-field-box {
         position: absolute;
         box-sizing: border-box;
+        display: flex;
         margin: 0;
         padding: 0;
-        border: none;
+        border: 1px dashed rgba(0, 123, 255, 0.25);
         overflow: hidden;
         pointer-events: auto;
         background: transparent;
         cursor: text;
+    }
+
+    .pdf-fill-field-box.is-focused {
+        border-color: rgba(0, 123, 255, 0.65);
+        background: rgba(0, 123, 255, 0.04);
     }
 
     /* Один елемент для перегляду й редагування — без стрибків при фокусі */
@@ -82,10 +93,14 @@
 
     .pdf-fill-field-box .pdf-field:focus,
     .pdf-fill-field-box .pdf-field-input:focus {
-        outline: 2px solid #007bff;
-        outline-offset: 0;
+        outline: none;
         border: none;
         background: transparent;
+        box-shadow: none;
+    }
+
+    .pdf-fill-field-box .pdf-field-input.is-empty:not(:focus) {
+        min-height: 1em;
     }
 
     .pdf-fill-page-canvas {

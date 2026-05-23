@@ -256,6 +256,192 @@ public sealed class PdfWorkspaceFillServiceTests
     }
 
     [Fact]
+    public async Task GenerateCalibrationPreviewPdfAsync_RendersAllSampleFields()
+    {
+        await using var context = CreateContext();
+        var versionId = Guid.NewGuid();
+        var templateId = Guid.NewGuid();
+        var fieldIds = Enumerable.Range(0, 3).Select(_ => Guid.NewGuid()).ToArray();
+
+        context.Templates.Add(new Template
+        {
+            Id = templateId,
+            Code = "PDF-CAL",
+            NameUk = "Calibration preview",
+            Status = TemplateStatus.Draft
+        });
+
+        context.TemplateVersions.Add(new TemplateVersion
+        {
+            Id = versionId,
+            TemplateId = templateId,
+            VersionNumber = 32,
+            Status = TemplateVersionStatus.Draft,
+            DocumentFormat = TemplateDocumentFormat.Pdf,
+            OriginalFileName = "template.pdf",
+            StorageKey = "templates/template.pdf",
+            ContentType = "application/pdf",
+            FileSizeBytes = 1,
+            Sha256Hash = new string('h', 64),
+            UploadedAtUtc = DateTime.UtcNow,
+            Fields = fieldIds.Select((id, index) => new TemplateField
+            {
+                Id = id,
+                TemplateVersionId = versionId,
+                Tag = $"Field{index + 1}",
+                Title = $"Поле {index + 1}",
+                TextOffsetX = index,
+                TextOffsetY = -index,
+                SortOrder = index + 1,
+                Segments =
+                [
+                    new TemplateFieldSegment
+                    {
+                        Id = Guid.NewGuid(),
+                        Sequence = 1,
+                        PageNumber = 1,
+                        PositionX = 50,
+                        PositionY = 80 + index * 40,
+                        Width = 200,
+                        Height = 24,
+                        IsPrimary = true,
+                        FontSize = 10,
+                        VerticalAlignment = "Top"
+                    }
+                ]
+            }).ToList()
+        });
+
+        await context.SaveChangesAsync();
+
+        var service = new PdfWorkspaceFillService(
+            context,
+            new FakeTemplateDocumentStorage(CreateBlankPdf()),
+            new OrderFieldValueService(context),
+            NullLogger<PdfWorkspaceFillService>.Instance);
+
+        var overlays = fieldIds.Select((id, index) => new CalibrationPreviewOverlayDto
+        {
+            FieldId = id,
+            Text = $"текст-{index + 1}",
+            PageNumber = 1,
+            PositionX = 50,
+            PositionY = 80 + index * 40,
+            Width = 200,
+            Height = 24,
+            FontSize = 10,
+            VerticalAlignment = "Top"
+        }).ToList();
+
+        var pdf = await service.GenerateCalibrationPreviewPdfAsync(versionId, overlays);
+        Assert.NotEmpty(pdf);
+        Assert.True(pdf.Length > CreateBlankPdf().Length);
+    }
+
+    [Fact]
+    public async Task SaveValuesAsync_ThenGenerateFilledPdf_RendersAllWorkspaceFields()
+    {
+        await using var context = CreateContext();
+        var branchId = Guid.NewGuid();
+        var versionId = Guid.NewGuid();
+        var templateId = Guid.NewGuid();
+        var templateFieldIds = Enumerable.Range(0, 10).Select(_ => Guid.NewGuid()).ToArray();
+
+        context.Branches.Add(new Branch
+        {
+            Id = branchId,
+            Code = "BR-10",
+            Name = "Branch",
+            City = "Zhytomyr",
+            IsActive = true
+        });
+
+        context.Customers.Add(new Customer
+        {
+            Id = Guid.NewGuid(),
+            Kind = CustomerKind.Individual,
+            FullName = "Customer"
+        });
+
+        context.Templates.Add(new Template
+        {
+            Id = templateId,
+            Code = "PDF-10",
+            NameUk = "Ten fields",
+            Status = TemplateStatus.Draft
+        });
+
+        context.InvestigationTypes.Add(new InvestigationType
+        {
+            Id = Guid.NewGuid(),
+            Code = "INV-10",
+            NameUk = "Investigation",
+            SortOrder = 1,
+            IsActive = true
+        });
+
+        context.TemplateVersions.Add(new TemplateVersion
+        {
+            Id = versionId,
+            TemplateId = templateId,
+            VersionNumber = 1,
+            Status = TemplateVersionStatus.Draft,
+            DocumentFormat = TemplateDocumentFormat.Pdf,
+            OriginalFileName = "template.pdf",
+            StorageKey = "templates/template.pdf",
+            ContentType = "application/pdf",
+            FileSizeBytes = 1,
+            Sha256Hash = new string('g', 64),
+            UploadedAtUtc = DateTime.UtcNow,
+            Fields = templateFieldIds.Select((id, index) => new TemplateField
+            {
+                Id = id,
+                TemplateVersionId = versionId,
+                Tag = $"Field{index + 1}",
+                Title = $"Поле {index + 1}",
+                SortOrder = index + 1,
+                Segments =
+                [
+                    new TemplateFieldSegment
+                    {
+                        Id = Guid.NewGuid(),
+                        Sequence = 1,
+                        PageNumber = 1,
+                        PositionX = 40 + index * 5,
+                        PositionY = 40 + index * 28,
+                        Width = 120,
+                        Height = 22,
+                        IsPrimary = true
+                    }
+                ]
+            }).ToList()
+        });
+
+        await context.SaveChangesAsync();
+
+        var service = new PdfWorkspaceFillService(
+            context,
+            new FakeTemplateDocumentStorage(CreateBlankPdf()),
+            new OrderFieldValueService(context),
+            NullLogger<PdfWorkspaceFillService>.Instance);
+
+        var submissions = templateFieldIds
+            .Select((id, index) => new PdfWorkspaceFieldValueDto
+            {
+                TemplateFieldId = id,
+                Value = $"значення-{index + 1}"
+            })
+            .ToList();
+
+        var saveResult = await service.SaveValuesAsync(versionId, null, submissions);
+        Assert.Equal(10, saveResult.Saved);
+
+        var rendered = await service.GenerateFilledPdfAsync(versionId, saveResult.OrderId);
+        Assert.NotEmpty(rendered);
+        Assert.True(rendered.Length > CreateBlankPdf().Length);
+    }
+
+    [Fact]
     public async Task GenerateFilledPdfAsync_IncludesSavedOrderFieldValuesInOverlay()
     {
         await using var context = CreateContext();
@@ -360,11 +546,22 @@ public sealed class PdfWorkspaceFillServiceTests
             ]
         });
 
+        var workspaceDataFieldId = Guid.NewGuid();
+        context.DataFields.Add(new DataField
+        {
+            Id = workspaceDataFieldId,
+            Key = templateFieldId.ToString("D"),
+            DisplayNameUk = "Місце відбору",
+            FieldType = DataFieldType.Text,
+            Scope = DataFieldScope.Registration,
+            IsActive = true
+        });
+
         context.OrderFieldValues.Add(new OrderFieldValue
         {
             OrderId = orderId,
             SampleId = null,
-            DataFieldId = dataFieldId,
+            DataFieldId = workspaceDataFieldId,
             StoredValue = "м. Житомир"
         });
 

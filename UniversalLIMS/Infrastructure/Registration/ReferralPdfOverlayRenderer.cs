@@ -130,12 +130,13 @@ public sealed class ReferralPdfOverlayRenderer
             _ => PdfTextAlignment.Left
         };
 
-        var vertical = segment.VerticalAlignment ?? "Bottom";
+        // За замовчуванням Top: bounds уже зміщені через TextOffset + baseline (PdfOverlayTextLayout).
+        var vertical = segment.VerticalAlignment ?? "Top";
         format.LineAlignment = vertical switch
         {
-            "Top" => PdfVerticalAlignment.Top,
+            "Bottom" => PdfVerticalAlignment.Bottom,
             "Middle" => PdfVerticalAlignment.Middle,
-            _ => PdfVerticalAlignment.Bottom
+            _ => PdfVerticalAlignment.Top
         };
 
         return format;

@@ -18,11 +18,46 @@ public interface IPdfWorkspaceFillService
         Guid templateVersionId,
         CancellationToken cancellationToken = default);
 
-    /// <summary>Тестовий PDF для режиму калібрування (зразкові тексти по полях).</summary>
+    /// <summary>
+    /// PDF preview калібрування: рендер із координат і тексту з клієнта (WYSIWYG),
+    /// без залежності від збереження в БД.
+    /// </summary>
     Task<byte[]> GenerateCalibrationPreviewPdfAsync(
         Guid templateVersionId,
-        IReadOnlyDictionary<Guid, string> sampleTextsByFieldId,
+        IReadOnlyList<CalibrationPreviewOverlayDto> overlays,
         CancellationToken cancellationToken = default);
+}
+
+/// <summary>Один overlay-сегмент для preview калібрування (координати в preview-просторі конструктора).</summary>
+public sealed class CalibrationPreviewOverlayDto
+{
+    public Guid? FieldId { get; init; }
+
+    public string? Tag { get; init; }
+
+    public string Text { get; init; } = string.Empty;
+
+    public int PageNumber { get; init; } = 1;
+
+    public decimal PositionX { get; init; }
+
+    public decimal PositionY { get; init; }
+
+    public decimal Width { get; init; }
+
+    public decimal Height { get; init; }
+
+    public decimal TextOffsetX { get; init; }
+
+    public decimal TextOffsetY { get; init; }
+
+    public decimal? FontSize { get; init; }
+
+    public string? FontName { get; init; }
+
+    public string? HorizontalAlignment { get; init; }
+
+    public string? VerticalAlignment { get; init; }
 }
 
 public sealed class PdfWorkspaceFieldValueDto

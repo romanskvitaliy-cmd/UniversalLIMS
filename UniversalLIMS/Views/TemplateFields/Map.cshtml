@@ -6896,8 +6896,42 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         }, CAL_AUTOSAVE_MS);
                     }
 
+                    syncAllCalibrationTextFromDom() {
+                        this.boxesByIndex.forEach((box, index) => {
+                            const input = box?.querySelector(".calibration-inline-input");
+                            if (!input) {
+                                return;
+                            }
+
+                            const state = this.getCalibrationState(index);
+                            if (state) {
+                                state.text = input.innerText.replace(/\r/g, "");
+                            }
+                        });
+                    }
+
+                    readCalibrationTextForIndex(index) {
+                        const box = this.boxesByIndex.get(index);
+                        const input = box?.querySelector(".calibration-inline-input");
+                        if (input) {
+                            const domText = input.innerText.replace(/\r/g, "").trim();
+                            if (domText) {
+                                const state = this.getCalibrationState(index);
+                                if (state) {
+                                    state.text = domText;
+                                }
+                                return domText;
+                            }
+                        }
+
+                        const state = this.getCalibrationState(index);
+                        return (state?.text ?? "").trim();
+                    }
+
                     async persistCalibrationToApi(options = {}) {
                         const silent = options.silent === true;
+                        this.applyCalibrationPanelToActiveField();
+                        this.syncAllCalibrationTextFromDom();
                         const offsetsSaved = await this.persistCalibrationOffsetsToApi({ silent });
                         const segmentsSaved = await this.persistSegmentsToApi({ silent });
                         const saved = offsetsSaved && segmentsSaved;
@@ -6932,7 +6966,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         });
                         calibrationPanel?.querySelectorAll("[data-cal-v-align]").forEach((buttonEl) => {
                             const value = buttonEl.getAttribute("data-cal-v-align");
-                            const effectiveVertical = vertical || "Bottom";
+                            const effectiveVertical = vertical || "Top";
                             buttonEl.classList.toggle("active", value === effectiveVertical);
                         });
                     }
@@ -7311,19 +7345,45 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         return fields;
                     }
 
-                    collectCalibrationSamplesPayload() {
-                        const samples = [];
-                        const seen = new Set();
-                        this.fieldByIndex.forEach((field, index) => {
-                            const fieldId = this.normalizeGuidKey(field.fieldId);
-                            if (!fieldId || seen.has(fieldId)) return;
-                            const state = this.calibrationByIndex.get(index);
-                            const text = state?.text?.trim();
-                            if (!text) return;
-                            seen.add(fieldId);
-                            samples.push({ fieldId, text });
+                    collectCalibrationPreviewOverlays() {
+                        this.syncAllCalibrationTextFromDom();
+                        const overlays = [];
+
+                        this.boxesByIndex.forEach((box, index) => {
+                            const field = this.fieldByIndex.get(index);
+                            if (!field || !box) {
+                                return;
+                            }
+
+                            const text = this.readCalibrationTextForIndex(index);
+                            if (!text) {
+                                return;
+                            }
+
+                            const page = Number.parseInt(box.dataset.page || "1", 10);
+                            const preview = this.getFieldInPreviewSpace(box, page);
+                            const fieldIdRaw = String(field.fieldId ?? "").trim();
+                            const fieldId = /^[0-9a-f-]{36}$/i.test(fieldIdRaw) ? fieldIdRaw : null;
+
+                            overlays.push({
+                                fieldId,
+                                tag: field.tag || null,
+                                text,
+                                page: preview.page,
+                                x: preview.x,
+                                y: preview.y,
+                                width: preview.width,
+                                height: preview.height,
+                                textOffsetX: this.parsePixel(field.textOffsetX ?? 0),
+                                textOffsetY: this.parsePixel(field.textOffsetY ?? 0),
+                                fontSize: field.fontSize ?? null,
+                                fontName: field.fontName || null,
+                                horizontalAlignment: field.horizontalAlignment ?? field.textAlignment ?? "Left",
+                                verticalAlignment: field.verticalAlignment ?? "Top"
+                            });
                         });
-                        return samples;
+
+                        return overlays;
                     }
 
                     async persistCalibrationOffsetsToApi(options = {}) {
@@ -7368,14 +7428,30 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
 
                     async openCalibrationPreviewPdf() {
                         const versionId = window.__templateVersionId;
-                        const samples = this.collectCalibrationSamplesPayload();
-                        if (!versionId) return;
-                        if (samples.length === 0) {
+                        if (!versionId) {
+                            return;
+                        }
+
+                        this.applyCalibrationPanelToActiveField();
+                        this.syncAllCalibrationTextFromDom();
+
+                        const overlays = this.collectCalibrationPreviewOverlays();
+                        if (overlays.length === 0) {
                             showOverlayToast("Введіть текст хоча в одному полі (клік на PDF).", true);
                             return;
                         }
 
-                        await this.persistCalibrationToApi({ silent: true });
+                        const persisted = await this.persistCalibrationToApi({ silent: true });
+                        if (!persisted) {
+                            console.warn(
+                                "[Calibration] Preview PDF: offset/стиль не збережено в БД — preview з поточного екрана.");
+                        }
+
+                        console.info(
+                            "[Calibration] Preview PDF:",
+                            overlays.length,
+                            "сегментів із текстом",
+                            overlays);
 
                         const prevLabel = calPreviewPdfBtn?.textContent ?? "";
                         if (calPreviewPdfBtn) {
@@ -7392,7 +7468,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                                     "Accept": "application/pdf",
                                     "RequestVerificationToken": this.getAntiForgeryToken()
                                 },
-                                body: JSON.stringify({ samples })
+                                body: JSON.stringify({ overlays })
                             });
                             if (!response.ok) {
                                 const message = await parseServerErrorMessageFromResponse(

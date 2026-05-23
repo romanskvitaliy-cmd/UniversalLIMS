@@ -428,13 +428,43 @@ public sealed class TemplateFieldsController : Controller
         try
         {
             await _fieldMappingService.EnsureEditableTemplateVersionAsync(templateVersionId, cancellationToken);
-            var samples = (request.Samples ?? [])
-                .Where(sample => sample.FieldId != Guid.Empty)
-                .ToDictionary(sample => sample.FieldId, sample => sample.Text ?? string.Empty);
+
+            var overlays = (request.Overlays ?? [])
+                .Where(item => !string.IsNullOrWhiteSpace(item.Text))
+                .Select(item => new CalibrationPreviewOverlayDto
+                {
+                    FieldId = item.FieldId,
+                    Tag = item.Tag,
+                    Text = item.Text.Trim(),
+                    PageNumber = item.Page < 1 ? 1 : item.Page,
+                    PositionX = item.X,
+                    PositionY = item.Y,
+                    Width = item.Width,
+                    Height = item.Height,
+                    TextOffsetX = item.TextOffsetX,
+                    TextOffsetY = item.TextOffsetY,
+                    FontSize = item.FontSize,
+                    FontName = item.FontName,
+                    HorizontalAlignment = item.HorizontalAlignment,
+                    VerticalAlignment = item.VerticalAlignment
+                })
+                .ToList();
+
+            if (overlays.Count == 0 && request.Samples is { Count: > 0 })
+            {
+                overlays = request.Samples
+                    .Where(sample => sample.FieldId != Guid.Empty && !string.IsNullOrWhiteSpace(sample.Text))
+                    .Select(sample => new CalibrationPreviewOverlayDto
+                    {
+                        FieldId = sample.FieldId,
+                        Text = sample.Text.Trim()
+                    })
+                    .ToList();
+            }
 
             var pdfBytes = await _pdfWorkspaceFillService.GenerateCalibrationPreviewPdfAsync(
                 templateVersionId,
-                samples,
+                overlays,
                 cancellationToken);
 
             return File(pdfBytes, "application/pdf", "calibration-preview.pdf");
