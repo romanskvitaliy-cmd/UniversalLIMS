@@ -265,11 +265,27 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
         return _overlayRenderer.Render(originalPdfStream, segments, valuesByDataFieldId);
     }
 
-    public async Task<byte[]> GenerateCalibrationPreviewPdfAsync(
-        Guid templateVersionId,
-        IReadOnlyList<CalibrationPreviewOverlayDto> overlays,
+    public async Task<byte[]> GenerateCalibrationPreviewAsync(
+        PreviewCalibrationRequest request,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var templateVersionId = request.TemplateVersionId;
+        if (templateVersionId == Guid.Empty)
+        {
+            throw new InvalidOperationException("templateVersionId не вказано.");
+        }
+
+        var fields = (request.Fields ?? [])
+            .Where(item => !string.IsNullOrWhiteSpace(item.Text))
+            .ToList();
+
+        if (fields.Count == 0)
+        {
+            throw new InvalidOperationException("Немає полів з текстом для preview калібрування.");
+        }
+
         var version = await _context.TemplateVersions
             .AsNoTracking()
             .FirstOrDefaultAsync(item => item.Id == templateVersionId, cancellationToken)
@@ -285,18 +301,13 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
             throw new InvalidOperationException("Оригінальний PDF шаблону не знайдено у сховищі.");
         }
 
-        var overlaySegments = MapCalibrationPreviewOverlays(overlays);
+        var overlaySegments = fields.Select(MapPreviewCalibrationField).ToList();
 
         _logger.LogInformation(
-            "PdfWorkspaceFill calibration preview (client-only): version={VersionId}, input={InputCount}, segments={SegmentCount}",
+            "PdfWorkspaceFill calibration preview: version={VersionId}, fields={FieldCount}, segments={SegmentCount}",
             templateVersionId,
-            overlays.Count,
+            fields.Count,
             overlaySegments.Count);
-
-        if (overlaySegments.Count == 0)
-        {
-            throw new InvalidOperationException("Немає полів з текстом для preview калібрування.");
-        }
 
         await using var originalPdfStream = await _templateDocumentStorage.OpenReadAsync(
             version.StorageKey,
@@ -310,37 +321,25 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
         return _overlayRenderer.Render(originalPdfStream, overlaySegments, new Dictionary<Guid, string?>());
     }
 
-    /// <summary>WYSIWYG: лише дані з клієнта, без читання layout/тексту з БД.</summary>
-    private static List<ReferralOverlaySegment> MapCalibrationPreviewOverlays(
-        IReadOnlyList<CalibrationPreviewOverlayDto> overlays) =>
-        overlays
-            .Where(item => !string.IsNullOrWhiteSpace(item.Text))
-            .Select(MapCalibrationClientOverlay)
-            .ToList();
-
-    private static ReferralOverlaySegment MapCalibrationClientOverlay(CalibrationPreviewOverlayDto item)
+    private static ReferralOverlaySegment MapPreviewCalibrationField(PreviewCalibrationFieldRequest field)
     {
-        var horizontal = item.HorizontalAlignment;
-        if (string.IsNullOrWhiteSpace(horizontal))
-        {
-            horizontal = "Left";
-        }
+        var horizontal = string.IsNullOrWhiteSpace(field.Alignment) ? "Left" : field.Alignment.Trim();
 
         return new ReferralOverlaySegment
         {
-            Text = item.Text.Trim(),
-            PageNumber = item.PageNumber < 1 ? 1 : item.PageNumber,
-            PositionX = item.PositionX,
-            PositionY = item.PositionY,
-            Width = item.Width > 0 ? item.Width : 220,
-            Height = item.Height > 0 ? item.Height : 28,
+            Text = field.Text.Trim(),
+            PageNumber = field.Page < 1 ? 1 : field.Page,
+            PositionX = field.X,
+            PositionY = field.Y,
+            Width = field.Width > 0 ? field.Width : 220,
+            Height = field.Height > 0 ? field.Height : 28,
             TextAlignment = ParseTextAlignment(horizontal),
             HorizontalAlignment = horizontal,
-            VerticalAlignment = item.VerticalAlignment ?? "Top",
-            FontName = item.FontName,
-            FontSize = item.FontSize,
-            TextOffsetX = item.TextOffsetX,
-            TextOffsetY = item.TextOffsetY
+            VerticalAlignment = field.VerticalAlignment ?? "Top",
+            FontName = field.FontName,
+            FontSize = field.FontSize,
+            TextOffsetX = field.OffsetX,
+            TextOffsetY = field.OffsetY
         };
     }
 

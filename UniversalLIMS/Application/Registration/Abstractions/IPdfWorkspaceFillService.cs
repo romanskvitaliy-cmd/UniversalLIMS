@@ -19,45 +19,12 @@ public interface IPdfWorkspaceFillService
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// PDF preview калібрування: WYSIWYG лише з payload клієнта (текст, координати, offset).
-    /// БД не використовується для layout або значень.
+    /// PDF preview калібрування: WYSIWYG лише з <see cref="PreviewCalibrationRequest.Fields"/>.
+    /// Layout і текст з БД не читаються.
     /// </summary>
-    Task<byte[]> GenerateCalibrationPreviewPdfAsync(
-        Guid templateVersionId,
-        IReadOnlyList<CalibrationPreviewOverlayDto> overlays,
+    Task<byte[]> GenerateCalibrationPreviewAsync(
+        PreviewCalibrationRequest request,
         CancellationToken cancellationToken = default);
-}
-
-/// <summary>Один overlay-сегмент для preview калібрування (координати в preview-просторі конструктора).</summary>
-public sealed class CalibrationPreviewOverlayDto
-{
-    public Guid? FieldId { get; init; }
-
-    public string? Tag { get; init; }
-
-    public string Text { get; init; } = string.Empty;
-
-    public int PageNumber { get; init; } = 1;
-
-    public decimal PositionX { get; init; }
-
-    public decimal PositionY { get; init; }
-
-    public decimal Width { get; init; }
-
-    public decimal Height { get; init; }
-
-    public decimal TextOffsetX { get; init; }
-
-    public decimal TextOffsetY { get; init; }
-
-    public decimal? FontSize { get; init; }
-
-    public string? FontName { get; init; }
-
-    public string? HorizontalAlignment { get; init; }
-
-    public string? VerticalAlignment { get; init; }
 }
 
 public sealed class PdfWorkspaceFieldValueDto

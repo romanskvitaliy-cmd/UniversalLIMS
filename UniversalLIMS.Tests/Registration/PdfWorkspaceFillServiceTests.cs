@@ -256,7 +256,7 @@ public sealed class PdfWorkspaceFillServiceTests
     }
 
     [Fact]
-    public async Task GenerateCalibrationPreviewPdfAsync_RendersAllSampleFields()
+    public async Task GenerateCalibrationPreviewAsync_RendersAllSampleFields()
     {
         await using var context = CreateContext();
         var versionId = Guid.NewGuid();
@@ -320,26 +320,31 @@ public sealed class PdfWorkspaceFillServiceTests
             new OrderFieldValueService(context),
             NullLogger<PdfWorkspaceFillService>.Instance);
 
-        var overlays = fieldIds.Select((id, index) => new CalibrationPreviewOverlayDto
+        var request = new PreviewCalibrationRequest
         {
-            FieldId = id,
-            Text = $"текст-{index + 1}",
-            PageNumber = 1,
-            PositionX = 50,
-            PositionY = 80 + index * 40,
-            Width = 200,
-            Height = 24,
-            FontSize = 10,
-            VerticalAlignment = "Top"
-        }).ToList();
+            TemplateVersionId = versionId,
+            IsCalibrationPreview = true,
+            Fields = fieldIds.Select((id, index) => new PreviewCalibrationFieldRequest
+            {
+                TemplateFieldId = id,
+                Text = $"текст-{index + 1}",
+                Page = 1,
+                X = 50,
+                Y = 80 + index * 40,
+                Width = 200,
+                Height = 24,
+                FontSize = 10,
+                VerticalAlignment = "Top"
+            }).ToList()
+        };
 
-        var pdf = await service.GenerateCalibrationPreviewPdfAsync(versionId, overlays);
+        var pdf = await service.GenerateCalibrationPreviewAsync(request);
         Assert.NotEmpty(pdf);
         Assert.True(pdf.Length > CreateBlankPdf().Length);
     }
 
     [Fact]
-    public async Task GenerateCalibrationPreviewPdfAsync_ClientGeometryWithoutDatabaseSegments_RendersText()
+    public async Task GenerateCalibrationPreviewAsync_ClientGeometryWithoutDatabaseSegments_RendersText()
     {
         await using var context = CreateContext();
         var versionId = Guid.NewGuid();
@@ -376,27 +381,32 @@ public sealed class PdfWorkspaceFillServiceTests
             new OrderFieldValueService(context),
             NullLogger<PdfWorkspaceFillService>.Instance);
 
-        var overlays = new List<CalibrationPreviewOverlayDto>
+        var request = new PreviewCalibrationRequest
         {
-            new()
-            {
-                Text = "живий текст з екрана",
-                PageNumber = 1,
-                PositionX = 80,
-                PositionY = 120,
-                Width = 200,
-                Height = 28,
-                FontSize = 10
-            }
+            TemplateVersionId = versionId,
+            IsCalibrationPreview = true,
+            Fields =
+            [
+                new PreviewCalibrationFieldRequest
+                {
+                    Text = "живий текст з екрана",
+                    Page = 1,
+                    X = 80,
+                    Y = 120,
+                    Width = 200,
+                    Height = 28,
+                    FontSize = 10
+                }
+            ]
         };
 
-        var pdf = await service.GenerateCalibrationPreviewPdfAsync(versionId, overlays);
+        var pdf = await service.GenerateCalibrationPreviewAsync(request);
         Assert.NotEmpty(pdf);
         Assert.True(pdf.Length > CreateBlankPdf().Length);
     }
 
     [Fact]
-    public async Task GenerateCalibrationPreviewPdfAsync_WithoutClientGeometry_Throws()
+    public async Task GenerateCalibrationPreviewAsync_WithoutText_Throws()
     {
         await using var context = CreateContext();
         var versionId = Guid.NewGuid();
@@ -434,9 +444,11 @@ public sealed class PdfWorkspaceFillServiceTests
             NullLogger<PdfWorkspaceFillService>.Instance);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            service.GenerateCalibrationPreviewPdfAsync(
-                versionId,
-                [new CalibrationPreviewOverlayDto { Text = "   " }]));
+            service.GenerateCalibrationPreviewAsync(new PreviewCalibrationRequest
+            {
+                TemplateVersionId = versionId,
+                Fields = [new PreviewCalibrationFieldRequest { Text = "   " }]
+            }));
     }
 
     [Fact]

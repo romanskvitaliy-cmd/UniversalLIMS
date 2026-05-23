@@ -83,6 +83,11 @@ namespace UniversalLIMS
                 options.AddPolicy(LimsPolicies.ApproveConclusions, policy =>
                     policy.RequireRole(LimsRoles.SystemAdministrator, LimsRoles.Specialist));
             });
+            builder.Services.AddAntiforgery(options =>
+            {
+                options.HeaderName = "RequestVerificationToken";
+            });
+
             builder.Services.AddControllersWithViews()
                 .AddJsonOptions(options =>
                 {

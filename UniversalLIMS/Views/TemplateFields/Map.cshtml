@@ -6911,20 +6911,18 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                     }
 
                     readCalibrationTextForIndex(index) {
+                        const field = this.fieldByIndex.get(index);
                         const box = this.boxesByIndex.get(index);
-                        const input = box?.querySelector(".calibration-inline-input");
-                        if (input) {
-                            const domText = input.innerText.replace(/\r/g, "").trim();
-                            if (domText) {
-                                const state = this.getCalibrationState(index);
-                                if (state) {
-                                    state.text = domText;
-                                }
-                                return domText;
-                            }
+                        if (this.calibrationMode && box && field) {
+                            this.ensureCalibrationInlineEditor(box, field);
                         }
 
+                        const input = box?.querySelector(".calibration-inline-input");
                         const state = this.getCalibrationState(index);
+                        if (input && state) {
+                            state.text = input.innerText.replace(/\r/g, "");
+                        }
+
                         return (state?.text ?? "").trim();
                     }
 
@@ -7372,24 +7370,11 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         };
                     }
 
-                    resolveDataFieldKey(field) {
-                        const catalog = Array.isArray(window.__dataFieldCatalog) ? window.__dataFieldCatalog : [];
-                        const dataFieldId = field?.dataFieldId ?? null;
-                        if (dataFieldId) {
-                            const match = catalog.find((item) =>
-                                String(item.id ?? item.Id ?? "") === String(dataFieldId));
-                            const key = match?.key ?? match?.Key;
-                            if (key) {
-                                return String(key);
-                            }
-                        }
-
-                        return field?.tag ? String(field.tag) : null;
-                    }
-
-                    collectCalibrationPreviewFields() {
+                    buildPreviewCalibrationData() {
                         this.applyCalibrationPanelToActiveField();
                         this.syncAllCalibrationTextFromDom();
+
+                        const versionId = String(window.__templateVersionId ?? "").trim();
                         const fields = [];
 
                         this.fieldByIndex.forEach((field, index) => {
@@ -7401,29 +7386,32 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             const layout = this.getCalibrationPreviewLayout(index, field);
                             const fieldIdRaw = String(field.fieldId ?? "").trim();
                             const templateFieldId = /^[0-9a-f-]{36}$/i.test(fieldIdRaw) ? fieldIdRaw : null;
-                            const alignment = field.horizontalAlignment ?? field.textAlignment ?? "Left";
+                            const state = this.getCalibrationState(index);
+                            const offsetX = this.parsePixel(field.textOffsetX ?? state?.offsetX ?? 0);
+                            const offsetY = this.parsePixel(field.textOffsetY ?? state?.offsetY ?? 0);
 
                             fields.push({
                                 templateFieldId,
-                                dataFieldKey: this.resolveDataFieldKey(field),
-                                tag: field.tag || null,
                                 text,
+                                offsetX,
+                                offsetY,
                                 page: layout.page,
                                 x: layout.x,
                                 y: layout.y,
                                 width: layout.width,
                                 height: layout.height,
-                                offsetX: this.parsePixel(field.textOffsetX ?? 0),
-                                offsetY: this.parsePixel(field.textOffsetY ?? 0),
                                 fontSize: field.fontSize ?? null,
                                 fontName: field.fontName || null,
-                                alignment,
-                                horizontalAlignment: alignment,
+                                alignment: field.horizontalAlignment ?? field.textAlignment ?? "Left",
                                 verticalAlignment: field.verticalAlignment ?? "Top"
                             });
                         });
 
-                        return fields;
+                        return {
+                            templateVersionId: versionId,
+                            isCalibrationPreview: true,
+                            fields
+                        };
                     }
 
                     async persistCalibrationOffsetsToApi(options = {}) {
@@ -7467,22 +7455,18 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                     }
 
                     async openCalibrationPreviewPdf() {
-                        const versionId = window.__templateVersionId;
+                        const previewData = this.buildPreviewCalibrationData();
+                        const versionId = previewData.templateVersionId;
                         if (!versionId) {
                             return;
                         }
 
-                        const fields = this.collectCalibrationPreviewFields();
-                        if (fields.length === 0) {
+                        if (!previewData.fields.length) {
                             showOverlayToast("Введіть текст хоча в одному полі (клік на PDF).", true);
                             return;
                         }
 
-                        console.info(
-                            "[Calibration] Preview PDF (client-only WYSIWYG):",
-                            fields.length,
-                            "полів",
-                            fields);
+                        console.info("[Calibration] Preview PDF payload:", previewData);
 
                         const prevLabel = calPreviewPdfBtn?.textContent ?? "";
                         if (calPreviewPdfBtn) {
@@ -7499,10 +7483,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                                     "Accept": "application/pdf",
                                     "RequestVerificationToken": this.getAntiForgeryToken()
                                 },
-                                body: JSON.stringify({
-                                    isCalibrationPreview: true,
-                                    fields
-                                })
+                                body: JSON.stringify(previewData)
                             });
                             if (!response.ok) {
                                 const message = await parseServerErrorMessageFromResponse(
@@ -7511,7 +7492,19 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                                 showOverlayToast(message, true);
                                 return;
                             }
+
+                            const contentType = response.headers.get("content-type") ?? "";
+                            if (!contentType.includes("application/pdf")) {
+                                showOverlayToast("Сервер повернув не PDF. Перевірте авторизацію або оновіть сторінку.", true);
+                                return;
+                            }
+
                             const blob = await response.blob();
+                            if (!blob.size) {
+                                showOverlayToast("Отримано порожній PDF.", true);
+                                return;
+                            }
+
                             const url = URL.createObjectURL(blob);
                             window.open(url, "_blank", "noopener");
                             window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
