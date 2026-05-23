@@ -20,22 +20,35 @@ public sealed class ReferralPdfOverlayRenderer
     public byte[] Render(
         Stream originalPdfStream,
         IReadOnlyList<ReferralOverlaySegment> segments,
+        IReadOnlyDictionary<Guid, string?> valuesByDataFieldId) =>
+        RenderWithStats(originalPdfStream, segments, valuesByDataFieldId).PdfBytes;
+
+    public PdfOverlayRenderStats RenderWithStats(
+        Stream originalPdfStream,
+        IReadOnlyList<ReferralOverlaySegment> segments,
         IReadOnlyDictionary<Guid, string?> valuesByDataFieldId)
     {
         ArgumentNullException.ThrowIfNull(originalPdfStream);
 
+        var drawn = 0;
+        var skippedEmpty = 0;
+        var skippedPage = 0;
+
         using var loadedDocument = new PdfLoadedDocument(originalPdfStream);
+        var pageCount = loadedDocument.Pages.Count;
 
         foreach (var overlaySegment in segments)
         {
             var value = ResolveOverlayText(overlaySegment, valuesByDataFieldId);
             if (string.IsNullOrWhiteSpace(value))
             {
+                skippedEmpty++;
                 continue;
             }
 
-            if (overlaySegment.PageNumber < 1 || overlaySegment.PageNumber > loadedDocument.Pages.Count)
+            if (overlaySegment.PageNumber < 1 || overlaySegment.PageNumber > pageCount)
             {
+                skippedPage++;
                 continue;
             }
 
@@ -45,11 +58,12 @@ public sealed class ReferralPdfOverlayRenderer
             var font = ResolveFontToFitWidth(value, overlaySegment, bounds.Width, format);
 
             page.Graphics.DrawString(value, font, PdfBrushes.Black, bounds, format);
+            drawn++;
         }
 
         using var output = new MemoryStream();
         loadedDocument.Save(output);
-        return output.ToArray();
+        return new PdfOverlayRenderStats(output.ToArray(), drawn, skippedEmpty, skippedPage, pageCount);
     }
 
     private static string? ResolveOverlayText(
@@ -142,6 +156,13 @@ public sealed class ReferralPdfOverlayRenderer
         return format;
     }
 }
+
+public sealed record PdfOverlayRenderStats(
+    byte[] PdfBytes,
+    int SegmentsDrawn,
+    int SegmentsSkippedEmpty,
+    int SegmentsSkippedPage,
+    int PdfPageCount);
 
 public sealed class ReferralOverlaySegment
 {

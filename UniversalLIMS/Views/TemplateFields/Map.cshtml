@@ -6919,11 +6919,14 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
 
                         const input = box?.querySelector(".calibration-inline-input");
                         const state = this.getCalibrationState(index);
+                        const domText = input
+                            ? input.innerText.replace(/\r/g, "").trim()
+                            : "";
                         if (input && state) {
                             state.text = input.innerText.replace(/\r/g, "");
                         }
 
-                        return (state?.text ?? "").trim();
+                        return (domText || (state?.text ?? "")).trim();
                     }
 
                     async persistCalibrationToApi(options = {}) {
@@ -7181,11 +7184,17 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         }
 
                         const state = this.getCalibrationState(field.index);
-                        if (state && !state.text && field.title) {
-                            state.text = "";
+                        const domText = input.innerText.replace(/\r/g, "");
+                        if (domText.trim()) {
+                            if (state) {
+                                state.text = domText;
+                            }
+                        } else if (state?.text) {
+                            input.textContent = state.text;
+                        } else {
+                            input.textContent = "";
                         }
 
-                        input.textContent = state?.text ?? "";
                         this.layoutCalibrationInlineEditor(box, field, input);
                         return input;
                     }
@@ -7372,12 +7381,14 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
 
                     buildPreviewCalibrationData() {
                         this.applyCalibrationPanelToActiveField();
+                        // Спочатку зчитати текст з DOM — ensureCalibrationInlineEditor не повинен його затирати.
                         this.syncAllCalibrationTextFromDom();
 
                         const versionId = String(window.__templateVersionId ?? "").trim();
                         const fields = [];
 
                         this.fieldByIndex.forEach((field, index) => {
+                            const box = this.boxesByIndex.get(index);
                             const text = this.readCalibrationTextForIndex(index);
                             if (!text) {
                                 return;
@@ -7387,20 +7398,22 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             const fieldIdRaw = String(field.fieldId ?? "").trim();
                             const templateFieldId = /^[0-9a-f-]{36}$/i.test(fieldIdRaw) ? fieldIdRaw : null;
                             const state = this.getCalibrationState(index);
-                            const offsetX = this.parsePixel(field.textOffsetX ?? state?.offsetX ?? 0);
-                            const offsetY = this.parsePixel(field.textOffsetY ?? state?.offsetY ?? 0);
+                            const offsetX = Number(this.parsePixel(field.textOffsetX ?? state?.offsetX ?? 0));
+                            const offsetY = Number(this.parsePixel(field.textOffsetY ?? state?.offsetY ?? 0));
+                            const fontSizeRaw = Number.parseFloat(String(field.fontSize ?? ""));
+                            const fontSize = Number.isFinite(fontSizeRaw) && fontSizeRaw > 0 ? fontSizeRaw : null;
 
                             fields.push({
                                 templateFieldId,
                                 text,
                                 offsetX,
                                 offsetY,
-                                page: layout.page,
-                                x: layout.x,
-                                y: layout.y,
-                                width: layout.width,
-                                height: layout.height,
-                                fontSize: field.fontSize ?? null,
+                                page: Number.parseInt(String(layout.page ?? 1), 10) || 1,
+                                x: Number(layout.x),
+                                y: Number(layout.y),
+                                width: Number(layout.width),
+                                height: Number(layout.height),
+                                fontSize,
                                 fontName: field.fontName || null,
                                 alignment: field.horizontalAlignment ?? field.textAlignment ?? "Left",
                                 verticalAlignment: field.verticalAlignment ?? "Top"
@@ -7467,6 +7480,16 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         }
 
                         console.info("[Calibration] Preview PDF payload:", previewData);
+                        console.table(previewData.fields.map((field) => ({
+                            text: field.text.slice(0, 40),
+                            page: field.page,
+                            x: field.x,
+                            y: field.y,
+                            offsetX: field.offsetX,
+                            offsetY: field.offsetY
+                        })));
+                        showOverlayToast(
+                            `Генеруємо PDF: ${previewData.fields.length} пол(я/ів) з текстом. Якщо в PDF порожньо — перевірте цей лог у F12.`);
 
                         const prevLabel = calPreviewPdfBtn?.textContent ?? "";
                         if (calPreviewPdfBtn) {
@@ -7504,6 +7527,22 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                                 showOverlayToast("Отримано порожній PDF.", true);
                                 return;
                             }
+
+                            const sentCount = previewData.fields.length;
+                            const drawnCount = response.headers.get("X-Calibration-Segments-Drawn");
+                            const skippedPage = response.headers.get("X-Calibration-Segments-Skipped-Page");
+                            const pdfPages = response.headers.get("X-Calibration-Pdf-Pages");
+                            let toastMsg = `PDF готово: надіслано ${sentCount}`;
+                            if (drawnCount !== null) {
+                                toastMsg += `, намалювано ${drawnCount}`;
+                            }
+                            if (skippedPage && Number(skippedPage) > 0) {
+                                toastMsg += `, пропущено (сторінка): ${skippedPage}`;
+                            }
+                            if (pdfPages) {
+                                toastMsg += `, сторінок у PDF: ${pdfPages}`;
+                            }
+                            showOverlayToast(`${toastMsg}.`);
 
                             const url = URL.createObjectURL(blob);
                             window.open(url, "_blank", "noopener");

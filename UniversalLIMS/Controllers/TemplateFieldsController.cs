@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using UniversalLIMS.Application.Registration.Abstractions;
 using UniversalLIMS.Application.Security;
 using UniversalLIMS.Application.Templates.Abstractions;
@@ -18,17 +19,20 @@ public sealed class TemplateFieldsController : Controller
     private readonly IPdfWorkspaceFillService _pdfWorkspaceFillService;
     private readonly ApplicationDbContext _context;
     private readonly ITemplateOriginalOpenTokenIssuer _openTokenIssuer;
+    private readonly ILogger<TemplateFieldsController> _logger;
 
     public TemplateFieldsController(
         ApplicationDbContext context,
         ITemplateFieldMappingService fieldMappingService,
         IPdfWorkspaceFillService pdfWorkspaceFillService,
-        ITemplateOriginalOpenTokenIssuer openTokenIssuer)
+        ITemplateOriginalOpenTokenIssuer openTokenIssuer,
+        ILogger<TemplateFieldsController> logger)
     {
         _context = context;
         _fieldMappingService = fieldMappingService;
         _pdfWorkspaceFillService = pdfWorkspaceFillService;
         _openTokenIssuer = openTokenIssuer;
+        _logger = logger;
     }
 
     public async Task<IActionResult> Map(Guid templateVersionId, CancellationToken cancellationToken)
@@ -420,15 +424,30 @@ public sealed class TemplateFieldsController : Controller
 
     [HttpPost("/api/template/preview-calibration/{templateVersionId:guid}")]
     [ValidateAntiForgeryToken]
+    [Consumes("application/json")]
     public async Task<IActionResult> PreviewCalibration(
         Guid templateVersionId,
-        [FromBody] PreviewCalibrationRequest request,
+        [FromBody] PreviewCalibrationRequest? request,
         CancellationToken cancellationToken)
     {
-        if (request.Fields is null || request.Fields.Count == 0)
+        if (request?.Fields is null || request.Fields.Count == 0)
         {
-            return BadRequest(new { message = "Немає полів з текстом для preview." });
+            return BadRequest(new { message = "No fields for preview" });
         }
+
+        var fieldsWithText = request.Fields
+            .Where(field => !string.IsNullOrWhiteSpace(field.Text))
+            .ToList();
+        if (fieldsWithText.Count == 0)
+        {
+            return BadRequest(new { message = "No fields for preview" });
+        }
+
+        _logger.LogInformation(
+            "POST preview-calibration: version={VersionId}, fields={FieldCount}, withText={TextFieldCount}",
+            templateVersionId,
+            request.Fields.Count,
+            fieldsWithText.Count);
 
         try
         {
@@ -437,11 +456,15 @@ public sealed class TemplateFieldsController : Controller
             request.TemplateVersionId = templateVersionId;
             request.IsCalibrationPreview = true;
 
-            var pdfBytes = await _pdfWorkspaceFillService.GenerateCalibrationPreviewAsync(
+            var previewResult = await _pdfWorkspaceFillService.GenerateCalibrationPreviewAsync(
                 request,
                 cancellationToken);
 
-            return File(pdfBytes, "application/pdf", "calibration-preview.pdf");
+            Response.Headers["X-Calibration-Fields-Sent"] = fieldsWithText.Count.ToString();
+            Response.Headers["X-Calibration-Segments-Drawn"] = previewResult.SegmentsDrawn.ToString();
+            Response.Headers["X-Calibration-Segments-Skipped-Page"] = previewResult.SegmentsSkippedPage.ToString();
+            Response.Headers["X-Calibration-Pdf-Pages"] = previewResult.PdfPageCount.ToString();
+            return File(previewResult.PdfBytes, "application/pdf", "calibration-preview.pdf");
         }
         catch (InvalidOperationException exception)
         {

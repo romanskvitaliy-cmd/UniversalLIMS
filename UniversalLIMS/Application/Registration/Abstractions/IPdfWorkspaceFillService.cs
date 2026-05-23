@@ -22,10 +22,16 @@ public interface IPdfWorkspaceFillService
     /// PDF preview калібрування: WYSIWYG лише з <see cref="PreviewCalibrationRequest.Fields"/>.
     /// Layout і текст з БД не читаються.
     /// </summary>
-    Task<byte[]> GenerateCalibrationPreviewAsync(
+    Task<CalibrationPreviewPdfResult> GenerateCalibrationPreviewAsync(
         PreviewCalibrationRequest request,
         CancellationToken cancellationToken = default);
 }
+
+public sealed record CalibrationPreviewPdfResult(
+    byte[] PdfBytes,
+    int SegmentsDrawn,
+    int SegmentsSkippedPage,
+    int PdfPageCount);
 
 public sealed class PdfWorkspaceFieldValueDto
 {

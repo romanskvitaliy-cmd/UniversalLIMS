@@ -265,7 +265,7 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
         return _overlayRenderer.Render(originalPdfStream, segments, valuesByDataFieldId);
     }
 
-    public async Task<byte[]> GenerateCalibrationPreviewAsync(
+    public async Task<CalibrationPreviewPdfResult> GenerateCalibrationPreviewAsync(
         PreviewCalibrationRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -277,15 +277,32 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
             throw new InvalidOperationException("templateVersionId не вказано.");
         }
 
-        var fields = (request.Fields ?? [])
+        if (request.Fields is null || request.Fields.Count == 0)
+        {
+            throw new InvalidOperationException("No fields for preview");
+        }
+
+        var fields = request.Fields
             .Where(item => !string.IsNullOrWhiteSpace(item.Text))
             .ToList();
 
         if (fields.Count == 0)
         {
-            throw new InvalidOperationException("Немає полів з текстом для preview калібрування.");
+            throw new InvalidOperationException("No fields for preview");
         }
 
+        var fieldIdsForLog = string.Join(
+            ", ",
+            fields.Select(item => item.TemplateFieldId?.ToString("D") ?? "(no-templateFieldId)"));
+
+        _logger.LogInformation(
+            "Calibration preview WYSIWYG: version={VersionId}, receivedFields={ReceivedCount}, drawableFields={DrawableCount}, templateFieldIds=[{FieldIds}]",
+            templateVersionId,
+            request.Fields.Count,
+            fields.Count,
+            fieldIdsForLog);
+
+        // Лише порожній PDF-шаблон зі сховища; layout і текст — виключно з request.Fields.
         var version = await _context.TemplateVersions
             .AsNoTracking()
             .FirstOrDefaultAsync(item => item.Id == templateVersionId, cancellationToken)
@@ -303,12 +320,6 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
 
         var overlaySegments = fields.Select(MapPreviewCalibrationField).ToList();
 
-        _logger.LogInformation(
-            "PdfWorkspaceFill calibration preview: version={VersionId}, fields={FieldCount}, segments={SegmentCount}",
-            templateVersionId,
-            fields.Count,
-            overlaySegments.Count);
-
         await using var originalPdfStream = await _templateDocumentStorage.OpenReadAsync(
             version.StorageKey,
             cancellationToken);
@@ -318,7 +329,22 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
             originalPdfStream.Position = 0;
         }
 
-        return _overlayRenderer.Render(originalPdfStream, overlaySegments, new Dictionary<Guid, string?>());
+        var renderStats = _overlayRenderer.RenderWithStats(
+            originalPdfStream,
+            overlaySegments,
+            new Dictionary<Guid, string?>());
+
+        _logger.LogInformation(
+            "Calibration preview render: drawn={Drawn}, skippedPage={SkippedPage}, pdfPages={PdfPages}",
+            renderStats.SegmentsDrawn,
+            renderStats.SegmentsSkippedPage,
+            renderStats.PdfPageCount);
+
+        return new CalibrationPreviewPdfResult(
+            renderStats.PdfBytes,
+            renderStats.SegmentsDrawn,
+            renderStats.SegmentsSkippedPage,
+            renderStats.PdfPageCount);
     }
 
     private static ReferralOverlaySegment MapPreviewCalibrationField(PreviewCalibrationFieldRequest field)

@@ -338,9 +338,10 @@ public sealed class PdfWorkspaceFillServiceTests
             }).ToList()
         };
 
-        var pdf = await service.GenerateCalibrationPreviewAsync(request);
-        Assert.NotEmpty(pdf);
-        Assert.True(pdf.Length > CreateBlankPdf().Length);
+        var preview = await service.GenerateCalibrationPreviewAsync(request);
+        Assert.NotEmpty(preview.PdfBytes);
+        Assert.True(preview.PdfBytes.Length > CreateBlankPdf().Length);
+        Assert.Equal(3, preview.SegmentsDrawn);
     }
 
     [Fact]
@@ -400,9 +401,10 @@ public sealed class PdfWorkspaceFillServiceTests
             ]
         };
 
-        var pdf = await service.GenerateCalibrationPreviewAsync(request);
-        Assert.NotEmpty(pdf);
-        Assert.True(pdf.Length > CreateBlankPdf().Length);
+        var preview = await service.GenerateCalibrationPreviewAsync(request);
+        Assert.NotEmpty(preview.PdfBytes);
+        Assert.True(preview.PdfBytes.Length > CreateBlankPdf().Length);
+        Assert.Equal(1, preview.SegmentsDrawn);
     }
 
     [Fact]
@@ -443,12 +445,13 @@ public sealed class PdfWorkspaceFillServiceTests
             new OrderFieldValueService(context),
             NullLogger<PdfWorkspaceFillService>.Instance);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             service.GenerateCalibrationPreviewAsync(new PreviewCalibrationRequest
             {
                 TemplateVersionId = versionId,
                 Fields = [new PreviewCalibrationFieldRequest { Text = "   " }]
             }));
+        Assert.Equal("No fields for preview", exception.Message);
     }
 
     [Fact]
