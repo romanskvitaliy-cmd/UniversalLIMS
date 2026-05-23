@@ -379,56 +379,87 @@
         z-index: 48;
     }
 
+    /* Калібрування — той самий overlay-підхід, що PdfWorkspace Fill */
     body.template-map-calibration-mode .field-overlay-box {
-        border: 1px dashed rgba(120, 120, 120, 0.45) !important;
+        border: none !important;
         background: transparent !important;
         box-shadow: none !important;
         opacity: 1 !important;
         pointer-events: auto;
+        overflow: visible;
     }
 
     body.template-map-calibration-mode .field-overlay-box.field-segment-active {
-        border-color: rgba(80, 80, 80, 0.75) !important;
-        box-shadow: 0 0 0 1px rgba(80, 80, 80, 0.35) !important;
+        border: none !important;
+        box-shadow: none !important;
+        background: transparent !important;
+        z-index: 60;
+        overflow: visible;
     }
 
     body.template-map-calibration-mode .field-overlay-label {
         display: none !important;
     }
 
-    .calibration-text-layer {
+    body.template-map-calibration-mode .calibration-inline-input,
+    body.template-map-calibration-mode .field-overlay-box .pdf-field,
+    body.template-map-calibration-mode .field-overlay-box .pdf-field-input {
         position: absolute;
-        top: 0;
         left: 0;
-        pointer-events: none;
-        z-index: 25;
-    }
-
-    body.template-map-calibration-mode .calibration-inline-input {
-        position: absolute;
+        top: 0;
+        display: block;
+        box-sizing: border-box;
+        width: 100%;
+        height: 100%;
         margin: 0;
-        padding: 0 2px;
-        border: 0;
+        padding: 0;
+        border: none;
         outline: none;
         resize: none;
-        overflow: hidden;
+        overflow: visible;
         background: transparent;
         color: #111;
         font-family: Arial, Helvetica, sans-serif;
-        line-height: 1.15;
-        box-shadow: none;
+        font-size: 12px;
+        line-height: 1.2;
+        letter-spacing: normal;
+        text-align: left;
+        vertical-align: top;
+        white-space: nowrap;
+        word-break: normal;
         z-index: 50;
         pointer-events: auto;
         cursor: text;
-        opacity: 0;
+        -webkit-user-select: text;
+        user-select: text;
     }
 
-    body.template-map-calibration-mode .calibration-inline-input:focus {
-        background: rgba(255, 255, 255, 0.35);
-        outline: 1px solid rgba(13, 110, 253, 0.55);
+    body.template-map-calibration-mode .calibration-inline-input--multiline,
+    body.template-map-calibration-mode .pdf-field--multiline {
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+
+    body.template-map-calibration-mode .calibration-inline-input:focus,
+    body.template-map-calibration-mode .field-overlay-box .pdf-field:focus,
+    body.template-map-calibration-mode .field-overlay-box .pdf-field-input:focus {
+        outline: 2px solid #007bff;
         outline-offset: 0;
-        box-shadow: none;
-        opacity: 1 !important;
+        border: none;
+        background: transparent;
+    }
+
+    body.template-map-calibration-mode .calibration-inline-input.cal-text-bold {
+        font-weight: 700 !important;
+    }
+
+    body.template-map-calibration-mode .calibration-inline-input.cal-text-italic {
+        font-style: italic !important;
+    }
+
+    body.template-map-calibration-mode .calibration-inline-input.cal-text-underline {
+        text-decoration: underline !important;
+        text-decoration-thickness: from-font;
     }
 
     .js-toggle-calibration.active {
@@ -439,6 +470,426 @@
 
     body.template-map-calibration-mode .field-overlay-box [data-handle] {
         display: none !important;
+    }
+
+    body.template-map-calibration-mode .field-overlay-layer {
+        overflow: visible;
+    }
+
+    #calibrationPanel.cal-panel {
+        --cal-gap: 0.28rem;
+        padding: 0.35rem 0.4rem 0.4rem;
+        border: 1px solid #dbe4f0;
+        border-radius: 10px;
+        background: linear-gradient(165deg, #f8fbff 0%, #fff 55%);
+        font-size: 0.74rem;
+    }
+
+    #calibrationPanel .cal-panel__head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.25rem;
+        margin-bottom: 0.15rem;
+    }
+
+    #calibrationPanel .cal-panel__head-main {
+        flex: 1;
+        min-width: 0;
+    }
+
+    #calibrationPanel .cal-panel__title {
+        font-weight: 700;
+        font-size: 0.72rem;
+        color: #1e293b;
+        line-height: 1.2;
+    }
+
+    #calibrationPanel .cal-panel__editing {
+        margin: 0.1rem 0 0;
+        font-size: 0.7rem;
+        font-weight: 600;
+        color: #0f766e;
+        line-height: 1.25;
+        word-break: break-word;
+    }
+
+    #calibrationPanel .cal-panel__editing:empty {
+        display: none;
+    }
+
+    #calibrationPanel .cal-panel__exit {
+        flex: 0 0 auto;
+        padding: 0.15rem 0.45rem;
+        font-size: 0.68rem;
+        font-weight: 600;
+        line-height: 1.2;
+        white-space: nowrap;
+    }
+
+    #calibrationPanel .cal-panel__exit-icon {
+        width: 1.65rem;
+        height: 1.65rem;
+        padding: 0;
+        line-height: 1;
+        font-size: 1rem;
+        font-weight: 700;
+    }
+
+    #calibrationPanel .cal-panel__hint {
+        margin: 0 0 0.28rem;
+        font-size: 0.66rem;
+        color: #64748b;
+        line-height: 1.2;
+    }
+
+    #calibrationPanel .cal-panel__hint.is-hidden {
+        display: none;
+    }
+
+    #calibrationPanel .cal-panel__tabs {
+        display: flex;
+        gap: 2px;
+        margin-bottom: 0.35rem;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    #calibrationPanel .cal-panel__tab {
+        flex: 1;
+        border: none;
+        border-bottom: 2px solid transparent;
+        margin-bottom: -1px;
+        padding: 0.2rem 0.15rem;
+        background: transparent;
+        color: #64748b;
+        font-size: 0.7rem;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    #calibrationPanel .cal-panel__tab.active {
+        color: #0d6efd;
+        border-bottom-color: #0d6efd;
+    }
+
+    #calibrationPanel .cal-panel__tab:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+    }
+
+    #calibrationPanel .cal-pane {
+        display: none;
+    }
+
+    #calibrationPanel .cal-pane.active {
+        display: block;
+    }
+
+    #calibrationPanel .cal-row {
+        display: flex;
+        align-items: center;
+        gap: var(--cal-gap);
+        margin-bottom: var(--cal-gap);
+    }
+
+    #calibrationPanel .cal-row label {
+        flex: 0 0 4.5rem;
+        margin: 0;
+        font-size: 0.68rem;
+        color: #475569;
+    }
+
+    #calibrationPanel .cal-row__control {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.2rem;
+    }
+
+    #calibrationPanel .form-control-sm,
+    #calibrationPanel .form-select-sm {
+        padding: 0.12rem 0.3rem;
+        font-size: 0.72rem;
+        min-height: 1.55rem;
+    }
+
+    #calibrationPanel .cal-stepper {
+        display: flex;
+        align-items: stretch;
+        gap: 0;
+        flex: 1;
+    }
+
+    #calibrationPanel .cal-stepper .form-control {
+        border-radius: 0;
+        text-align: center;
+        flex: 1;
+        min-width: 0;
+    }
+
+    #calibrationPanel .cal-stepper .btn {
+        padding: 0 0.35rem;
+        font-size: 0.8rem;
+        line-height: 1.2;
+        min-width: 1.6rem;
+    }
+
+    #calibrationPanel [data-cal-control]:not(:disabled) {
+        pointer-events: auto;
+    }
+
+    #calibrationPanel [data-cal-control].cal-control--locked,
+    #calibrationPanel [data-cal-control]:disabled {
+        opacity: 0.45;
+        pointer-events: none;
+        cursor: not-allowed;
+    }
+
+    #calibrationPanel .cal-font-toolbar {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        flex: 1;
+        min-width: 0;
+    }
+
+    #calibrationPanel .cal-font-stepper {
+        display: grid;
+        grid-template-columns: 2.1rem 1fr 2.1rem;
+        gap: 0;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #fff;
+    }
+
+    #calibrationPanel .cal-font-stepper__btn {
+        border: none;
+        border-radius: 0;
+        background: #f8fafc;
+        color: #0f172a;
+        font-size: 1.05rem;
+        font-weight: 700;
+        line-height: 1;
+        min-height: 2.1rem;
+        padding: 0;
+    }
+
+    #calibrationPanel .cal-font-stepper__btn:not(:disabled):hover {
+        background: #e2e8f0;
+    }
+
+    #calibrationPanel .cal-font-stepper__btn:not(:disabled):active {
+        background: #cbd5e1;
+    }
+
+    #calibrationPanel .cal-font-stepper__input {
+        border: none;
+        border-left: 1px solid #e2e8f0;
+        border-right: 1px solid #e2e8f0;
+        border-radius: 0;
+        text-align: center;
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: #0f172a;
+        min-height: 2.1rem;
+        padding: 0 0.25rem;
+        box-shadow: none;
+    }
+
+    #calibrationPanel .cal-font-stepper__input:focus {
+        box-shadow: inset 0 0 0 2px rgba(13, 110, 253, 0.25);
+    }
+
+    #calibrationPanel .cal-font-presets {
+        display: grid;
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 3px;
+    }
+
+    #calibrationPanel .cal-font-preset {
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        background: #fff;
+        color: #334155;
+        font-size: 0.72rem;
+        font-weight: 700;
+        line-height: 1.1;
+        min-height: 1.75rem;
+        padding: 0.15rem 0;
+    }
+
+    #calibrationPanel .cal-font-preset:not(:disabled):hover {
+        border-color: #64748b;
+        background: #f8fafc;
+    }
+
+    #calibrationPanel .cal-font-preset.active {
+        background: #0d6efd;
+        border-color: #0d6efd;
+        color: #fff;
+        box-shadow: 0 1px 2px rgba(13, 110, 253, 0.35);
+    }
+
+    #calibrationPanel .cal-style-segment {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0;
+        flex: 1;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #fff;
+    }
+
+    #calibrationPanel .cal-style-segment__btn {
+        border: none;
+        border-radius: 0;
+        background: #fff;
+        color: #334155;
+        min-height: 2.15rem;
+        padding: 0.2rem 0;
+        position: relative;
+    }
+
+    #calibrationPanel .cal-style-segment__btn + .cal-style-segment__btn {
+        border-left: 1px solid #e2e8f0;
+    }
+
+    #calibrationPanel .cal-style-segment__btn:not(:disabled):hover {
+        background: #f1f5f9;
+    }
+
+    #calibrationPanel .cal-style-segment__glyph {
+        display: inline-block;
+        font-size: 1rem;
+        line-height: 1;
+        color: inherit;
+    }
+
+    #calibrationPanel .cal-style-segment__glyph--bold {
+        font-weight: 800;
+    }
+
+    #calibrationPanel .cal-style-segment__glyph--italic {
+        font-style: italic;
+        font-weight: 600;
+    }
+
+    #calibrationPanel .cal-style-segment__glyph--underline {
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        font-weight: 600;
+    }
+
+    #calibrationPanel .cal-style-segment__btn.active {
+        background: #0d6efd !important;
+        color: #fff !important;
+        box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.15);
+    }
+
+    #calibrationPanel .cal-style-segment__btn.active .cal-style-segment__glyph {
+        color: #fff;
+    }
+
+    #calibrationPanel .cal-stepper .btn:first-child {
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+    }
+
+    #calibrationPanel .cal-stepper .btn:last-child {
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+    }
+
+    #calibrationPanel .cal-toggle-group {
+        display: flex;
+        flex: 1;
+        gap: 2px;
+    }
+
+    #calibrationPanel .cal-toggle-group .btn {
+        flex: 1;
+        padding: 0.1rem 0.2rem;
+        font-size: 0.72rem;
+        line-height: 1.15;
+        min-width: 0;
+    }
+
+    #calibrationPanel .cal-shift-row {
+        margin-bottom: 0.25rem;
+    }
+
+    #calibrationPanel .cal-shift-row__label {
+        font-size: 0.65rem;
+        color: #64748b;
+        margin-bottom: 0.15rem;
+    }
+
+    #calibrationPanel .cal-shift-btns {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 3px;
+    }
+
+    #calibrationPanel .cal-shift-btns .btn {
+        padding: 0.28rem 0.15rem;
+        font-size: 0.78rem;
+        font-weight: 600;
+        line-height: 1.1;
+        min-height: 1.85rem;
+        min-width: 0;
+    }
+
+    #calibrationPanel #calTextColor {
+        width: 2.2rem;
+        height: 1.55rem;
+        padding: 0.1rem;
+        flex: 0 0 auto;
+    }
+
+    #calibrationPanel .cal-panel__footer {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.25rem;
+        margin-top: 0.35rem;
+        padding-top: 0.35rem;
+        border-top: 1px solid #e8edf4;
+    }
+
+    #calibrationPanel #calSaveStatus {
+        flex: 1 1 100%;
+        font-size: 0.65rem;
+        min-height: 0.9rem;
+    }
+
+    #calibrationPanel .cal-panel__footer .btn {
+        flex: 1;
+        font-size: 0.72rem;
+        padding: 0.15rem 0.35rem;
+    }
+
+    .nudge-pad #calibrationPanel.cal-panel {
+        margin: 0;
+        border: none;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+    }
+
+    body.template-map-calibration-mode #nudgePadDefaultTools {
+        display: none !important;
+    }
+
+    body.template-map-calibration-mode .nudge-pad #calibrationPanel.cal-panel {
+        display: block !important;
+    }
+
+    body.template-map-calibration-mode #overlayNudgePad .nudge-pad-header .small.fw-semibold,
+    body.template-map-calibration-mode #nudgePadTitle {
+        color: #198754;
     }
 
     .field-overlay-label {
@@ -1504,47 +1955,6 @@ else
                         </div>
                         <small class="text-muted" id="editModeHint">Тільки перегляд</small>
                     </div>
-                    <div id="calibrationPanel" class="mb-3 border rounded p-2 bg-light" style="display: none;">
-                        <div class="fw-semibold small mb-2">Калібрування Overlay</div>
-                        <p id="calibrationPanelHint" class="small text-muted mb-2">Клікніть поле на PDF — текст редагується прямо на бланку.</p>
-                        <div class="row g-2 mb-2">
-                            <div class="col-6">
-                                <label class="form-label small mb-0" for="calOffsetX">Offset X</label>
-                                <input id="calOffsetX" type="number" step="0.1" class="form-control form-control-sm" value="0" disabled />
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label small mb-0" for="calOffsetY">Offset Y</label>
-                                <input id="calOffsetY" type="number" step="0.1" class="form-control form-control-sm" value="0" disabled />
-                            </div>
-                        </div>
-                        <div class="small text-muted mb-1">Зсув X (px)</div>
-                        <div class="d-flex flex-wrap gap-1 mb-2">
-                            <button type="button" class="btn btn-sm btn-outline-secondary py-0" data-cal-shift="x" data-cal-delta="-5" disabled>−5</button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary py-0" data-cal-shift="x" data-cal-delta="-2" disabled>−2</button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary py-0" data-cal-shift="x" data-cal-delta="-1" disabled>−1</button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary py-0" data-cal-shift="x" data-cal-delta="-0.5" disabled>−.5</button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary py-0" data-cal-shift="x" data-cal-delta="0.5" disabled>+.5</button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary py-0" data-cal-shift="x" data-cal-delta="1" disabled>+1</button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary py-0" data-cal-shift="x" data-cal-delta="2" disabled>+2</button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary py-0" data-cal-shift="x" data-cal-delta="5" disabled>+5</button>
-                        </div>
-                        <div class="small text-muted mb-1">Зсув Y (px)</div>
-                        <div class="d-flex flex-wrap gap-1 mb-2">
-                            <button type="button" class="btn btn-sm btn-outline-secondary py-0" data-cal-shift="y" data-cal-delta="-5" disabled>−5</button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary py-0" data-cal-shift="y" data-cal-delta="-2" disabled>−2</button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary py-0" data-cal-shift="y" data-cal-delta="-1" disabled>−1</button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary py-0" data-cal-shift="y" data-cal-delta="-0.5" disabled>−.5</button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary py-0" data-cal-shift="y" data-cal-delta="0.5" disabled>+.5</button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary py-0" data-cal-shift="y" data-cal-delta="1" disabled>+1</button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary py-0" data-cal-shift="y" data-cal-delta="2" disabled>+2</button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary py-0" data-cal-shift="y" data-cal-delta="5" disabled>+5</button>
-                        </div>
-                        <div class="d-flex flex-wrap gap-1">
-                            <button type="button" id="calResetOffsets" class="btn btn-sm btn-outline-warning" disabled>Скинути offset</button>
-                            <button type="button" id="calSaveOffsets" class="btn btn-sm btn-outline-primary" disabled>💾 Зберегти offset</button>
-                            <button type="button" id="calPreviewPdf" class="btn btn-sm btn-success" disabled>Preview PDF</button>
-                        </div>
-                    </div>
                     <div id="editControls" style="display: none;">
                         <div class="d-flex gap-2 mb-2">
                             <button id="btnSingleMode" type="button" class="btn btn-sm btn-outline-primary flex-fill active">
@@ -1739,7 +2149,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
      style="display:none; z-index: 1080;"></div>
 <div id="overlayNudgePad" class="nudge-pad" style="display:none;">
     <div id="overlayNudgePadHeader" class="nudge-pad-header d-flex justify-content-between align-items-center">
-        <div class="small fw-semibold">Точне позиціонування</div>
+        <div id="nudgePadTitle" class="small fw-semibold">Точне позиціонування</div>
         <div class="d-flex gap-1">
             <button id="toggleDesignerFocusMode" type="button" class="btn btn-sm btn-outline-primary py-0 px-2 js-toggle-designer-focus" title="Режим конструктора: лише PDF і пульт (F)">⛶</button>
             <button id="toggleNudgeInspectMode" type="button" class="btn btn-sm btn-outline-secondary py-0 px-2">👁</button>
@@ -1754,6 +2164,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
         <span id="nudgeZoomValue" class="nudge-scale-value">100%</span>
     </div>
     <div id="overlayNudgePadBody" class="nudge-pad-scroll">
+    <div id="nudgePadDefaultTools">
     <div class="nudge-tag-composer mb-2">
         <div class="d-flex justify-content-between align-items-center mb-1">
             <span class="small fw-semibold">➕ Новий тег</span>
@@ -1846,6 +2257,171 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
     </div>
     <div id="nudgeSaveHint" class="small text-muted mt-1 nudge-save-hint"></div>
     </div>
+    <div id="calibrationPanel" class="cal-panel" style="display: none;">
+        <div class="cal-panel__head">
+            <div class="cal-panel__head-main">
+                <span class="cal-panel__title">Калібрування</span>
+                <p id="calEditingField" class="cal-panel__editing" aria-live="polite"></p>
+            </div>
+            <button type="button" id="calExitCalibration" class="btn btn-sm btn-outline-danger cal-panel__exit-icon" title="Вийти з калібрування" aria-label="Вийти з калібрування">×</button>
+        </div>
+        <button type="button" id="calExitCalibrationFull" class="btn btn-sm btn-outline-danger w-100 cal-panel__exit mb-1">Вийти з калібрування</button>
+        <p id="calibrationPanelHint" class="cal-panel__hint">Клікніть поле на PDF — параметри з’являться тут.</p>
+        <div class="cal-panel__tabs" role="tablist">
+            <button type="button" class="cal-panel__tab active" data-cal-tab="text" role="tab">Текст</button>
+            <button type="button" class="cal-panel__tab" data-cal-tab="position" role="tab">Позиція</button>
+            <button type="button" class="cal-panel__tab" data-cal-tab="actions" role="tab">Дії</button>
+        </div>
+        <div class="cal-panel__body">
+            <div class="cal-pane active" data-cal-pane="text" role="tabpanel">
+                <div class="cal-row">
+                    <label for="calFontFamily">Шрифт</label>
+                    <div class="cal-row__control">
+                        <select id="calFontFamily" class="form-select form-select-sm" data-cal-control>
+                            <option value="">Arial (за замовч.)</option>
+                            <option value="Arial">Arial</option>
+                            <option value="Helvetica">Helvetica</option>
+                            <option value="Times New Roman">Times New Roman</option>
+                            <option value="Georgia">Georgia</option>
+                            <option value="Verdana">Verdana</option>
+                            <option value="Tahoma">Tahoma</option>
+                            <option value="Courier New">Courier New</option>
+                            <option value="Segoe UI">Segoe UI</option>
+                            <option value="Calibri">Calibri</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="cal-row cal-row--size">
+                    <label for="calFontSize">Розмір</label>
+                    <div class="cal-row__control">
+                        <div class="cal-font-toolbar">
+                            <div class="cal-font-stepper">
+                                <button type="button" class="cal-font-stepper__btn" data-cal-font-delta="-1" data-cal-control aria-label="Зменшити розмір">−</button>
+                                <input id="calFontSize" type="number" class="cal-font-stepper__input" min="6" max="72" step="0.5" placeholder="10" data-cal-control />
+                                <button type="button" class="cal-font-stepper__btn" data-cal-font-delta="1" data-cal-control aria-label="Збільшити розмір">+</button>
+                            </div>
+                            <div class="cal-font-presets" role="group" aria-label="Швидкий розмір шрифту">
+                                <button type="button" class="cal-font-preset" data-cal-font-preset="8" data-cal-control>8</button>
+                                <button type="button" class="cal-font-preset" data-cal-font-preset="10" data-cal-control>10</button>
+                                <button type="button" class="cal-font-preset" data-cal-font-preset="12" data-cal-control>12</button>
+                                <button type="button" class="cal-font-preset" data-cal-font-preset="14" data-cal-control>14</button>
+                                <button type="button" class="cal-font-preset" data-cal-font-preset="16" data-cal-control>16</button>
+                                <button type="button" class="cal-font-preset" data-cal-font-preset="18" data-cal-control>18</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="cal-row">
+                    <label>Стиль</label>
+                    <div class="cal-row__control">
+                        <div class="cal-style-segment" role="group" aria-label="Стиль тексту">
+                            <button type="button" class="cal-style-segment__btn" id="calBold" data-cal-style="bold" data-cal-control title="Жирний" aria-pressed="false" aria-label="Жирний">
+                                <span class="cal-style-segment__glyph cal-style-segment__glyph--bold">B</span>
+                            </button>
+                            <button type="button" class="cal-style-segment__btn" id="calItalic" data-cal-style="italic" data-cal-control title="Курсив" aria-pressed="false" aria-label="Курсив">
+                                <span class="cal-style-segment__glyph cal-style-segment__glyph--italic">I</span>
+                            </button>
+                            <button type="button" class="cal-style-segment__btn" id="calUnderline" data-cal-style="underline" data-cal-control title="Підкреслення" aria-pressed="false" aria-label="Підкреслення">
+                                <span class="cal-style-segment__glyph cal-style-segment__glyph--underline">U</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="cal-row">
+                    <label for="calTextColor">Колір</label>
+                    <div class="cal-row__control">
+                        <input id="calTextColor" type="color" value="#111111" data-cal-control />
+                        <input id="calTextColorHex" type="text" class="form-control form-control-sm" value="#111111" maxlength="7" pattern="#[0-9A-Fa-f]{6}" data-cal-control />
+                    </div>
+                </div>
+                <div class="cal-row">
+                    <label for="calLineHeight">Line-height</label>
+                    <div class="cal-row__control">
+                        <input id="calLineHeight" type="number" class="form-control form-control-sm" min="0.8" max="3" step="0.05" placeholder="1.2" data-cal-control />
+                    </div>
+                </div>
+                <div class="cal-row">
+                    <label for="calLetterSpacing">Letter-sp.</label>
+                    <div class="cal-row__control cal-stepper">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="calLetterSpacingMinus" data-cal-control aria-label="Зменшити">−</button>
+                        <input id="calLetterSpacing" type="number" class="form-control form-control-sm" step="0.1" placeholder="0" data-cal-control />
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="calLetterSpacingPlus" data-cal-control aria-label="Збільшити">+</button>
+                    </div>
+                </div>
+            </div>
+            <div class="cal-pane" data-cal-pane="position" role="tabpanel">
+                <div class="cal-row">
+                    <label for="calOffsetX">Offset X</label>
+                    <div class="cal-row__control cal-stepper">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-cal-offset-step="x" data-cal-step="-1" data-cal-control>−</button>
+                        <input id="calOffsetX" type="number" step="0.1" min="-50" max="50" class="form-control form-control-sm" value="0" data-cal-control />
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-cal-offset-step="x" data-cal-step="1" data-cal-control>+</button>
+                    </div>
+                </div>
+                <div class="cal-shift-row">
+                    <div class="cal-shift-row__label">Зсув X (px)</div>
+                    <div class="cal-shift-btns">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-cal-shift="x" data-cal-delta="-5" data-cal-control>−5</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-cal-shift="x" data-cal-delta="-2" data-cal-control>−2</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-cal-shift="x" data-cal-delta="-1" data-cal-control>−1</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-cal-shift="x" data-cal-delta="-0.5" data-cal-control>−.5</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-cal-shift="x" data-cal-delta="0.5" data-cal-control>+.5</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-cal-shift="x" data-cal-delta="1" data-cal-control>+1</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-cal-shift="x" data-cal-delta="2" data-cal-control>+2</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-cal-shift="x" data-cal-delta="5" data-cal-control>+5</button>
+                    </div>
+                </div>
+                <div class="cal-row">
+                    <label for="calOffsetY">Offset Y</label>
+                    <div class="cal-row__control cal-stepper">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-cal-offset-step="y" data-cal-step="-1" data-cal-control>−</button>
+                        <input id="calOffsetY" type="number" step="0.1" min="-50" max="50" class="form-control form-control-sm" value="0" data-cal-control />
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-cal-offset-step="y" data-cal-step="1" data-cal-control>+</button>
+                    </div>
+                </div>
+                <div class="cal-shift-row">
+                    <div class="cal-shift-row__label">Зсув Y (px)</div>
+                    <div class="cal-shift-btns">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-cal-shift="y" data-cal-delta="-5" data-cal-control>−5</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-cal-shift="y" data-cal-delta="-2" data-cal-control>−2</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-cal-shift="y" data-cal-delta="-1" data-cal-control>−1</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-cal-shift="y" data-cal-delta="-0.5" data-cal-control>−.5</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-cal-shift="y" data-cal-delta="0.5" data-cal-control>+.5</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-cal-shift="y" data-cal-delta="1" data-cal-control>+1</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-cal-shift="y" data-cal-delta="2" data-cal-control>+2</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-cal-shift="y" data-cal-delta="5" data-cal-control>+5</button>
+                    </div>
+                </div>
+                <div class="cal-row">
+                    <label>Гориз.</label>
+                    <div class="cal-row__control cal-toggle-group">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-cal-h-align="Left" data-cal-control title="Ліворуч">⬅</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-cal-h-align="Center" data-cal-control title="Центр">☰</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-cal-h-align="Right" data-cal-control title="Праворуч">➡</button>
+                    </div>
+                </div>
+                <div class="cal-row">
+                    <label>Верт.</label>
+                    <div class="cal-row__control cal-toggle-group">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-cal-v-align="Top" data-cal-control title="Верх">⤒</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-cal-v-align="Middle" data-cal-control title="Середина">☰</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-cal-v-align="Bottom" data-cal-control title="Низ">⤓</button>
+                    </div>
+                </div>
+            </div>
+            <div class="cal-pane" data-cal-pane="actions" role="tabpanel">
+                <button type="button" id="calResetField" class="btn btn-sm btn-outline-warning w-100 mb-1" data-cal-control>Скинути налаштування поля</button>
+                <button type="button" id="calApplyAllFields" class="btn btn-sm btn-outline-secondary w-100 mb-1" data-cal-control>Застосувати до всіх полів</button>
+                <button type="button" id="calResetAllOffsets" class="btn btn-sm btn-outline-danger w-100" data-cal-control>Скинути всі offset на шаблоні</button>
+            </div>
+        </div>
+        <div class="cal-panel__footer">
+            <span id="calSaveStatus" class="text-muted"></span>
+            <button type="button" id="calSaveBtn" class="btn btn-sm btn-primary" disabled>💾 Зберегти</button>
+            <button type="button" id="calPreviewPdf" class="btn btn-sm btn-success" disabled>Preview PDF</button>
+        </div>
+    </div>
+    </div>
     <div id="overlayNudgePadFooter" class="nudge-pad-footer">
         <div class="d-flex justify-content-between align-items-center mb-1">
             <div class="small fw-semibold">Розміщення тегів</div>
@@ -1895,6 +2471,8 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                 const nudgePad = document.getElementById("overlayNudgePad");
                 const nudgePadHeader = document.getElementById("overlayNudgePadHeader");
                 const nudgePadBody = document.getElementById("overlayNudgePadBody");
+                const nudgePadDefaultTools = document.getElementById("nudgePadDefaultTools");
+                const nudgePadTitleEl = document.getElementById("nudgePadTitle");
                 const toggleNudgeInspectModeBtn = document.getElementById("toggleNudgeInspectMode");
                 const toggleNudgeDetachModeBtn = document.getElementById("toggleNudgeDetachMode");
                 const toggleNudgePadVisibilityBtn = document.getElementById("toggleNudgePadVisibility");
@@ -1926,12 +2504,33 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                 const segmentFontSizeInput = document.getElementById("segmentFontSize");
                 const calibrationPanel = document.getElementById("calibrationPanel");
                 const calibrationPanelHint = document.getElementById("calibrationPanelHint");
+                const calEditingFieldEl = document.getElementById("calEditingField");
+                const calExitCalibrationBtn = document.getElementById("calExitCalibration");
+                const calExitCalibrationFullBtn = document.getElementById("calExitCalibrationFull");
                 const calOffsetXInput = document.getElementById("calOffsetX");
                 const calOffsetYInput = document.getElementById("calOffsetY");
-                const calResetOffsetsBtn = document.getElementById("calResetOffsets");
-                const calSaveOffsetsBtn = document.getElementById("calSaveOffsets");
+                const calFontFamilySelect = document.getElementById("calFontFamily");
+                const calFontSizeInput = document.getElementById("calFontSize");
+                const calBoldBtn = document.getElementById("calBold");
+                const calItalicBtn = document.getElementById("calItalic");
+                const calUnderlineBtn = document.getElementById("calUnderline");
+                const calTextColorInput = document.getElementById("calTextColor");
+                const calTextColorHexInput = document.getElementById("calTextColorHex");
+                const calLineHeightInput = document.getElementById("calLineHeight");
+                const calLetterSpacingInput = document.getElementById("calLetterSpacing");
+                const calLetterSpacingMinusBtn = document.getElementById("calLetterSpacingMinus");
+                const calLetterSpacingPlusBtn = document.getElementById("calLetterSpacingPlus");
+                const calResetFieldBtn = document.getElementById("calResetField");
+                const calApplyAllFieldsBtn = document.getElementById("calApplyAllFields");
+                const calResetAllOffsetsBtn = document.getElementById("calResetAllOffsets");
+                const calSaveBtn = document.getElementById("calSaveBtn");
+                const calSaveStatusEl = document.getElementById("calSaveStatus");
                 const calPreviewPdfBtn = document.getElementById("calPreviewPdf");
                 const calibrationToggleButtons = document.querySelectorAll(".js-toggle-calibration");
+                const CAL_TEXT_STYLE_PREFIX = "ULIMS_TEXT_STYLE:";
+                const CAL_AUTOSAVE_MS = 800;
+                const CAL_OFFSET_MIN = -50;
+                const CAL_OFFSET_MAX = 50;
                 if (!root || !pagesHost) return;
 
                 const showPreviewError = (message) => {
@@ -2076,7 +2675,10 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         this.calibrationMode = false;
                         this.calibrationByIndex = new Map();
                         this.calibrationEditingIndex = null;
-                        this.pageTextCanvases = new Map();
+                        this.calibrationAutosaveTimerId = null;
+                        this.calibrationPanelSyncing = false;
+                        this.calibrationDirty = false;
+                        this.calibrationActiveTab = "text";
                     }
 
                     debugLog(...args) {
@@ -2162,10 +2764,8 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         }
 
                         if (this.calibrationMode) {
-                            this.ensureCalibrationTextLayers();
                             this.fieldByIndex.forEach((_field, index) => this.getCalibrationState(index));
                             this.syncAllCalibrationInlineEditors();
-                            this.redrawAllCalibrationText();
                         }
 
                         this.updateEditUI();
@@ -2496,9 +3096,6 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         this.fieldByIndex.clear();
                         this.fieldsByPage.clear();
                         this.pageLayers.forEach(layer => layer.innerHTML = "");
-                        if (this.calibrationMode) {
-                            this.redrawAllCalibrationText();
-                        }
                     }
 
                     renderAllFields(fields) {
@@ -2527,7 +3124,6 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         if (this.calibrationMode) {
                             this.fieldByIndex.forEach((_field, index) => this.getCalibrationState(index));
                             this.syncAllCalibrationInlineEditors();
-                            this.redrawAllCalibrationText();
                         }
                     }
 
@@ -2622,13 +3218,88 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         const verticalAlignment = source.verticalAlignment ?? source.VerticalAlignment ?? null;
                         const fontSizeRaw = source.fontSize ?? source.FontSize;
                         const parsedFontSize = Number.parseFloat(String(fontSizeRaw ?? ""));
+                        const lineHeightRaw = source.lineHeight ?? source.LineHeight;
+                        const parsedLineHeight = Number.parseFloat(String(lineHeightRaw ?? ""));
+                        const extraStyle = this.parseExtraTextStyle(
+                            source.svgPathData ?? source.SvgPathData ?? null);
                         return {
                             horizontalAlignment,
                             verticalAlignment,
                             textAlignment: horizontalAlignment,
                             fontSize: Number.isFinite(parsedFontSize) && parsedFontSize > 0
                                 ? parsedFontSize
-                                : null
+                                : null,
+                            fontName: (source.fontName ?? source.FontName ?? "").trim() || null,
+                            lineHeight: Number.isFinite(parsedLineHeight) && parsedLineHeight > 0
+                                ? parsedLineHeight
+                                : null,
+                            fontBold: extraStyle.fontBold === true,
+                            fontItalic: extraStyle.fontItalic === true,
+                            textUnderline: extraStyle.textUnderline === true,
+                            textColor: extraStyle.textColor ?? "#111111",
+                            letterSpacing: Number.isFinite(extraStyle.letterSpacing)
+                                ? extraStyle.letterSpacing
+                                : 0,
+                            svgPathData: source.svgPathData ?? source.SvgPathData ?? null
+                        };
+                    }
+
+                    parseExtraTextStyle(svgPathData) {
+                        const raw = String(svgPathData ?? "").trim();
+                        if (!raw.startsWith(CAL_TEXT_STYLE_PREFIX)) {
+                            return {};
+                        }
+
+                        try {
+                            const parsed = JSON.parse(raw.slice(CAL_TEXT_STYLE_PREFIX.length));
+                            return {
+                                fontBold: parsed?.b === true || parsed?.bold === true,
+                                fontItalic: parsed?.i === true || parsed?.italic === true,
+                                textUnderline: parsed?.u === true || parsed?.underline === true,
+                                textColor: typeof parsed?.c === "string" ? parsed.c : parsed?.color,
+                                letterSpacing: Number.parseFloat(String(parsed?.ls ?? parsed?.letterSpacing ?? ""))
+                            };
+                        } catch {
+                            return {};
+                        }
+                    }
+
+                    buildExtraTextStylePayload(field) {
+                        if (!field) {
+                            return null;
+                        }
+
+                        const hasExtra = field.fontBold === true
+                            || field.fontItalic === true
+                            || field.textUnderline === true
+                            || (field.textColor && field.textColor !== "#111111")
+                            || (Number.isFinite(field.letterSpacing) && field.letterSpacing !== 0);
+                        if (!hasExtra) {
+                            const legacy = String(field.svgPathData ?? "").trim();
+                            return legacy.startsWith(CAL_TEXT_STYLE_PREFIX) ? null : (legacy || null);
+                        }
+
+                        return `${CAL_TEXT_STYLE_PREFIX}${JSON.stringify({
+                            b: field.fontBold === true,
+                            i: field.fontItalic === true,
+                            u: field.textUnderline === true,
+                            c: field.textColor || "#111111",
+                            ls: this.parsePixel(field.letterSpacing ?? 0)
+                        })}`;
+                    }
+
+                    getDefaultCalibrationTypography() {
+                        return {
+                            fontName: null,
+                            fontSize: null,
+                            lineHeight: null,
+                            fontBold: false,
+                            fontItalic: false,
+                            textUnderline: false,
+                            textColor: "#111111",
+                            letterSpacing: 0,
+                            horizontalAlignment: "Left",
+                            verticalAlignment: "Bottom"
                         };
                     }
 
@@ -2656,6 +3327,14 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             horizontalAlignment: field.horizontalAlignment ?? field.textAlignment ?? "Left",
                             verticalAlignment: field.verticalAlignment ?? null,
                             fontSize: field.fontSize ?? null,
+                            fontName: field.fontName ?? null,
+                            lineHeight: field.lineHeight ?? null,
+                            fontBold: field.fontBold === true,
+                            fontItalic: field.fontItalic === true,
+                            textUnderline: field.textUnderline === true,
+                            textColor: field.textColor ?? "#111111",
+                            letterSpacing: this.parsePixel(field.letterSpacing ?? 0),
+                            svgPathData: field.svgPathData ?? null,
                             dataFieldId: field.dataFieldId ?? null,
                             textOffsetX: this.parsePixel(field.textOffsetX ?? 0),
                             textOffsetY: this.parsePixel(field.textOffsetY ?? 0)
@@ -3092,7 +3771,12 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         box.classList.toggle("field-group-member", isLinked);
                         if (this.calibrationMode) {
                             box.style.cursor = "text";
-                            box.style.opacity = isActive ? "1" : "0.9";
+                            box.style.border = "none";
+                            box.style.background = "transparent";
+                            box.style.boxShadow = "none";
+                            box.style.opacity = "1";
+                            box.title = fullLabel;
+                            return;
                         } else if (this.editMode === "edit" && this.allEditable) {
                             box.style.border = isActive ? "3.5px solid #fd7e14" : (isLinked ? "2.5px solid #6610f2" : "2px solid #dc3545");
                             box.style.background = isActive ? "rgba(253, 126, 20, 0.24)" : (isLinked ? "rgba(102, 16, 242, 0.18)" : "rgba(220, 53, 69, 0.16)");
@@ -4532,6 +5216,35 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             : "Відкріпити меню (можна рухати)";
                     }
 
+                    applyCalibrationModeUi() {
+                        if (nudgePadTitleEl) {
+                            nudgePadTitleEl.textContent = this.calibrationMode
+                                ? "Калібрування тексту"
+                                : "Точне позиціонування";
+                        }
+
+                        if (nudgePadDefaultTools) {
+                            nudgePadDefaultTools.style.display = this.calibrationMode ? "none" : "";
+                        }
+
+                        if (calibrationPanel) {
+                            calibrationPanel.style.display = this.calibrationMode ? "block" : "none";
+                        }
+
+                        if (this.calibrationMode) {
+                            this.isNudgePadHidden = false;
+                            this.updateNudgePadVisibility();
+                            this.updateNudgePadPosition();
+                            if (nudgePadBody) {
+                                nudgePadBody.style.display = "block";
+                            }
+                            if (toggleNudgePadBodyBtn) {
+                                toggleNudgePadBodyBtn.textContent = "−";
+                            }
+                            this.isNudgeBodyCollapsed = false;
+                        }
+                    }
+
                     applyInspectModeUi() {
                         if (!nudgePadBody) return;
                         const controls = nudgePadBody.querySelectorAll(
@@ -5331,6 +6044,11 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             this.activeSegmentId = activeField?.segmentId ?? null;
                             this.syncSegmentTextSettingsUi();
                         }
+
+                        if (this.calibrationMode) {
+                            this.refreshAllCalibrationInlineEditorStyles();
+                            this.syncCalibrationPanel();
+                        }
                     }
 
                     syncSegmentIdsFromSavedFields(savedFields) {
@@ -5429,8 +6147,11 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                                 isPrimary: field.isPrimary === true,
                                 textAlignment: field.horizontalAlignment ?? field.textAlignment ?? "Left",
                                 fontSize: field.fontSize ?? null,
+                                fontName: field.fontName ?? null,
+                                lineHeight: field.lineHeight ?? null,
                                 horizontalAlignment: field.horizontalAlignment ?? field.textAlignment ?? "Left",
                                 verticalAlignment: field.verticalAlignment ?? null,
+                                svgPathData: this.buildExtraTextStylePayload(field),
                                 rowVersionBase64: rowVersion
                             };
 
@@ -5473,7 +6194,8 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         return fieldMapForm?.querySelector('input[name="__RequestVerificationToken"]')?.value ?? "";
                     }
 
-                    async persistSegmentsToApi() {
+                    async persistSegmentsToApi(options = {}) {
+                        const silent = options.silent === true;
                         const versionId = window.__templateVersionId;
                         const deletedFieldIds = this.collectDeletedFieldIds();
                         const payload = {
@@ -5521,10 +6243,12 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                                 // ignore storage issues
                             }
 
-                            await this.reloadFromServer();
+                            if (!silent) {
+                                await this.reloadFromServer();
+                                this.renderSaveHint("Сегменти збережено в БД.");
+                                showOverlayToast("Сегменти збережено в БД.");
+                            }
 
-                            this.renderSaveHint("Сегменти збережено в БД.");
-                            showOverlayToast("Сегменти збережено в БД.");
                             const savedActiveIndex = this.activeIndex;
                             const savedActiveFieldId = this.activeFieldId;
                             if (Number.isInteger(savedActiveIndex)) {
@@ -5656,6 +6380,25 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         return Number.isFinite(raw) ? raw : fallback;
                     }
 
+                    clampCalibrationOffset(value) {
+                        const raw = this.parsePixel(value, 0);
+                        return Math.min(CAL_OFFSET_MAX, Math.max(CAL_OFFSET_MIN, raw));
+                    }
+
+                    formatCalibrationEditingLabel(field) {
+                        if (!field) {
+                            return "";
+                        }
+
+                        const tag = String(field.tag ?? "").trim();
+                        const title = String(field.title ?? "").trim();
+                        if (tag && title) {
+                            return `${tag} — ${title}`;
+                        }
+
+                        return tag || title || "поле";
+                    }
+
                     getCalibrationState(index) {
                         const field = this.fieldByIndex.get(index);
                         if (!field) return null;
@@ -5685,6 +6428,8 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         const field = this.fieldByIndex.get(index);
                         if (!field) return;
 
+                        offsetX = this.clampCalibrationOffset(offsetX);
+                        offsetY = this.clampCalibrationOffset(offsetY);
                         field.textOffsetX = offsetX;
                         field.textOffsetY = offsetY;
                         this.fieldByIndex.set(index, field);
@@ -5704,8 +6449,10 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         if (box) {
                             this.layoutCalibrationInlineEditor(box, field, box.querySelector(".calibration-inline-input"));
                         }
-                        this.redrawCalibrationPage(page);
                         this.syncCalibrationPanel();
+                        if (index === this.activeIndex) {
+                            this.markCalibrationDirty();
+                        }
                     }
 
                     toggleCalibrationMode() {
@@ -5721,61 +6468,39 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         this.isInspectMode = false;
                         document.body.classList.add("template-map-calibration-mode");
                         calibrationToggleButtons.forEach((btn) => btn.classList.add("active"));
-                        if (calibrationPanel) calibrationPanel.style.display = "";
-                        if (topControlsPanel) topControlsPanel.style.display = "block";
+                        this.applyCalibrationModeUi();
                         this.calibrationByIndex.clear();
-                        this.ensureCalibrationTextLayers();
                         this.fieldByIndex.forEach((_field, index) => this.getCalibrationState(index));
                         this.syncAllCalibrationInlineEditors();
                         this.updateAllBoxVisualStates();
-                        this.redrawAllCalibrationText();
-                        this.syncCalibrationPanel();
+                        this.setCalibrationTab("text");
+                        this.renderCalibrationSaveStatus("");
+                        if (this.activeIndex === null && this.boxesByIndex.size > 0) {
+                            const firstIndex = [...this.boxesByIndex.keys()].sort((a, b) => a - b)[0];
+                            this.setActive(firstIndex);
+                        } else {
+                            this.syncCalibrationPanel();
+                        }
                         showOverlayToast("Калібрування: клік по полю — введення тексту на PDF");
                     }
 
                     disableCalibrationMode() {
+                        if (this.calibrationAutosaveTimerId !== null) {
+                            window.clearTimeout(this.calibrationAutosaveTimerId);
+                            this.calibrationAutosaveTimerId = null;
+                        }
                         this.calibrationMode = false;
                         this.calibrationEditingIndex = null;
+                        this.calibrationDirty = false;
                         document.body.classList.remove("template-map-calibration-mode");
                         calibrationToggleButtons.forEach((btn) => btn.classList.remove("active"));
-                        if (calibrationPanel) calibrationPanel.style.display = "none";
+                        this.applyCalibrationModeUi();
                         this.removeAllCalibrationInlineEditors();
-                        this.removeCalibrationTextLayers();
+                        pagesHost?.querySelectorAll(".calibration-text-layer").forEach((layer) => layer.remove());
                         this.calibrationByIndex.clear();
                         this.updateAllBoxVisualStates();
                         this.syncCalibrationPanel();
                         showOverlayToast("Режим калібрування вимкнено");
-                    }
-
-                    ensureCalibrationTextLayers() {
-                        if (!pagesHost) return;
-                        const outputScale = this.getOutputScale();
-                        pagesHost.querySelectorAll("[data-page]").forEach((wrapper) => {
-                            const pageNumber = Number.parseInt(wrapper.dataset.page || "1", 10);
-                            if (!Number.isInteger(pageNumber)) return;
-                            if (wrapper.querySelector(".calibration-text-layer")) {
-                                const existing = wrapper.querySelector(".calibration-text-layer");
-                                this.pageTextCanvases.set(pageNumber, existing);
-                                return;
-                            }
-
-                            const pdfCanvas = wrapper.querySelector("canvas:not(.calibration-text-layer)");
-                            if (!pdfCanvas) return;
-
-                            const textCanvas = document.createElement("canvas");
-                            textCanvas.className = "calibration-text-layer";
-                            textCanvas.width = pdfCanvas.width;
-                            textCanvas.height = pdfCanvas.height;
-                            textCanvas.style.width = pdfCanvas.style.width;
-                            textCanvas.style.height = pdfCanvas.style.height;
-                            pdfCanvas.insertAdjacentElement("afterend", textCanvas);
-                            this.pageTextCanvases.set(pageNumber, textCanvas);
-                        });
-                    }
-
-                    removeCalibrationTextLayers() {
-                        pagesHost?.querySelectorAll(".calibration-text-layer").forEach((canvas) => canvas.remove());
-                        this.pageTextCanvases.clear();
                     }
 
                     /** Текст/offset у базових preview-координатах (як PdfOverlayTextLayout у C#); field.x/y — уже viewport. */
@@ -5817,8 +6542,8 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         }
 
                         return {
-                            left: Math.max(0, bounds.left - boxX),
-                            top: Math.max(0, bounds.top - boxY),
+                            translateX: bounds.left - boxX,
+                            translateY: bounds.top - boxY,
                             width: Math.max(24, bounds.width),
                             height: Math.max(14, bounds.height),
                             fontSize: layout.resolveFontSizePx(field.fontSize, coordScale)
@@ -5831,11 +6556,521 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             return;
                         }
 
-                        input.style.left = `${rect.left}px`;
-                        input.style.top = `${rect.top}px`;
+                        input.style.left = "0";
+                        input.style.top = "0";
                         input.style.width = `${rect.width}px`;
                         input.style.height = `${rect.height}px`;
+                        input.style.padding = "0";
+                        input.style.transform = `translate(${rect.translateX}px, ${rect.translateY}px)`;
+                        input.style.transformOrigin = "0 0";
                         input.style.fontSize = `${rect.fontSize}px`;
+                        input.style.boxSizing = "border-box";
+                        this.applyCalibrationStylesToInlineEditor(input, field);
+                    }
+
+                    applyCalibrationStylesToInlineEditor(input, field) {
+                        if (!input || !field) {
+                            return;
+                        }
+
+                        const fontStack = field.fontName
+                            ? `${field.fontName}, Arial, Helvetica, sans-serif`
+                            : "Arial, Helvetica, sans-serif";
+                        const lineHeightValue = field.lineHeight != null
+                            ? Number.parseFloat(String(field.lineHeight))
+                            : 1.2;
+                        const lineHeight = Number.isFinite(lineHeightValue) && lineHeightValue > 0
+                            ? lineHeightValue
+                            : 1.2;
+                        const letterSpacing = this.parsePixel(field.letterSpacing ?? 0);
+                        const fontSizePx = Number.parseFloat(input.style.fontSize);
+                        const boxHeightPx = Number.parseFloat(input.style.height);
+                        const contentHeight = Number.isFinite(fontSizePx) && fontSizePx > 0
+                            ? fontSizePx * lineHeight
+                            : 0;
+
+                        input.classList.toggle("cal-text-bold", field.fontBold === true);
+                        input.classList.toggle("cal-text-italic", field.fontItalic === true);
+                        input.classList.toggle("cal-text-underline", field.textUnderline === true);
+                        input.style.display = "block";
+                        input.style.alignItems = "";
+                        input.style.fontFamily = fontStack;
+                        input.style.fontWeight = field.fontBold ? "700" : "400";
+                        input.style.fontStyle = field.fontItalic ? "italic" : "normal";
+                        input.style.textDecoration = field.textUnderline ? "underline" : "none";
+                        input.style.color = field.textColor || "#111111";
+                        input.style.lineHeight = String(lineHeight);
+                        input.style.letterSpacing = letterSpacing !== 0 ? `${letterSpacing}px` : "normal";
+
+                        const hAlign = String(field.horizontalAlignment ?? field.textAlignment ?? "Left");
+                        input.style.textAlign = hAlign.toLowerCase() === "center"
+                            ? "center"
+                            : hAlign.toLowerCase() === "right"
+                                ? "right"
+                                : "left";
+
+                        const vAlign = String(field.verticalAlignment ?? "Top").toLowerCase();
+                        let paddingTop = 0;
+                        if (Number.isFinite(boxHeightPx) && boxHeightPx > 0 && contentHeight > 0) {
+                            if (vAlign === "middle") {
+                                paddingTop = Math.max(0, (boxHeightPx - contentHeight) / 2);
+                            } else if (vAlign === "bottom") {
+                                paddingTop = Math.max(0, boxHeightPx - contentHeight);
+                            }
+                        }
+
+                        input.style.paddingTop = `${paddingTop}px`;
+                        input.style.paddingRight = "0";
+                        input.style.paddingBottom = "0";
+                        input.style.paddingLeft = "0";
+                    }
+
+                    refreshActiveCalibrationPreview() {
+                        if (!this.calibrationMode || this.activeIndex === null) {
+                            return;
+                        }
+
+                        const field = this.fieldByIndex.get(this.activeIndex);
+                        const box = this.boxesByIndex.get(this.activeIndex);
+                        if (!field || !box) {
+                            return;
+                        }
+
+                        const input = box.querySelector(".calibration-inline-input");
+                        if (input) {
+                            this.layoutCalibrationInlineEditor(box, field, input);
+                        }
+                    }
+
+                    refreshAllCalibrationInlineEditorStyles() {
+                        if (!this.calibrationMode) {
+                            return;
+                        }
+
+                        this.boxesByIndex.forEach((box, index) => {
+                            const field = this.fieldByIndex.get(index);
+                            const input = box?.querySelector(".calibration-inline-input");
+                            if (!field || !input) {
+                                return;
+                            }
+
+                            this.layoutCalibrationInlineEditor(box, field, input);
+                        });
+                    }
+
+                    setCalibrationStyleToggleState(buttonEl, isActive) {
+                        if (!buttonEl) {
+                            return;
+                        }
+
+                        buttonEl.classList.toggle("active", isActive === true);
+                        buttonEl.setAttribute("aria-pressed", isActive === true ? "true" : "false");
+                    }
+
+                    canEditCalibrationPanel() {
+                        return this.calibrationMode
+                            && this.activeIndex !== null
+                            && this.fieldByIndex.has(this.activeIndex);
+                    }
+
+                    readCalibrationFontSizeFromPanel() {
+                        const raw = String(calFontSizeInput?.value ?? "").trim();
+                        const parsed = Number.parseFloat(raw);
+                        if (raw === "" || !Number.isFinite(parsed) || parsed <= 0) {
+                            return null;
+                        }
+
+                        return Math.min(72, Math.max(6, Math.round(parsed * 2) / 2));
+                    }
+
+                    syncCalibrationFontPresetButtons(fontSize) {
+                        calibrationPanel?.querySelectorAll("[data-cal-font-preset]").forEach((buttonEl) => {
+                            const preset = Number.parseFloat(buttonEl.getAttribute("data-cal-font-preset") || "");
+                            buttonEl.classList.toggle(
+                                "active",
+                                Number.isFinite(fontSize) && fontSize === preset);
+                        });
+                    }
+
+                    commitCalibrationTypographyChanges() {
+                        if (!this.canEditCalibrationPanel()) {
+                            return;
+                        }
+
+                        const field = this.fieldByIndex.get(this.activeIndex);
+                        if (!field) {
+                            return;
+                        }
+
+                        field.svgPathData = this.buildExtraTextStylePayload(field);
+                        this.fieldByIndex.set(this.activeIndex, field);
+                        this.refreshActiveCalibrationPreview();
+                        this.markCalibrationDirty();
+                    }
+
+                    setCalibrationFontSize(size) {
+                        if (!this.canEditCalibrationPanel() || !calFontSizeInput) {
+                            return;
+                        }
+
+                        const normalized = Math.min(72, Math.max(6, Math.round(size * 2) / 2));
+                        const field = this.fieldByIndex.get(this.activeIndex);
+                        if (!field) {
+                            return;
+                        }
+
+                        field.fontSize = normalized;
+                        calFontSizeInput.value = String(normalized);
+                        this.fieldByIndex.set(this.activeIndex, field);
+                        this.syncCalibrationFontPresetButtons(normalized);
+                        this.commitCalibrationTypographyChanges();
+                    }
+
+                    adjustCalibrationFontSize(delta) {
+                        const step = Number.parseFloat(String(delta)) >= 0 ? 0.5 : -0.5;
+                        const current = this.readCalibrationFontSizeFromPanel() ?? 10;
+                        this.setCalibrationFontSize(current + step);
+                    }
+
+                    toggleCalibrationStyle(styleKey) {
+                        if (!this.canEditCalibrationPanel()) {
+                            return;
+                        }
+
+                        const field = this.fieldByIndex.get(this.activeIndex);
+                        if (!field) {
+                            return;
+                        }
+
+                        if (styleKey === "bold") {
+                            field.fontBold = field.fontBold !== true;
+                        } else if (styleKey === "italic") {
+                            field.fontItalic = field.fontItalic !== true;
+                        } else if (styleKey === "underline") {
+                            field.textUnderline = field.textUnderline !== true;
+                        } else {
+                            return;
+                        }
+
+                        this.fieldByIndex.set(this.activeIndex, field);
+                        this.setCalibrationStyleToggleState(calBoldBtn, field.fontBold === true);
+                        this.setCalibrationStyleToggleState(calItalicBtn, field.fontItalic === true);
+                        this.setCalibrationStyleToggleState(calUnderlineBtn, field.textUnderline === true);
+                        this.commitCalibrationTypographyChanges();
+                    }
+
+                    handleCalibrationPanelClick(event) {
+                        if (!this.canEditCalibrationPanel()) {
+                            return;
+                        }
+
+                        const presetButton = event.target.closest("[data-cal-font-preset]");
+                        if (presetButton && calibrationPanel?.contains(presetButton)) {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            const preset = Number.parseFloat(presetButton.getAttribute("data-cal-font-preset") || "");
+                            if (Number.isFinite(preset)) {
+                                this.setCalibrationFontSize(preset);
+                            }
+                            return;
+                        }
+
+                        const deltaButton = event.target.closest("[data-cal-font-delta]");
+                        if (deltaButton && calibrationPanel?.contains(deltaButton)) {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            const delta = Number.parseFloat(deltaButton.getAttribute("data-cal-font-delta") || "0");
+                            if (Number.isFinite(delta)) {
+                                this.adjustCalibrationFontSize(delta);
+                            }
+                            return;
+                        }
+
+                        const styleButton = event.target.closest("[data-cal-style]");
+                        if (styleButton && calibrationPanel?.contains(styleButton)) {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            const styleKey = styleButton.getAttribute("data-cal-style");
+                            if (styleKey) {
+                                this.toggleCalibrationStyle(styleKey);
+                            }
+                        }
+                    }
+
+                    applyCalibrationPanelToActiveField() {
+                        if (this.calibrationPanelSyncing || this.activeIndex === null) {
+                            return;
+                        }
+
+                        const field = this.fieldByIndex.get(this.activeIndex);
+                        if (!field) {
+                            return;
+                        }
+
+                        const fontSizeRaw = String(calFontSizeInput?.value ?? "").trim();
+                        const parsedFontSize = Number.parseFloat(fontSizeRaw);
+                        field.fontSize = fontSizeRaw === "" || !Number.isFinite(parsedFontSize) || parsedFontSize <= 0
+                            ? null
+                            : parsedFontSize;
+
+                        const fontNameRaw = String(calFontFamilySelect?.value ?? "").trim();
+                        field.fontName = fontNameRaw || null;
+
+                        const lineHeightRaw = String(calLineHeightInput?.value ?? "").trim();
+                        const parsedLineHeight = Number.parseFloat(lineHeightRaw);
+                        field.lineHeight = lineHeightRaw === "" || !Number.isFinite(parsedLineHeight) || parsedLineHeight <= 0
+                            ? null
+                            : parsedLineHeight;
+
+                        field.fontBold = calBoldBtn?.getAttribute("aria-pressed") === "true";
+                        field.fontItalic = calItalicBtn?.getAttribute("aria-pressed") === "true";
+                        field.textUnderline = calUnderlineBtn?.getAttribute("aria-pressed") === "true";
+
+                        const colorRaw = String(calTextColorHexInput?.value ?? calTextColorInput?.value ?? "").trim();
+                        field.textColor = /^#[0-9A-Fa-f]{6}$/.test(colorRaw) ? colorRaw : "#111111";
+
+                        field.letterSpacing = this.parsePixel(calLetterSpacingInput?.value ?? 0);
+                        field.svgPathData = this.buildExtraTextStylePayload(field);
+
+                        const offsetX = this.clampCalibrationOffset(calOffsetXInput?.value ?? "0");
+                        const offsetY = this.clampCalibrationOffset(calOffsetYInput?.value ?? "0");
+                        if (calOffsetXInput) calOffsetXInput.value = String(offsetX);
+                        if (calOffsetYInput) calOffsetYInput.value = String(offsetY);
+                        if (Number.isFinite(offsetX) && Number.isFinite(offsetY)) {
+                            field.textOffsetX = offsetX;
+                            field.textOffsetY = offsetY;
+                            const state = this.getCalibrationState(this.activeIndex);
+                            if (state) {
+                                state.offsetX = offsetX;
+                                state.offsetY = offsetY;
+                            }
+                            if (field.fieldId) {
+                                this.syncFieldTextOffsetsToForm(field.fieldId, offsetX, offsetY);
+                            }
+                        }
+
+                        this.fieldByIndex.set(this.activeIndex, field);
+                        this.refreshActiveCalibrationPreview();
+                        this.markCalibrationDirty();
+                    }
+
+                    markCalibrationDirty() {
+                        this.calibrationDirty = true;
+                        this.hasPendingDbSave = true;
+                        this.renderCalibrationSaveStatus("Незбережені зміни…");
+                        this.scheduleCalibrationAutosave();
+                    }
+
+                    renderCalibrationSaveStatus(message = "") {
+                        if (!calSaveStatusEl) {
+                            return;
+                        }
+
+                        calSaveStatusEl.textContent = message;
+                        calSaveStatusEl.classList.toggle("text-warning", message.includes("Незбережені"));
+                        calSaveStatusEl.classList.toggle("text-success", message.includes("Збережено"));
+                        calSaveStatusEl.classList.toggle("text-danger", message.includes("Помилка"));
+                    }
+
+                    scheduleCalibrationAutosave() {
+                        if (!this.calibrationMode) {
+                            return;
+                        }
+
+                        if (this.calibrationAutosaveTimerId !== null) {
+                            window.clearTimeout(this.calibrationAutosaveTimerId);
+                        }
+
+                        this.calibrationAutosaveTimerId = window.setTimeout(async () => {
+                            this.calibrationAutosaveTimerId = null;
+                            if (!this.calibrationDirty) {
+                                return;
+                            }
+
+                            this.renderCalibrationSaveStatus("Автозбереження…");
+                            const saved = await this.persistCalibrationToApi({ silent: true });
+                            if (saved) {
+                                this.calibrationDirty = false;
+                                this.renderCalibrationSaveStatus("Збережено автоматично");
+                            }
+                        }, CAL_AUTOSAVE_MS);
+                    }
+
+                    async persistCalibrationToApi(options = {}) {
+                        const silent = options.silent === true;
+                        const offsetsSaved = await this.persistCalibrationOffsetsToApi({ silent });
+                        const segmentsSaved = await this.persistSegmentsToApi({ silent });
+                        const saved = offsetsSaved && segmentsSaved;
+                        if (saved) {
+                            this.calibrationDirty = false;
+                            if (!silent) {
+                                this.renderCalibrationSaveStatus("Збережено");
+                            }
+                        } else if (!silent) {
+                            this.renderCalibrationSaveStatus("Помилка збереження");
+                        }
+                        return saved;
+                    }
+
+                    setCalibrationTab(tabId) {
+                        this.calibrationActiveTab = tabId || "text";
+                        calibrationPanel?.querySelectorAll("[data-cal-tab]").forEach((buttonEl) => {
+                            const isActive = buttonEl.getAttribute("data-cal-tab") === this.calibrationActiveTab;
+                            buttonEl.classList.toggle("active", isActive);
+                        });
+                        calibrationPanel?.querySelectorAll("[data-cal-pane]").forEach((paneEl) => {
+                            paneEl.classList.toggle(
+                                "active",
+                                paneEl.getAttribute("data-cal-pane") === this.calibrationActiveTab);
+                        });
+                    }
+
+                    updateCalibrationToggleStates(horizontal, vertical) {
+                        calibrationPanel?.querySelectorAll("[data-cal-h-align]").forEach((buttonEl) => {
+                            const value = buttonEl.getAttribute("data-cal-h-align");
+                            buttonEl.classList.toggle("active", Boolean(horizontal) && value === horizontal);
+                        });
+                        calibrationPanel?.querySelectorAll("[data-cal-v-align]").forEach((buttonEl) => {
+                            const value = buttonEl.getAttribute("data-cal-v-align");
+                            const effectiveVertical = vertical || "Bottom";
+                            buttonEl.classList.toggle("active", value === effectiveVertical);
+                        });
+                    }
+
+                    setActiveFieldHorizontalAlignment(value) {
+                        if (this.activeIndex === null) {
+                            return;
+                        }
+
+                        const field = this.fieldByIndex.get(this.activeIndex);
+                        if (!field) {
+                            return;
+                        }
+
+                        field.horizontalAlignment = value;
+                        field.textAlignment = value;
+                        this.fieldByIndex.set(this.activeIndex, field);
+                        this.updateCalibrationToggleStates(value, field.verticalAlignment);
+                        this.refreshActiveCalibrationPreview();
+                        this.markCalibrationDirty();
+                    }
+
+                    setActiveFieldVerticalAlignment(value) {
+                        if (this.activeIndex === null) {
+                            return;
+                        }
+
+                        const field = this.fieldByIndex.get(this.activeIndex);
+                        if (!field) {
+                            return;
+                        }
+
+                        field.verticalAlignment = value;
+                        this.fieldByIndex.set(this.activeIndex, field);
+                        this.updateCalibrationToggleStates(
+                            field.horizontalAlignment ?? field.textAlignment ?? "Left",
+                            value);
+                        this.refreshActiveCalibrationPreview();
+                        this.markCalibrationDirty();
+                    }
+
+                    resetActiveCalibrationField() {
+                        if (this.activeIndex === null) {
+                            return;
+                        }
+
+                        const defaults = this.getDefaultCalibrationTypography();
+                        const field = this.fieldByIndex.get(this.activeIndex);
+                        if (!field) {
+                            return;
+                        }
+
+                        Object.assign(field, defaults);
+                        field.textOffsetX = 0;
+                        field.textOffsetY = 0;
+                        field.svgPathData = null;
+                        this.fieldByIndex.set(this.activeIndex, field);
+                        this.applyFieldTextOffsets(this.activeIndex, 0, 0);
+                        this.syncCalibrationPanel();
+                        this.markCalibrationDirty();
+                    }
+
+                    applyCalibrationTypographyToAllFields() {
+                        if (this.activeIndex === null) {
+                            return;
+                        }
+
+                        const source = this.fieldByIndex.get(this.activeIndex);
+                        if (!source) {
+                            return;
+                        }
+
+                        const styleSnapshot = {
+                            fontName: source.fontName,
+                            fontSize: source.fontSize,
+                            lineHeight: source.lineHeight,
+                            fontBold: source.fontBold,
+                            fontItalic: source.fontItalic,
+                            textUnderline: source.textUnderline,
+                            textColor: source.textColor,
+                            letterSpacing: source.letterSpacing,
+                            horizontalAlignment: source.horizontalAlignment,
+                            verticalAlignment: source.verticalAlignment,
+                            textAlignment: source.textAlignment
+                        };
+
+                        this.fieldByIndex.forEach((field, index) => {
+                            Object.assign(field, styleSnapshot);
+                            field.svgPathData = this.buildExtraTextStylePayload(field);
+                            this.fieldByIndex.set(index, field);
+                        });
+
+                        this.refreshAllCalibrationInlineEditorStyles();
+                        this.syncCalibrationPanel();
+                        this.markCalibrationDirty();
+                        showOverlayToast("Стиль застосовано до всіх полів");
+                    }
+
+                    resetAllTemplateOffsets() {
+                        this.fieldByIndex.forEach((field, index) => {
+                            field.textOffsetX = 0;
+                            field.textOffsetY = 0;
+                            this.fieldByIndex.set(index, field);
+                            const state = this.getCalibrationState(index);
+                            if (state) {
+                                state.offsetX = 0;
+                                state.offsetY = 0;
+                            }
+                            if (field.fieldId) {
+                                this.syncFieldTextOffsetsToForm(field.fieldId, 0, 0);
+                            }
+                            const box = this.boxesByIndex.get(index);
+                            if (box) {
+                                const input = box.querySelector(".calibration-inline-input");
+                                if (input) {
+                                    this.layoutCalibrationInlineEditor(box, field, input);
+                                }
+                            }
+                        });
+
+                        this.syncCalibrationPanel();
+                        this.markCalibrationDirty();
+                        showOverlayToast("Усі offset скинуто");
+                    }
+
+                    setCalibrationPanelEnabled(enabled) {
+                        calibrationPanel?.querySelectorAll("[data-cal-control]").forEach((controlEl) => {
+                            if (enabled) {
+                                controlEl.removeAttribute("disabled");
+                                controlEl.classList.remove("cal-control--locked");
+                            } else {
+                                controlEl.setAttribute("disabled", "disabled");
+                                controlEl.classList.add("cal-control--locked");
+                            }
+                        });
+                        calibrationPanel?.querySelectorAll("[data-cal-tab]").forEach((tabEl) => {
+                            tabEl.disabled = !this.calibrationMode;
+                        });
                     }
 
                     ensureCalibrationInlineEditor(box, field) {
@@ -5846,18 +7081,27 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         let input = box.querySelector(".calibration-inline-input");
                         if (!input) {
                             const useMultiline = (field.height ?? 28) > 36;
-                            input = document.createElement(useMultiline ? "textarea" : "input");
-                            input.className = "calibration-inline-input";
+                            input = document.createElement("div");
+                            input.className = useMultiline
+                                ? "calibration-inline-input pdf-field pdf-field-input calibration-inline-input--multiline pdf-field--multiline"
+                                : "calibration-inline-input pdf-field pdf-field-input";
+                            input.contentEditable = "true";
                             input.spellcheck = false;
-                            if (!useMultiline) {
-                                input.type = "text";
-                                input.autocomplete = "off";
-                            } else {
-                                input.rows = Math.max(2, Math.floor((field.height ?? 28) / 14));
-                            }
+                            input.setAttribute("role", "textbox");
+
+                            const readCalibrationText = () => input.innerText.replace(/\r/g, "");
 
                             input.addEventListener("mousedown", (event) => event.stopPropagation());
                             input.addEventListener("click", (event) => event.stopPropagation());
+                            input.addEventListener("paste", (event) => {
+                                event.preventDefault();
+                                const plain = event.clipboardData?.getData("text/plain") ?? "";
+                                if (document.queryCommandSupported("insertText")) {
+                                    document.execCommand("insertText", false, plain);
+                                } else {
+                                    input.textContent = `${readCalibrationText()}${plain}`;
+                                }
+                            });
                             input.addEventListener("focus", () => {
                                 const index = Number.parseInt(box.dataset.index || "-1", 10);
                                 if (!Number.isInteger(index)) {
@@ -5866,10 +7110,6 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
 
                                 this.calibrationEditingIndex = index;
                                 this.setActive(index);
-                                const pageField = this.fieldByIndex.get(index);
-                                if (pageField) {
-                                    this.redrawCalibrationPage(pageField.page ?? 1);
-                                }
                             });
                             input.addEventListener("input", () => {
                                 const index = Number.parseInt(box.dataset.index || "-1", 10);
@@ -5878,32 +7118,30 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                                     return;
                                 }
 
-                                state.text = input.value ?? "";
-                                const pageField = this.fieldByIndex.get(index);
-                                if (pageField) {
-                                    this.redrawCalibrationPage(pageField.page ?? 1);
-                                }
+                                state.text = readCalibrationText();
                             });
                             input.addEventListener("blur", () => {
                                 const index = Number.parseInt(box.dataset.index || "-1", 10);
                                 const state = this.getCalibrationState(index);
                                 if (state) {
-                                    state.text = input.value ?? "";
+                                    state.text = readCalibrationText();
                                 }
 
                                 if (this.calibrationEditingIndex === index) {
                                     this.calibrationEditingIndex = null;
                                 }
-
-                                const pageField = this.fieldByIndex.get(index);
-                                if (pageField) {
-                                    this.redrawCalibrationPage(pageField.page ?? 1);
-                                }
                             });
                             input.addEventListener("keydown", (event) => {
-                                if (input.tagName !== "TEXTAREA" && event.key === "Enter") {
+                                if (!useMultiline && event.key === "Enter") {
                                     event.preventDefault();
                                     input.blur();
+                                }
+                            });
+
+                            box.addEventListener("mousedown", (event) => {
+                                if (event.target !== input) {
+                                    event.preventDefault();
+                                    input.focus();
                                 }
                             });
 
@@ -5915,7 +7153,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             state.text = "";
                         }
 
-                        input.value = state?.text ?? "";
+                        input.textContent = state?.text ?? "";
                         this.layoutCalibrationInlineEditor(box, field, input);
                         return input;
                     }
@@ -5954,9 +7192,14 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
 
                         window.setTimeout(() => {
                             input.focus();
-                            if (typeof input.select === "function") {
-                                input.select();
+                            const selection = window.getSelection();
+                            if (!selection) {
+                                return;
                             }
+                            const range = document.createRange();
+                            range.selectNodeContents(input);
+                            selection.removeAllRanges();
+                            selection.addRange(range);
                         }, 0);
                     }
 
@@ -5981,33 +7224,75 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         const state = panelEnabled ? this.getCalibrationState(this.activeIndex) : null;
                         const field = panelEnabled ? this.fieldByIndex.get(this.activeIndex) : null;
 
-                        if (calOffsetXInput) {
-                            calOffsetXInput.disabled = !panelEnabled;
-                            calOffsetXInput.value = panelEnabled
-                                ? String(this.parsePixel(field?.textOffsetX ?? state?.offsetX ?? 0))
-                                : "0";
-                        }
-                        if (calOffsetYInput) {
-                            calOffsetYInput.disabled = !panelEnabled;
-                            calOffsetYInput.value = panelEnabled
-                                ? String(this.parsePixel(field?.textOffsetY ?? state?.offsetY ?? 0))
-                                : "0";
-                        }
-
-                        calibrationPanel?.querySelectorAll("[data-cal-shift]").forEach((buttonEl) => {
-                            buttonEl.disabled = !panelEnabled;
-                        });
-                        if (calResetOffsetsBtn) calResetOffsetsBtn.disabled = !panelEnabled;
-                        if (calSaveOffsetsBtn) calSaveOffsetsBtn.disabled = !this.calibrationMode;
+                        this.setCalibrationPanelEnabled(panelEnabled);
+                        if (calSaveBtn) calSaveBtn.disabled = !this.calibrationMode;
                         if (calPreviewPdfBtn) calPreviewPdfBtn.disabled = !this.calibrationMode;
+                        if (calResetAllOffsetsBtn) calResetAllOffsetsBtn.disabled = !this.calibrationMode;
+
+                        this.calibrationPanelSyncing = true;
+                        try {
+                            if (calEditingFieldEl) {
+                                calEditingFieldEl.textContent = panelEnabled
+                                    ? `Редагується: ${this.formatCalibrationEditingLabel(field)}`
+                                    : "";
+                            }
+
+                            if (calOffsetXInput) {
+                                calOffsetXInput.value = panelEnabled
+                                    ? String(this.clampCalibrationOffset(field?.textOffsetX ?? state?.offsetX ?? 0))
+                                    : "0";
+                            }
+                            if (calOffsetYInput) {
+                                calOffsetYInput.value = panelEnabled
+                                    ? String(this.clampCalibrationOffset(field?.textOffsetY ?? state?.offsetY ?? 0))
+                                    : "0";
+                            }
+
+                            if (calFontFamilySelect) {
+                                calFontFamilySelect.value = field?.fontName ?? "";
+                            }
+                            if (calFontSizeInput) {
+                                calFontSizeInput.value = field?.fontSize != null ? String(field.fontSize) : "";
+                            }
+                            this.syncCalibrationFontPresetButtons(field?.fontSize ?? null);
+                            if (calLineHeightInput) {
+                                calLineHeightInput.value = field?.lineHeight != null ? String(field.lineHeight) : "";
+                            }
+                            if (calLetterSpacingInput) {
+                                calLetterSpacingInput.value = panelEnabled
+                                    ? String(this.parsePixel(field?.letterSpacing ?? 0))
+                                    : "0";
+                            }
+
+                            const color = field?.textColor ?? "#111111";
+                            if (calTextColorInput) calTextColorInput.value = color;
+                            if (calTextColorHexInput) calTextColorHexInput.value = color;
+
+                            this.setCalibrationStyleToggleState(calBoldBtn, field?.fontBold === true);
+                            this.setCalibrationStyleToggleState(calItalicBtn, field?.fontItalic === true);
+                            this.setCalibrationStyleToggleState(calUnderlineBtn, field?.textUnderline === true);
+
+                            this.updateCalibrationToggleStates(
+                                field?.horizontalAlignment ?? field?.textAlignment ?? "Left",
+                                field?.verticalAlignment ?? "Bottom");
+                        } finally {
+                            this.calibrationPanelSyncing = false;
+                        }
 
                         if (calibrationPanelHint) {
                             calibrationPanelHint.textContent = !this.calibrationMode
                                 ? "Увімкніть режим калібрування."
                                 : (panelEnabled
-                                    ? `${field?.tag || "поле"} — друкуйте на PDF, offset зміщує текст.`
-                                    : "Клікніть поле на PDF і вводьте текст.");
+                                    ? "Зміни offset — миттєвий preview на PDF."
+                                    : "Клікніть поле на PDF.");
+                            calibrationPanelHint.classList.toggle("is-hidden", this.calibrationMode && panelEnabled);
                         }
+
+                        if (calExitCalibrationFullBtn) {
+                            calExitCalibrationFullBtn.style.display = this.calibrationMode ? "" : "none";
+                        }
+
+                        this.setCalibrationTab(this.calibrationActiveTab);
                     }
 
                     collectCalibrationOffsetsPayload() {
@@ -6041,11 +7326,12 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         return samples;
                     }
 
-                    async persistCalibrationOffsetsToApi() {
+                    async persistCalibrationOffsetsToApi(options = {}) {
+                        const silent = options.silent === true;
                         const versionId = window.__templateVersionId;
                         const fields = this.collectCalibrationOffsetsPayload();
                         if (!versionId || fields.length === 0) {
-                            return false;
+                            return true;
                         }
 
                         try {
@@ -6063,13 +7349,19 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                                 const message = await parseServerErrorMessageFromResponse(
                                     response,
                                     "Не вдалося зберегти offset.");
-                                showOverlayToast(message, true);
+                                if (!silent) {
+                                    showOverlayToast(message, true);
+                                }
                                 return false;
                             }
-                            showOverlayToast("Text offset збережено в БД.");
+                            if (!silent) {
+                                showOverlayToast("Text offset збережено в БД.");
+                            }
                             return true;
                         } catch {
-                            showOverlayToast("Помилка збереження offset.", true);
+                            if (!silent) {
+                                showOverlayToast("Помилка збереження offset.", true);
+                            }
                             return false;
                         }
                     }
@@ -6083,7 +7375,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             return;
                         }
 
-                        await this.persistCalibrationOffsetsToApi();
+                        await this.persistCalibrationToApi({ silent: true });
 
                         const prevLabel = calPreviewPdfBtn?.textContent ?? "";
                         if (calPreviewPdfBtn) {
@@ -6123,73 +7415,64 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         }
                     }
 
-                    redrawAllCalibrationText() {
-                        this.fieldsByPage.forEach((_fields, page) => this.redrawCalibrationPage(page));
-                    }
-
-                    redrawCalibrationPage(pageNumber) {
-                        const layout = window.PdfOverlayTextLayout;
-                        const canvas = this.pageTextCanvases.get(pageNumber);
-                        if (!canvas || !layout) return;
-
-                        const ctx = canvas.getContext("2d");
-                        if (!ctx) return;
-
-                        const outputScale = this.getOutputScale();
-                        ctx.setTransform(1, 0, 0, 1, 0, 0);
-                        ctx.clearRect(0, 0, canvas.width, canvas.height);
-                        ctx.setTransform(outputScale, 0, 0, outputScale, 0, 0);
-
-                        const coordScale = this.getCoordinateScale();
-                        const pageFields = this.fieldsByPage.get(pageNumber) ?? [];
-
-                        pageFields.forEach((field) => {
-                            if (field.index === this.calibrationEditingIndex) {
-                                return;
-                            }
-
-                            const state = this.calibrationByIndex.get(field.index);
-                            const text = state?.text?.trim();
-                            if (!text) return;
-
-                            const bounds = this.getCalibrationTextBounds(field, state);
-                            if (!bounds) return;
-
-                            layout.drawText(ctx, {
-                                text,
-                                bounds,
-                                fontSizePx: layout.resolveFontSizePx(field.fontSize, coordScale),
-                                horizontalAlignment: field.horizontalAlignment ?? field.textAlignment ?? "Left",
-                                verticalAlignment: field.verticalAlignment ?? "Top",
-                                fontFamily: field.fontName ? `${field.fontName}, Arial, sans-serif` : "Arial, sans-serif"
-                            });
-                        });
-
-                        ctx.setTransform(1, 0, 0, 1, 0, 0);
-                    }
-
                     bindCalibrationEvents() {
                         calibrationToggleButtons.forEach((buttonEl) => {
                             buttonEl.addEventListener("click", () => this.toggleCalibrationMode());
                         });
 
-                        calOffsetXInput?.addEventListener("input", () => {
-                            if (this.activeIndex === null) return;
-                            const state = this.getCalibrationState(this.activeIndex);
-                            if (!state) return;
-                            const nextX = Number.parseFloat(calOffsetXInput.value);
-                            if (!Number.isFinite(nextX)) return;
-                            this.setCalibrationOffset(this.activeIndex, nextX, state.offsetY);
+                        calibrationPanel?.querySelectorAll("[data-cal-tab]").forEach((buttonEl) => {
+                            buttonEl.addEventListener("click", () => {
+                                const tabId = buttonEl.getAttribute("data-cal-tab");
+                                if (!tabId) return;
+                                this.setCalibrationTab(tabId);
+                            });
                         });
 
-                        calOffsetYInput?.addEventListener("input", () => {
-                            if (this.activeIndex === null) return;
-                            const state = this.getCalibrationState(this.activeIndex);
-                            if (!state) return;
-                            const nextY = Number.parseFloat(calOffsetYInput.value);
-                            if (!Number.isFinite(nextY)) return;
-                            this.setCalibrationOffset(this.activeIndex, state.offsetX, nextY);
+                        const onPanelChange = () => this.applyCalibrationPanelToActiveField();
+                        [
+                            calFontFamilySelect,
+                            calFontSizeInput,
+                            calLineHeightInput,
+                            calLetterSpacingInput,
+                            calOffsetXInput,
+                            calOffsetYInput
+                        ].forEach((controlEl) => {
+                            controlEl?.addEventListener("input", onPanelChange);
+                            controlEl?.addEventListener("change", onPanelChange);
                         });
+
+                        calibrationPanel?.addEventListener("click", (event) => this.handleCalibrationPanelClick(event));
+
+                        calLetterSpacingMinusBtn?.addEventListener("click", () => {
+                            if (!calLetterSpacingInput || this.activeIndex === null) return;
+                            const current = this.parsePixel(calLetterSpacingInput.value);
+                            calLetterSpacingInput.value = String(Math.round((current - 0.1) * 10) / 10);
+                            onPanelChange();
+                        });
+
+                        calLetterSpacingPlusBtn?.addEventListener("click", () => {
+                            if (!calLetterSpacingInput || this.activeIndex === null) return;
+                            const current = this.parsePixel(calLetterSpacingInput.value);
+                            calLetterSpacingInput.value = String(Math.round((current + 0.1) * 10) / 10);
+                            onPanelChange();
+                        });
+
+                        const syncColorFromPicker = () => {
+                            if (!calTextColorInput || !calTextColorHexInput) return;
+                            calTextColorHexInput.value = calTextColorInput.value;
+                            onPanelChange();
+                        };
+                        const syncColorFromHex = () => {
+                            if (!calTextColorInput || !calTextColorHexInput) return;
+                            const raw = calTextColorHexInput.value.trim();
+                            if (/^#[0-9A-Fa-f]{6}$/.test(raw)) {
+                                calTextColorInput.value = raw;
+                                onPanelChange();
+                            }
+                        };
+                        calTextColorInput?.addEventListener("input", syncColorFromPicker);
+                        calTextColorHexInput?.addEventListener("input", syncColorFromHex);
+                        calTextColorHexInput?.addEventListener("change", syncColorFromHex);
 
                         calibrationPanel?.querySelectorAll("[data-cal-shift]").forEach((buttonEl) => {
                             buttonEl.addEventListener("click", () => {
@@ -6200,13 +7483,55 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             });
                         });
 
-                        calResetOffsetsBtn?.addEventListener("click", () => {
-                            if (this.activeIndex === null) return;
-                            this.setCalibrationOffset(this.activeIndex, 0, 0);
+                        calibrationPanel?.querySelectorAll("[data-cal-offset-step]").forEach((buttonEl) => {
+                            buttonEl.addEventListener("click", () => {
+                                const axis = buttonEl.getAttribute("data-cal-offset-step");
+                                const step = Number.parseFloat(buttonEl.getAttribute("data-cal-step") || "0");
+                                if (!axis || !Number.isFinite(step) || this.activeIndex === null) return;
+                                const state = this.getCalibrationState(this.activeIndex);
+                                if (!state) return;
+                                if (axis === "x") {
+                                    this.setCalibrationOffset(
+                                        this.activeIndex,
+                                        this.clampCalibrationOffset(state.offsetX + step),
+                                        state.offsetY);
+                                } else {
+                                    this.setCalibrationOffset(
+                                        this.activeIndex,
+                                        state.offsetX,
+                                        this.clampCalibrationOffset(state.offsetY + step));
+                                }
+                            });
                         });
 
-                        calSaveOffsetsBtn?.addEventListener("click", () => this.persistCalibrationOffsetsToApi());
+                        const exitCalibration = () => this.disableCalibrationMode();
+                        calExitCalibrationBtn?.addEventListener("click", exitCalibration);
+                        calExitCalibrationFullBtn?.addEventListener("click", exitCalibration);
+
+                        calibrationPanel?.querySelectorAll("[data-cal-h-align]").forEach((buttonEl) => {
+                            buttonEl.addEventListener("click", () => {
+                                const value = buttonEl.getAttribute("data-cal-h-align");
+                                if (!value) return;
+                                this.setActiveFieldHorizontalAlignment(value);
+                            });
+                        });
+
+                        calibrationPanel?.querySelectorAll("[data-cal-v-align]").forEach((buttonEl) => {
+                            buttonEl.addEventListener("click", () => {
+                                const value = buttonEl.getAttribute("data-cal-v-align");
+                                if (!value) return;
+                                this.setActiveFieldVerticalAlignment(value);
+                            });
+                        });
+
+                        calResetFieldBtn?.addEventListener("click", () => this.resetActiveCalibrationField());
+                        calApplyAllFieldsBtn?.addEventListener("click", () => this.applyCalibrationTypographyToAllFields());
+                        calResetAllOffsetsBtn?.addEventListener("click", () => this.resetAllTemplateOffsets());
+
+                        calSaveBtn?.addEventListener("click", () => this.persistCalibrationToApi());
                         calPreviewPdfBtn?.addEventListener("click", () => this.openCalibrationPreviewPdf());
+
+                        this.setCalibrationPanelEnabled(false);
                     }
                 }
 

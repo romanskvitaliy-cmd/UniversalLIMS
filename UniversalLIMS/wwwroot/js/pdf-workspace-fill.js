@@ -113,19 +113,33 @@
         return saved == null ? "" : String(saved);
     };
 
+    const readFieldText = (fieldEl) => {
+        if (!fieldEl) {
+            return "";
+        }
+        return fieldEl.innerText.replace(/\r/g, "");
+    };
+
+    const writeFieldText = (fieldEl, text) => {
+        if (!fieldEl) {
+            return;
+        }
+        fieldEl.textContent = text ?? "";
+    };
+
     const collectFilledValues = () => {
-        const inputs = [...document.querySelectorAll(".pdf-fill-input")];
-        inputs.sort((a, b) =>
+        const fields = [...document.querySelectorAll(".pdf-fill-field-box .pdf-field-input")];
+        fields.sort((a, b) =>
             (Number.parseInt(a.dataset.sequence || "0", 10) || 0)
             - (Number.parseInt(b.dataset.sequence || "0", 10) || 0));
 
         const byTemplateFieldId = new Map();
-        inputs.forEach((input) => {
-            const templateFieldId = (input.dataset.templateFieldId || "").trim();
+        fields.forEach((fieldEl) => {
+            const templateFieldId = (fieldEl.dataset.templateFieldId || "").trim();
             if (!templateFieldId) {
                 return;
             }
-            const value = input.value ?? "";
+            const value = readFieldText(fieldEl);
             if (byTemplateFieldId.has(templateFieldId)) {
                 byTemplateFieldId.set(templateFieldId, `${byTemplateFieldId.get(templateFieldId)}\n${value}`);
             } else {
@@ -168,13 +182,61 @@
 
     const captureValues = () => {
         const values = new Map();
-        document.querySelectorAll(".pdf-fill-input").forEach((input) => {
-            const segmentId = input.dataset.segmentId;
+        document.querySelectorAll(".pdf-fill-field-box .pdf-field-input").forEach((fieldEl) => {
+            const segmentId = fieldEl.dataset.segmentId;
             if (segmentId) {
-                values.set(segmentId, input.value ?? "");
+                values.set(segmentId, readFieldText(fieldEl));
             }
         });
         return values;
+    };
+
+    const createEditableField = (segment, segmentId, templateFieldId, height, coordScale) => {
+        const multiline = segment.allowMultiline === true;
+        const fieldEl = document.createElement("div");
+        fieldEl.className = multiline
+            ? "pdf-field pdf-field-input pdf-field--multiline"
+            : "pdf-field pdf-field-input";
+        fieldEl.contentEditable = "true";
+        fieldEl.spellcheck = false;
+        fieldEl.setAttribute("role", "textbox");
+        fieldEl.dataset.segmentId = segmentId;
+        fieldEl.dataset.templateFieldId = templateFieldId;
+        fieldEl.dataset.sequence = String(segment.sequence ?? 0);
+
+        const fontSize = num(segment.fontSize) > 0 ? num(segment.fontSize) * coordScale : 12;
+        fieldEl.style.fontSize = `${fontSize}px`;
+        if (segment.fontName) {
+            fieldEl.style.fontFamily = `${segment.fontName}, Arial, sans-serif`;
+        }
+
+        fieldEl.addEventListener("paste", (event) => {
+            event.preventDefault();
+            const plain = event.clipboardData?.getData("text/plain") ?? "";
+            if (document.queryCommandSupported("insertText")) {
+                document.execCommand("insertText", false, plain);
+            } else {
+                fieldEl.textContent = `${readFieldText(fieldEl)}${plain}`;
+            }
+        });
+
+        fieldEl.addEventListener("keydown", (event) => {
+            if (!multiline && event.key === "Enter") {
+                event.preventDefault();
+                fieldEl.blur();
+            }
+        });
+
+        fieldEl.addEventListener("focus", () => {
+            focusSegmentId = segmentId;
+        });
+        fieldEl.addEventListener("blur", () => {
+            if (focusSegmentId === segmentId) {
+                focusSegmentId = null;
+            }
+        });
+
+        return fieldEl;
     };
 
     const buildInitialValues = () => {
@@ -268,56 +330,28 @@
             box.style.width = `${width}px`;
             box.style.height = `${height}px`;
 
-            const multiline = segment.allowMultiline === true;
-            const input = document.createElement(multiline ? "textarea" : "input");
-            input.className = "pdf-fill-input";
-            input.dataset.segmentId = segmentId;
-            input.dataset.templateFieldId = templateFieldId;
-            input.dataset.sequence = String(segment.sequence ?? 0);
-            input.spellcheck = false;
-
-            if (!multiline) {
-                input.type = "text";
-                input.autocomplete = "off";
-            } else {
-                input.rows = Math.max(2, Math.floor(height / 14));
-            }
-
-            const fontSize = num(segment.fontSize) > 0 ? num(segment.fontSize) * coordScale : 12;
-            input.style.fontSize = `${fontSize}px`;
-            if (segment.fontName) {
-                input.style.fontFamily = `${segment.fontName}, Arial, sans-serif`;
-            }
-
-            input.value = values.has(segmentId) ? values.get(segmentId) : resolveSavedValueForSegment(segment);
-
-            input.addEventListener("focus", () => {
-                focusSegmentId = segmentId;
-                box.classList.add("pdf-fill-field-box--active");
-            });
-            input.addEventListener("blur", () => {
-                if (focusSegmentId === segmentId) {
-                    focusSegmentId = null;
-                }
-                box.classList.remove("pdf-fill-field-box--active");
-            });
+            const fieldEl = createEditableField(segment, segmentId, templateFieldId, height, coordScale);
+            const initialValue = values.has(segmentId)
+                ? values.get(segmentId)
+                : resolveSavedValueForSegment(segment);
+            writeFieldText(fieldEl, initialValue);
 
             box.addEventListener("mousedown", (event) => {
-                if (event.target !== input) {
+                if (event.target !== fieldEl) {
                     event.preventDefault();
-                    input.focus();
+                    fieldEl.focus();
                 }
             });
 
-            box.appendChild(input);
+            box.appendChild(fieldEl);
             layer.appendChild(box);
         });
 
         if (restoreFocusSegmentId) {
-            const input = document.querySelector(
-                `.pdf-fill-input[data-segment-id="${restoreFocusSegmentId}"]`
+            const fieldEl = document.querySelector(
+                `.pdf-field-input[data-segment-id="${restoreFocusSegmentId}"]`
             );
-            input?.focus();
+            fieldEl?.focus();
         }
     };
 

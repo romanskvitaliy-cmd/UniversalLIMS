@@ -21,6 +21,9 @@ public sealed record TemplateFieldSegmentSavedState(
     bool IsPrimary,
     string TextAlignment,
     decimal? FontSize,
+    string? FontName,
+    decimal? LineHeight,
     string? HorizontalAlignment,
     string? VerticalAlignment,
+    string? SvgPathData,
     byte[] RowVersion);

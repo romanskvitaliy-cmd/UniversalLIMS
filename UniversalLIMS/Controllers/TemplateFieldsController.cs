@@ -377,8 +377,11 @@ public sealed class TemplateFieldsController : Controller
                         isPrimary = segment.IsPrimary,
                         textAlignment = segment.TextAlignment.ToString(),
                         fontSize = segment.FontSize,
+                        fontName = segment.FontName,
+                        lineHeight = segment.LineHeight,
                         horizontalAlignment = segment.HorizontalAlignment ?? segment.TextAlignment.ToString(),
                         verticalAlignment = segment.VerticalAlignment,
+                        svgPathData = segment.SvgPathData,
                         rowVersion = segment.RowVersion
                     })
                     .ToList()
@@ -489,8 +492,11 @@ public sealed class TemplateFieldsController : Controller
                         segment.IsPrimary,
                         segment.TextAlignment,
                         segment.FontSize,
+                        segment.FontName,
+                        segment.LineHeight,
                         segment.HorizontalAlignment,
                         segment.VerticalAlignment,
+                        segment.SvgPathData,
                         ResolveSegmentRowVersion(segment)))
                     .ToList();
 
@@ -536,8 +542,11 @@ public sealed class TemplateFieldsController : Controller
                     isPrimary = segment.IsPrimary,
                     textAlignment = segment.TextAlignment,
                     fontSize = segment.FontSize,
+                    fontName = segment.FontName,
+                    lineHeight = segment.LineHeight,
                     horizontalAlignment = segment.HorizontalAlignment,
                     verticalAlignment = segment.VerticalAlignment,
+                    svgPathData = segment.SvgPathData,
                     rowVersion = Convert.ToBase64String(segment.RowVersion)
                 })
             });

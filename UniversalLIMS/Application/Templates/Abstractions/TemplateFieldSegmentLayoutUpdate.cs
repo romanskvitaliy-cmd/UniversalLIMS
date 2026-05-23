@@ -13,6 +13,9 @@ public sealed record TemplateFieldSegmentLayoutUpdate(
     bool IsPrimary,
     string TextAlignment,
     decimal? FontSize = null,
+    string? FontName = null,
+    decimal? LineHeight = null,
     string? HorizontalAlignment = null,
     string? VerticalAlignment = null,
+    string? SvgPathData = null,
     byte[]? RowVersion = null);

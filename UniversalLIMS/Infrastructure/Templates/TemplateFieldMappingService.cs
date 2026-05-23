@@ -305,8 +305,11 @@ public sealed class TemplateFieldMappingService : ITemplateFieldMappingService
                 segment.IsPrimary,
                 segment.TextAlignment.ToString(),
                 segment.FontSize,
+                segment.FontName,
+                segment.LineHeight,
                 segment.HorizontalAlignment,
                 segment.VerticalAlignment,
+                segment.SvgPathData,
                 segment.RowVersion))
             .ToList();
 
@@ -724,6 +727,13 @@ public sealed class TemplateFieldMappingService : ITemplateFieldMappingService
             : TextAlignment.Left;
         segment.VerticalAlignment = NormalizeVerticalAlignment(segmentUpdate.VerticalAlignment);
         segment.FontSize = segmentUpdate.FontSize is > 0 ? segmentUpdate.FontSize : null;
+        segment.FontName = string.IsNullOrWhiteSpace(segmentUpdate.FontName)
+            ? null
+            : segmentUpdate.FontName.Trim();
+        segment.LineHeight = segmentUpdate.LineHeight is > 0 ? segmentUpdate.LineHeight : null;
+        segment.SvgPathData = string.IsNullOrWhiteSpace(segmentUpdate.SvgPathData)
+            ? null
+            : segmentUpdate.SvgPathData.Trim();
     }
 
     private static string ResolveHorizontalAlignment(string? horizontalAlignment, string textAlignment)
