@@ -30,6 +30,7 @@ public interface IPdfWorkspaceFillService
 public sealed record CalibrationPreviewPdfResult(
     byte[] PdfBytes,
     int SegmentsDrawn,
+    int SegmentsSkippedEmpty,
     int SegmentsSkippedPage,
     int PdfPageCount);
 

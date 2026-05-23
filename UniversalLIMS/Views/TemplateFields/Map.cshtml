@@ -6896,37 +6896,156 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         }, CAL_AUTOSAVE_MS);
                     }
 
+                    getCalibrationEditableElement(box) {
+                        if (!box) {
+                            return null;
+                        }
+
+                        return box.querySelector(
+                            ".calibration-inline-input, input.pdf-field-input, input.pdf-field, textarea.pdf-field-input, textarea.pdf-field");
+                    }
+
+                    readEditableElementText(element) {
+                        if (!element) {
+                            return "";
+                        }
+
+                        if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
+                            return String(element.value ?? "").replace(/\r/g, "").trim();
+                        }
+
+                        const raw = element.innerText || element.textContent || "";
+                        return String(raw).replace(/\r/g, "").trim();
+                    }
+
                     syncAllCalibrationTextFromDom() {
+                        this.gatherContentFromEditableFields();
+                    }
+
+                    writeCalibrationTextToState(index, text) {
+                        const normalized = String(text ?? "").replace(/\r/g, "").trim();
+                        const state = this.getCalibrationState(index);
+                        if (state) {
+                            state.text = normalized;
+                        }
+
+                        const field = this.fieldByIndex.get(index);
+                        if (field) {
+                            field.calibrationPreviewText = normalized;
+                            this.fieldByIndex.set(index, field);
+                        }
+
+                        return normalized;
+                    }
+
+                    resolveCalibrationTextForIndex(index, box = null) {
+                        const resolvedBox = box ?? this.boxesByIndex.get(index);
+                        const field = this.fieldByIndex.get(index);
+                        if (this.calibrationMode && resolvedBox && field) {
+                            this.ensureCalibrationInlineEditor(resolvedBox, field);
+                        }
+
+                        const editor = this.getCalibrationEditableElement(resolvedBox);
+                        const domText = this.readEditableElementText(editor);
+                        if (domText) {
+                            return this.writeCalibrationTextToState(index, domText);
+                        }
+
+                        const state = this.getCalibrationState(index);
+                        return String(
+                            state?.text
+                            ?? field?.calibrationPreviewText
+                            ?? "").trim();
+                    }
+
+                    /**
+                     * Збирає текст з усіх overlay-сегментів перед Preview PDF (патерн Gather and Send).
+                     */
+                    gatherContentFromEditableFields() {
+                        if (this.calibrationMode) {
+                            this.syncAllCalibrationInlineEditors();
+                        }
+
+                        let withText = 0;
                         this.boxesByIndex.forEach((box, index) => {
-                            const input = box?.querySelector(".calibration-inline-input");
-                            if (!input) {
+                            if (!box) {
                                 return;
                             }
 
-                            const state = this.getCalibrationState(index);
-                            if (state) {
-                                state.text = input.innerText.replace(/\r/g, "");
+                            const text = this.resolveCalibrationTextForIndex(index, box);
+                            if (text) {
+                                withText++;
                             }
                         });
+
+                        const root = document.getElementById("pdfOverlayDesignerRoot");
+                        const editables = (root ?? document).querySelectorAll('[contenteditable="true"]');
+                        editables.forEach((element) => {
+                            const box = element.closest(".field-overlay-box");
+                            if (!box) {
+                                return;
+                            }
+
+                            const index = Number.parseInt(box.dataset.index ?? "-1", 10);
+                            if (!Number.isInteger(index) || index < 0) {
+                                return;
+                            }
+
+                            this.writeCalibrationTextToState(
+                                index,
+                                this.readEditableElementText(element));
+                        });
+
+                        withText = [...this.boxesByIndex.keys()]
+                            .filter((idx) => String(this.getCalibrationState(idx)?.text ?? "").trim()).length;
+
+                        console.info(
+                            `[Calibration] gatherContentFromEditableFields: boxes=${this.boxesByIndex.size}, editors=${editables.length}, withText=${withText}`);
+                        return withText;
+                    }
+
+                    /** Збір тексту з overlay-input'ів (для Preview PDF). */
+                    collectCalibrationFieldsFromDom() {
+                        const valuesByIndex = new Map();
+                        let scannedBoxes = 0;
+
+                        this.boxesByIndex.forEach((box, index) => {
+                            if (!box) {
+                                return;
+                            }
+
+                            scannedBoxes++;
+                            const text = this.resolveCalibrationTextForIndex(index, box);
+                            if (text) {
+                                valuesByIndex.set(index, text);
+                            }
+                        });
+
+                        const rows = [...valuesByIndex.entries()].map(([index, text]) => {
+                            const field = this.fieldByIndex.get(index);
+                            return {
+                                index,
+                                segmentSequence: field?.segmentSequence ?? null,
+                                templateFieldId: field?.fieldId ?? null,
+                                text: text.slice(0, 80)
+                            };
+                        });
+
+                        console.info(
+                            `[Calibration] UI fields collected: boxesScanned=${scannedBoxes}, withText=${valuesByIndex.size}`);
+                        if (rows.length > 0) {
+                            console.table(rows);
+                        }
+
+                        return valuesByIndex;
+                    }
+
+                    readCalibrationTextForPreview(index) {
+                        return this.resolveCalibrationTextForIndex(index);
                     }
 
                     readCalibrationTextForIndex(index) {
-                        const field = this.fieldByIndex.get(index);
-                        const box = this.boxesByIndex.get(index);
-                        if (this.calibrationMode && box && field) {
-                            this.ensureCalibrationInlineEditor(box, field);
-                        }
-
-                        const input = box?.querySelector(".calibration-inline-input");
-                        const state = this.getCalibrationState(index);
-                        const domText = input
-                            ? input.innerText.replace(/\r/g, "").trim()
-                            : "";
-                        if (input && state) {
-                            state.text = input.innerText.replace(/\r/g, "");
-                        }
-
-                        return (domText || (state?.text ?? "")).trim();
+                        return this.resolveCalibrationTextForIndex(index);
                     }
 
                     async persistCalibrationToApi(options = {}) {
@@ -7124,7 +7243,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             input.spellcheck = false;
                             input.setAttribute("role", "textbox");
 
-                            const readCalibrationText = () => input.innerText.replace(/\r/g, "");
+                            const readCalibrationText = () => this.readEditableElementText(input);
 
                             input.addEventListener("mousedown", (event) => event.stopPropagation());
                             input.addEventListener("click", (event) => event.stopPropagation());
@@ -7184,8 +7303,8 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         }
 
                         const state = this.getCalibrationState(field.index);
-                        const domText = input.innerText.replace(/\r/g, "");
-                        if (domText.trim()) {
+                        const domText = this.readEditableElementText(input);
+                        if (domText) {
                             if (state) {
                                 state.text = domText;
                             }
@@ -7380,16 +7499,16 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                     }
 
                     buildPreviewCalibrationData() {
+                        this.gatherContentFromEditableFields();
                         this.applyCalibrationPanelToActiveField();
-                        // Спочатку зчитати текст з DOM — ensureCalibrationInlineEditor не повинен його затирати.
-                        this.syncAllCalibrationTextFromDom();
+                        const uiTextByIndex = this.collectCalibrationFieldsFromDom();
 
                         const versionId = String(window.__templateVersionId ?? "").trim();
                         const fields = [];
 
                         this.fieldByIndex.forEach((field, index) => {
-                            const box = this.boxesByIndex.get(index);
-                            const text = this.readCalibrationTextForIndex(index);
+                            const text = uiTextByIndex.get(index)
+                                ?? this.resolveCalibrationTextForIndex(index);
                             if (!text) {
                                 return;
                             }
@@ -7402,10 +7521,14 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             const offsetY = Number(this.parsePixel(field.textOffsetY ?? state?.offsetY ?? 0));
                             const fontSizeRaw = Number.parseFloat(String(field.fontSize ?? ""));
                             const fontSize = Number.isFinite(fontSizeRaw) && fontSizeRaw > 0 ? fontSizeRaw : null;
+                            const segmentSequence = this.getOverlaySequence(field, index);
 
                             fields.push({
+                                overlayIndex: index,
+                                segmentSequence,
                                 templateFieldId,
                                 text,
+                                textToDraw: text,
                                 offsetX,
                                 offsetY,
                                 page: Number.parseInt(String(layout.page ?? 1), 10) || 1,
@@ -7468,6 +7591,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                     }
 
                     async openCalibrationPreviewPdf() {
+                        this.gatherContentFromEditableFields();
                         const previewData = this.buildPreviewCalibrationData();
                         const versionId = previewData.templateVersionId;
                         if (!versionId) {
@@ -7481,6 +7605,9 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
 
                         console.info("[Calibration] Preview PDF payload:", previewData);
                         console.table(previewData.fields.map((field) => ({
+                            overlayIndex: field.overlayIndex,
+                            segmentSequence: field.segmentSequence,
+                            templateFieldId: field.templateFieldId,
                             text: field.text.slice(0, 40),
                             page: field.page,
                             x: field.x,
@@ -7529,12 +7656,17 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             }
 
                             const sentCount = previewData.fields.length;
-                            const drawnCount = response.headers.get("X-Calibration-Segments-Drawn");
+                            const drawnCountRaw = response.headers.get("X-Calibration-Segments-Drawn");
+                            const drawnCount = drawnCountRaw !== null ? Number.parseInt(drawnCountRaw, 10) : null;
+                            const skippedEmpty = response.headers.get("X-Calibration-Segments-Skipped-Empty");
                             const skippedPage = response.headers.get("X-Calibration-Segments-Skipped-Page");
                             const pdfPages = response.headers.get("X-Calibration-Pdf-Pages");
-                            let toastMsg = `PDF готово: надіслано ${sentCount}`;
-                            if (drawnCount !== null) {
+                            let toastMsg = `PDF готово: з UI ${sentCount}`;
+                            if (drawnCount !== null && Number.isFinite(drawnCount)) {
                                 toastMsg += `, намалювано ${drawnCount}`;
+                            }
+                            if (skippedEmpty && Number(skippedEmpty) > 0) {
+                                toastMsg += `, без тексту (сервер): ${skippedEmpty}`;
                             }
                             if (skippedPage && Number(skippedPage) > 0) {
                                 toastMsg += `, пропущено (сторінка): ${skippedPage}`;
@@ -7543,6 +7675,12 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                                 toastMsg += `, сторінок у PDF: ${pdfPages}`;
                             }
                             showOverlayToast(`${toastMsg}.`);
+                            if (drawnCount === 0) {
+                                console.warn("[Calibration] Preview PDF: сервер не намалював жодного сегмента.", previewData);
+                                showOverlayToast(
+                                    "PDF без тексту: перевірте F12 (payload) і лог сервера (координати/сторінка).",
+                                    true);
+                            }
 
                             const url = URL.createObjectURL(blob);
                             window.open(url, "_blank", "noopener");
@@ -7671,6 +7809,10 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         calResetAllOffsetsBtn?.addEventListener("click", () => this.resetAllTemplateOffsets());
 
                         calSaveBtn?.addEventListener("click", () => this.persistCalibrationToApi());
+                        calPreviewPdfBtn?.addEventListener("mousedown", (event) => {
+                            event.preventDefault();
+                            this.gatherContentFromEditableFields();
+                        });
                         calPreviewPdfBtn?.addEventListener("click", () => this.openCalibrationPreviewPdf());
 
                         this.setCalibrationPanelEnabled(false);
@@ -7688,11 +7830,24 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
 
                         const items = [];
                         window.__fieldEngine.fieldByIndex.forEach((field, overlayIndex) => {
-                            items.push({ overlayIndex, ...field });
+                            const state = window.__fieldEngine.getCalibrationState(overlayIndex);
+                            const text = String(
+                                state?.text
+                                ?? field.calibrationPreviewText
+                                ?? "").trim();
+                            items.push({ overlayIndex, Text: text, ...field });
                         });
                         return items;
                     }
                 });
+
+                window.gatherContentFromEditableFields = () => {
+                    if (!window.__fieldEngine?.gatherContentFromEditableFields) {
+                        return 0;
+                    }
+
+                    return window.__fieldEngine.gatherContentFromEditableFields();
+                };
 
                 const overlayDataFieldComboRoot = document.getElementById("overlayDataFieldCombo");
                 if (overlayDataFieldComboRoot && typeof initSearchableCombo === "function" && Array.isArray(window.__dataFieldCatalog)) {

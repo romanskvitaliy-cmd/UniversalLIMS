@@ -435,19 +435,34 @@ public sealed class TemplateFieldsController : Controller
             return BadRequest(new { message = "No fields for preview" });
         }
 
+        foreach (var field in request.Fields)
+        {
+            field.NormalizeDrawableText();
+        }
+
         var fieldsWithText = request.Fields
-            .Where(field => !string.IsNullOrWhiteSpace(field.Text))
+            .Where(field => !string.IsNullOrWhiteSpace(field.ResolveDrawableText()))
             .ToList();
         if (fieldsWithText.Count == 0)
         {
             return BadRequest(new { message = "No fields for preview" });
         }
 
+        var fieldLog = string.Join(
+            "; ",
+            fieldsWithText.Select(field =>
+            {
+                var drawable = field.ResolveDrawableText();
+                var preview = drawable.Length <= 30 ? drawable : $"{drawable[..30]}…";
+                return $"{field.TemplateFieldId?.ToString("D") ?? "no-id"}:'{preview}'";
+            }));
+
         _logger.LogInformation(
-            "POST preview-calibration: version={VersionId}, fields={FieldCount}, withText={TextFieldCount}",
+            "POST preview-calibration: version={VersionId}, fields={FieldCount}, withText={TextFieldCount}, uiValues=[{FieldLog}]",
             templateVersionId,
             request.Fields.Count,
-            fieldsWithText.Count);
+            fieldsWithText.Count,
+            fieldLog);
 
         try
         {
@@ -462,6 +477,7 @@ public sealed class TemplateFieldsController : Controller
 
             Response.Headers["X-Calibration-Fields-Sent"] = fieldsWithText.Count.ToString();
             Response.Headers["X-Calibration-Segments-Drawn"] = previewResult.SegmentsDrawn.ToString();
+            Response.Headers["X-Calibration-Segments-Skipped-Empty"] = previewResult.SegmentsSkippedEmpty.ToString();
             Response.Headers["X-Calibration-Segments-Skipped-Page"] = previewResult.SegmentsSkippedPage.ToString();
             Response.Headers["X-Calibration-Pdf-Pages"] = previewResult.PdfPageCount.ToString();
             return File(previewResult.PdfBytes, "application/pdf", "calibration-preview.pdf");

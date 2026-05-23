@@ -23,6 +23,10 @@ public sealed class PreviewCalibrationFieldRequest
     [JsonPropertyName("text")]
     public string Text { get; set; } = string.Empty;
 
+    /// <summary>Альтернативне ім'я з клієнта (деякі збірки payload використовують textToDraw).</summary>
+    [JsonPropertyName("textToDraw")]
+    public string? TextToDraw { get; set; }
+
     [JsonPropertyName("offsetX")]
     public decimal OffsetX { get; set; }
 
@@ -55,4 +59,25 @@ public sealed class PreviewCalibrationFieldRequest
 
     [JsonPropertyName("verticalAlignment")]
     public string? VerticalAlignment { get; set; }
+
+    /// <summary>Текст для малювання: <see cref="Text"/> або <see cref="TextToDraw"/>.</summary>
+    public string ResolveDrawableText()
+    {
+        if (!string.IsNullOrWhiteSpace(Text))
+        {
+            return Text.Trim();
+        }
+
+        return string.IsNullOrWhiteSpace(TextToDraw) ? string.Empty : TextToDraw.Trim();
+    }
+
+    public void NormalizeDrawableText()
+    {
+        var resolved = ResolveDrawableText();
+        Text = resolved;
+        if (!string.IsNullOrEmpty(resolved))
+        {
+            TextToDraw = resolved;
+        }
+    }
 }

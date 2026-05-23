@@ -455,6 +455,154 @@ public sealed class PdfWorkspaceFillServiceTests
     }
 
     [Fact]
+    public async Task GenerateCalibrationPreviewAsync_TextToDrawProperty_RendersOnPdf()
+    {
+        await using var context = CreateContext();
+        var versionId = Guid.NewGuid();
+        var templateId = Guid.NewGuid();
+
+        context.Templates.Add(new Template
+        {
+            Id = templateId,
+            Code = "PDF-CAL-TEXT-TO-DRAW",
+            NameUk = "Calibration textToDraw",
+            Status = TemplateStatus.Draft
+        });
+
+        context.TemplateVersions.Add(new TemplateVersion
+        {
+            Id = versionId,
+            TemplateId = templateId,
+            VersionNumber = 36,
+            Status = TemplateVersionStatus.Draft,
+            DocumentFormat = TemplateDocumentFormat.Pdf,
+            OriginalFileName = "template.pdf",
+            StorageKey = "templates/template.pdf",
+            ContentType = "application/pdf",
+            FileSizeBytes = 1,
+            Sha256Hash = new string('t', 64),
+            UploadedAtUtc = DateTime.UtcNow
+        });
+
+        await context.SaveChangesAsync();
+
+        var service = new PdfWorkspaceFillService(
+            context,
+            new FakeTemplateDocumentStorage(CreateBlankPdf()),
+            new OrderFieldValueService(context),
+            NullLogger<PdfWorkspaceFillService>.Instance);
+
+        var preview = await service.GenerateCalibrationPreviewAsync(new PreviewCalibrationRequest
+        {
+            TemplateVersionId = versionId,
+            Fields =
+            [
+                new PreviewCalibrationFieldRequest
+                {
+                    TextToDraw = "11",
+                    Page = 1,
+                    X = 80,
+                    Y = 120,
+                    Width = 200,
+                    Height = 28,
+                    FontSize = 14
+                }
+            ]
+        });
+
+        Assert.Equal(1, preview.SegmentsDrawn);
+        Assert.Equal(0, preview.SegmentsSkippedEmpty);
+        Assert.True(preview.PdfBytes.Length > CreateBlankPdf().Length);
+    }
+
+    [Fact]
+    public async Task GenerateCalibrationPreviewAsync_UiTextWithMissingLayout_UsesDatabaseSegmentGeometry()
+    {
+        await using var context = CreateContext();
+        var versionId = Guid.NewGuid();
+        var templateId = Guid.NewGuid();
+        var fieldId = Guid.NewGuid();
+
+        context.Templates.Add(new Template
+        {
+            Id = templateId,
+            Code = "PDF-CAL-DB-LAYOUT",
+            NameUk = "Calibration DB layout fallback",
+            Status = TemplateStatus.Draft
+        });
+
+        context.TemplateVersions.Add(new TemplateVersion
+        {
+            Id = versionId,
+            TemplateId = templateId,
+            VersionNumber = 35,
+            Status = TemplateVersionStatus.Draft,
+            DocumentFormat = TemplateDocumentFormat.Pdf,
+            OriginalFileName = "template.pdf",
+            StorageKey = "templates/template.pdf",
+            ContentType = "application/pdf",
+            FileSizeBytes = 1,
+            Sha256Hash = new string('l', 64),
+            UploadedAtUtc = DateTime.UtcNow,
+            Fields =
+            [
+                new TemplateField
+                {
+                    Id = fieldId,
+                    TemplateVersionId = versionId,
+                    Tag = "Field1",
+                    Title = "Поле 1",
+                    SortOrder = 1,
+                    Segments =
+                    [
+                        new TemplateFieldSegment
+                        {
+                            Id = Guid.NewGuid(),
+                            Sequence = 1,
+                            PageNumber = 1,
+                            PositionX = 90,
+                            PositionY = 110,
+                            Width = 180,
+                            Height = 26,
+                            IsPrimary = true,
+                            FontSize = 10
+                        }
+                    ]
+                }
+            ]
+        });
+
+        await context.SaveChangesAsync();
+
+        var service = new PdfWorkspaceFillService(
+            context,
+            new FakeTemplateDocumentStorage(CreateBlankPdf()),
+            new OrderFieldValueService(context),
+            NullLogger<PdfWorkspaceFillService>.Instance);
+
+        var preview = await service.GenerateCalibrationPreviewAsync(new PreviewCalibrationRequest
+        {
+            TemplateVersionId = versionId,
+            Fields =
+            [
+                new PreviewCalibrationFieldRequest
+                {
+                    TemplateFieldId = fieldId,
+                    Text = "текст з UI",
+                    Page = 1,
+                    X = 0,
+                    Y = 0,
+                    Width = 0,
+                    Height = 0
+                }
+            ]
+        });
+
+        Assert.Equal(1, preview.SegmentsDrawn);
+        Assert.True(preview.PdfBytes.Length > CreateBlankPdf().Length);
+    }
+
+    [Fact]
     public async Task SaveValuesAsync_ThenGenerateFilledPdf_RendersAllWorkspaceFields()
     {
         await using var context = CreateContext();

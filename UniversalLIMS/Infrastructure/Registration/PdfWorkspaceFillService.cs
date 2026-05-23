@@ -282,25 +282,40 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
             throw new InvalidOperationException("No fields for preview");
         }
 
-        var fields = request.Fields
-            .Where(item => !string.IsNullOrWhiteSpace(item.Text))
+        foreach (var field in request.Fields)
+        {
+            field.NormalizeDrawableText();
+        }
+
+        var fieldsWithUiText = request.Fields
+            .Where(item => !string.IsNullOrWhiteSpace(item.ResolveDrawableText()))
             .ToList();
 
-        if (fields.Count == 0)
+        if (fieldsWithUiText.Count == 0)
         {
             throw new InvalidOperationException("No fields for preview");
         }
 
-        var fieldIdsForLog = string.Join(
-            ", ",
-            fields.Select(item => item.TemplateFieldId?.ToString("D") ?? "(no-templateFieldId)"));
+        var fields = await EnrichCalibrationPreviewFieldsFromDatabaseAsync(
+            templateVersionId,
+            fieldsWithUiText,
+            cancellationToken);
+
+        var fieldDetailsForLog = string.Join(
+            "; ",
+            fields.Select(item =>
+            {
+                var drawable = item.ResolveDrawableText();
+                var previewText = drawable.Length <= 40 ? drawable : $"{drawable[..40]}…";
+                return $"{item.TemplateFieldId?.ToString("D") ?? "no-id"}:'{previewText}'@p{item.Page}({item.X},{item.Y})";
+            }));
 
         _logger.LogInformation(
-            "Calibration preview WYSIWYG: version={VersionId}, receivedFields={ReceivedCount}, drawableFields={DrawableCount}, templateFieldIds=[{FieldIds}]",
+            "Calibration preview WYSIWYG: version={VersionId}, receivedFields={ReceivedCount}, drawableFields={DrawableCount}, fields=[{FieldDetails}]",
             templateVersionId,
             request.Fields.Count,
             fields.Count,
-            fieldIdsForLog);
+            fieldDetailsForLog);
 
         // Лише порожній PDF-шаблон зі сховища; layout і текст — виключно з request.Fields.
         var version = await _context.TemplateVersions
@@ -335,17 +350,126 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
             new Dictionary<Guid, string?>());
 
         _logger.LogInformation(
-            "Calibration preview render: drawn={Drawn}, skippedPage={SkippedPage}, pdfPages={PdfPages}",
+            "Calibration preview render: drawn={Drawn}, skippedEmpty={SkippedEmpty}, skippedPage={SkippedPage}, pdfPages={PdfPages}",
             renderStats.SegmentsDrawn,
+            renderStats.SegmentsSkippedEmpty,
             renderStats.SegmentsSkippedPage,
             renderStats.PdfPageCount);
 
         return new CalibrationPreviewPdfResult(
             renderStats.PdfBytes,
             renderStats.SegmentsDrawn,
+            renderStats.SegmentsSkippedEmpty,
             renderStats.SegmentsSkippedPage,
             renderStats.PdfPageCount);
     }
+
+    /// <summary>
+    /// Доповнює геометрію з БД, якщо клієнт надіслав лише текст (або нульові розміри).
+    /// Текст завжди з UI; layout — з запиту, інакше primary-сегмент з БД.
+    /// </summary>
+    private async Task<List<PreviewCalibrationFieldRequest>> EnrichCalibrationPreviewFieldsFromDatabaseAsync(
+        Guid templateVersionId,
+        IReadOnlyList<PreviewCalibrationFieldRequest> clientFields,
+        CancellationToken cancellationToken)
+    {
+        var fieldIds = clientFields
+            .Select(item => item.TemplateFieldId)
+            .Where(id => id.HasValue && id.Value != Guid.Empty)
+            .Select(id => id!.Value)
+            .Distinct()
+            .ToList();
+
+        if (fieldIds.Count == 0)
+        {
+            return clientFields.ToList();
+        }
+
+        var dbSegments = await (
+                from segment in _context.TemplateFieldSegments.AsNoTracking()
+                join field in _context.TemplateFields.AsNoTracking() on segment.TemplateFieldId equals field.Id
+                where field.TemplateVersionId == templateVersionId
+                      && !field.IsAnnulled
+                      && !segment.IsAnnulled
+                      && fieldIds.Contains(field.Id)
+                orderby field.SortOrder, segment.Sequence
+                select new
+                {
+                    field.Id,
+                    field.TextOffsetX,
+                    field.TextOffsetY,
+                    segment.PageNumber,
+                    segment.PositionX,
+                    segment.PositionY,
+                    segment.Width,
+                    segment.Height,
+                    segment.FontSize,
+                    segment.FontName,
+                    segment.TextAlignment,
+                    segment.HorizontalAlignment,
+                    segment.VerticalAlignment,
+                    segment.Sequence
+                })
+            .ToListAsync(cancellationToken);
+
+        var primaryByFieldId = dbSegments
+            .GroupBy(item => item.Id)
+            .ToDictionary(
+                group => group.Key,
+                group => group.OrderBy(item => item.Sequence).First());
+
+        var enriched = new List<PreviewCalibrationFieldRequest>();
+        var layoutFallbackCount = 0;
+
+        foreach (var clientField in clientFields)
+        {
+            if (!clientField.TemplateFieldId.HasValue ||
+                !primaryByFieldId.TryGetValue(clientField.TemplateFieldId.Value, out var dbSegment))
+            {
+                enriched.Add(clientField);
+                continue;
+            }
+
+            if (!NeedsDatabaseLayoutFallback(clientField))
+            {
+                enriched.Add(clientField);
+                continue;
+            }
+
+            layoutFallbackCount++;
+            enriched.Add(new PreviewCalibrationFieldRequest
+            {
+                TemplateFieldId = clientField.TemplateFieldId,
+                Text = clientField.ResolveDrawableText(),
+                OffsetX = clientField.OffsetX != 0 ? clientField.OffsetX : dbSegment.TextOffsetX,
+                OffsetY = clientField.OffsetY != 0 ? clientField.OffsetY : dbSegment.TextOffsetY,
+                Page = clientField.Page > 0 ? clientField.Page : dbSegment.PageNumber,
+                X = dbSegment.PositionX,
+                Y = dbSegment.PositionY,
+                Width = dbSegment.Width,
+                Height = dbSegment.Height,
+                FontSize = clientField.FontSize ?? dbSegment.FontSize,
+                FontName = clientField.FontName ?? dbSegment.FontName,
+                Alignment = clientField.Alignment
+                    ?? dbSegment.HorizontalAlignment
+                    ?? dbSegment.TextAlignment.ToString(),
+                VerticalAlignment = clientField.VerticalAlignment ?? dbSegment.VerticalAlignment
+            });
+        }
+
+        if (layoutFallbackCount > 0)
+        {
+            _logger.LogInformation(
+                "Calibration preview layout fallback from DB: version={VersionId}, fields={Count}",
+                templateVersionId,
+                layoutFallbackCount);
+        }
+
+        return enriched;
+    }
+
+    private static bool NeedsDatabaseLayoutFallback(PreviewCalibrationFieldRequest field) =>
+        field.Width <= 0 || field.Height <= 0;
 
     private static ReferralOverlaySegment MapPreviewCalibrationField(PreviewCalibrationFieldRequest field)
     {
@@ -353,7 +477,7 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
 
         return new ReferralOverlaySegment
         {
-            Text = field.Text.Trim(),
+            Text = field.ResolveDrawableText(),
             PageNumber = field.Page < 1 ? 1 : field.Page,
             PositionX = field.X,
             PositionY = field.Y,

@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using Syncfusion.Drawing;
+using Syncfusion.Pdf;
 using Syncfusion.Pdf.Graphics;
 using Syncfusion.Pdf.Parsing;
 using UniversalLIMS.Application.Registration;
@@ -14,6 +15,8 @@ public sealed class ReferralPdfOverlayRenderer
     private const float DefaultFontSize = 10f;
     private const float MinFontSize = 6f;
     private const float FontSizeStep = 0.5f;
+    private const float MinBoundsWidthPt = 12f;
+    private const float MinBoundsHeightPt = 8f;
 
     private static readonly ConcurrentDictionary<float, PdfTrueTypeFont> FontCache = new();
 
@@ -53,11 +56,12 @@ public sealed class ReferralPdfOverlayRenderer
             }
 
             var page = loadedDocument.Pages[overlaySegment.PageNumber - 1];
-            var bounds = ToPdfRectangle(overlaySegment);
+            var pageSize = page.Size;
+            var bounds = FitBoundsToPage(ToPdfRectangle(overlaySegment), pageSize);
             var format = CreateStringFormat(overlaySegment);
             var font = ResolveFontToFitWidth(value, overlaySegment, bounds.Width, format);
 
-            page.Graphics.DrawString(value, font, PdfBrushes.Black, bounds, format);
+            DrawOverlayText(page, value, font, bounds, format);
             drawn++;
         }
 
@@ -66,13 +70,30 @@ public sealed class ReferralPdfOverlayRenderer
         return new PdfOverlayRenderStats(output.ToArray(), drawn, skippedEmpty, skippedPage, pageCount);
     }
 
+    private static void DrawOverlayText(
+        PdfPageBase page,
+        string value,
+        PdfTrueTypeFont font,
+        RectangleF bounds,
+        PdfStringFormat format)
+    {
+        // Пряме позиціонування для Left+Top — збігається з live preview у конструкторі.
+        if (format.Alignment == PdfTextAlignment.Left && format.LineAlignment == PdfVerticalAlignment.Top)
+        {
+            page.Graphics.DrawString(value, font, PdfBrushes.Black, bounds.X, bounds.Y);
+            return;
+        }
+
+        page.Graphics.DrawString(value, font, PdfBrushes.Black, bounds, format);
+    }
+
     private static string? ResolveOverlayText(
         ReferralOverlaySegment segment,
         IReadOnlyDictionary<Guid, string?> valuesByDataFieldId)
     {
         if (!string.IsNullOrWhiteSpace(segment.Text))
         {
-            return segment.Text;
+            return segment.Text.Trim();
         }
 
         if (segment.DataFieldId is null ||
@@ -82,7 +103,7 @@ public sealed class ReferralPdfOverlayRenderer
             return null;
         }
 
-        return value;
+        return value.Trim();
     }
 
     private static RectangleF ToPdfRectangle(ReferralOverlaySegment segment)
@@ -98,13 +119,36 @@ public sealed class ReferralPdfOverlayRenderer
         return new RectangleF(pdf.X, pdf.Y, pdf.Width, pdf.Height);
     }
 
+    private static RectangleF FitBoundsToPage(RectangleF bounds, SizeF pageSize)
+    {
+        var width = Math.Max(MinBoundsWidthPt, bounds.Width);
+        var height = Math.Max(MinBoundsHeightPt, bounds.Height);
+
+        if (pageSize.Width > 0)
+        {
+            width = Math.Min(width, pageSize.Width);
+        }
+
+        if (pageSize.Height > 0)
+        {
+            height = Math.Min(height, pageSize.Height);
+        }
+
+        var maxX = Math.Max(0f, pageSize.Width - width);
+        var maxY = Math.Max(0f, pageSize.Height - height);
+        var x = Math.Clamp(bounds.X, 0f, maxX);
+        var y = Math.Clamp(bounds.Y, 0f, maxY);
+
+        return new RectangleF(x, y, width, height);
+    }
+
     private static PdfTrueTypeFont ResolveFontToFitWidth(
         string text,
         ReferralOverlaySegment segment,
         float maxWidth,
         PdfStringFormat format)
     {
-        var currentFontSize = segment.FontSize is > 0 ? (float)segment.FontSize.Value : DefaultFontSize;
+        var currentFontSize = ResolveFontSizePt(segment);
 
         while (true)
         {
@@ -117,6 +161,18 @@ public sealed class ReferralPdfOverlayRenderer
 
             currentFontSize -= FontSizeStep;
         }
+    }
+
+    private static float ResolveFontSizePt(ReferralOverlaySegment segment)
+    {
+        if (segment.FontSize is not > 0)
+        {
+            return DefaultFontSize;
+        }
+
+        // Розмір з конструктора в preview-пікселях → PDF points.
+        var scaled = (float)segment.FontSize.Value / (float)ConstructorPreviewScale;
+        return MathF.Max(MinFontSize, scaled);
     }
 
     private static PdfTrueTypeFont GetUnicodeFont(float fontSize)
@@ -144,7 +200,6 @@ public sealed class ReferralPdfOverlayRenderer
             _ => PdfTextAlignment.Left
         };
 
-        // За замовчуванням Top: bounds уже зміщені через TextOffset + baseline (PdfOverlayTextLayout).
         var vertical = segment.VerticalAlignment ?? "Top";
         format.LineAlignment = vertical switch
         {
