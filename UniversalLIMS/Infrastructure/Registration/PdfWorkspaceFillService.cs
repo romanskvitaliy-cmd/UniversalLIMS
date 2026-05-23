@@ -296,6 +296,14 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
             overlays.Count,
             overlaySegments.Count);
 
+        if (overlaySegments.Count == 0)
+        {
+            _logger.LogWarning(
+                "PdfWorkspaceFill calibration preview produced zero segments for version={VersionId} despite {InputCount} client overlays",
+                templateVersionId,
+                overlays.Count);
+        }
+
         await using var originalPdfStream = await _templateDocumentStorage.OpenReadAsync(
             version.StorageKey,
             cancellationToken);
@@ -322,50 +330,140 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
             return [];
         }
 
-        var hasGeometry = clientOverlays.Any(item => item.Width > 0 && item.Height > 0);
+        var segments = new List<ReferralOverlaySegment>();
+        var needsDatabaseLayout = clientOverlays.Any(item => item.Width <= 0 || item.Height <= 0);
+        Dictionary<Guid, List<CalibrationLayoutRow>>? layoutByFieldId = null;
+        Dictionary<string, List<CalibrationLayoutRow>>? layoutByTag = null;
 
-        if (hasGeometry)
+        if (needsDatabaseLayout)
         {
-            return clientOverlays
-                .Select(item => new ReferralOverlaySegment
-                {
-                    Text = item.Text.Trim(),
-                    PageNumber = item.PageNumber < 1 ? 1 : item.PageNumber,
-                    PositionX = item.PositionX,
-                    PositionY = item.PositionY,
-                    Width = item.Width > 0 ? item.Width : 120,
-                    Height = item.Height > 0 ? item.Height : 24,
-                    TextAlignment = ParseTextAlignment(item.HorizontalAlignment),
-                    HorizontalAlignment = item.HorizontalAlignment ?? "Left",
-                    VerticalAlignment = item.VerticalAlignment ?? "Top",
-                    FontName = item.FontName,
-                    FontSize = item.FontSize,
-                    TextOffsetX = item.TextOffsetX,
-                    TextOffsetY = item.TextOffsetY
-                })
-                .ToList();
+            var layoutRows = await LoadCalibrationLayoutRowsAsync(templateVersionId, cancellationToken);
+            layoutByFieldId = layoutRows
+                .GroupBy(row => row.FieldId)
+                .ToDictionary(group => group.Key, group => group.OrderBy(row => row.Sequence).ToList());
+            layoutByTag = layoutRows
+                .Where(row => !string.IsNullOrWhiteSpace(row.Tag))
+                .GroupBy(row => row.Tag!, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.OrderBy(row => row.Sequence).ToList(), StringComparer.OrdinalIgnoreCase);
         }
 
-        return await BuildCalibrationOverlaySegmentsFromDatabaseAsync(
-            templateVersionId,
-            clientOverlays,
-            cancellationToken);
+        foreach (var item in clientOverlays)
+        {
+            if (item.Width > 0 && item.Height > 0)
+            {
+                segments.Add(MapCalibrationClientOverlay(item));
+                continue;
+            }
+
+            if (TryMapCalibrationOverlayFromDatabase(item, layoutByFieldId, layoutByTag, segments))
+            {
+                continue;
+            }
+
+            segments.Add(MapCalibrationClientOverlay(item, useDefaultGeometry: true));
+        }
+
+        return segments;
     }
 
-    private async Task<List<ReferralOverlaySegment>> BuildCalibrationOverlaySegmentsFromDatabaseAsync(
-        Guid templateVersionId,
-        IReadOnlyList<CalibrationPreviewOverlayDto> clientOverlays,
-        CancellationToken cancellationToken)
+    private static ReferralOverlaySegment MapCalibrationClientOverlay(
+        CalibrationPreviewOverlayDto item,
+        bool useDefaultGeometry = false) =>
+        new()
+        {
+            Text = item.Text.Trim(),
+            PageNumber = item.PageNumber < 1 ? 1 : item.PageNumber,
+            PositionX = useDefaultGeometry && item.PositionX <= 0 ? 24 : item.PositionX,
+            PositionY = useDefaultGeometry && item.PositionY <= 0 ? 24 : item.PositionY,
+            Width = item.Width > 0 ? item.Width : 220,
+            Height = item.Height > 0 ? item.Height : 28,
+            TextAlignment = ParseTextAlignment(item.HorizontalAlignment),
+            HorizontalAlignment = item.HorizontalAlignment ?? "Left",
+            VerticalAlignment = item.VerticalAlignment ?? "Top",
+            FontName = item.FontName,
+            FontSize = item.FontSize,
+            TextOffsetX = item.TextOffsetX,
+            TextOffsetY = item.TextOffsetY
+        };
+
+    private static bool TryMapCalibrationOverlayFromDatabase(
+        CalibrationPreviewOverlayDto item,
+        Dictionary<Guid, List<CalibrationLayoutRow>>? layoutByFieldId,
+        Dictionary<string, List<CalibrationLayoutRow>>? layoutByTag,
+        List<ReferralOverlaySegment> segments)
     {
-        var layoutRows = await (
+        if (layoutByFieldId is null && layoutByTag is null)
+        {
+            return false;
+        }
+
+        List<CalibrationLayoutRow>? layoutRows = null;
+        if (item.FieldId is { } fieldId && fieldId != Guid.Empty &&
+            layoutByFieldId?.TryGetValue(fieldId, out var byId) == true)
+        {
+            layoutRows = byId;
+        }
+        else if (!string.IsNullOrWhiteSpace(item.Tag) &&
+                 layoutByTag?.TryGetValue(item.Tag.Trim(), out var byTag) == true)
+        {
+            layoutRows = byTag;
+        }
+
+        if (layoutRows is null || layoutRows.Count == 0)
+        {
+            return false;
+        }
+
+        var sampleText = item.Text.Trim();
+        var lines = SplitStoredLines(sampleText);
+        var first = layoutRows[0];
+
+        for (var index = 0; index < layoutRows.Count; index++)
+        {
+            var row = layoutRows[index];
+            var text = layoutRows.Count == 1
+                ? sampleText
+                : index < lines.Count
+                    ? lines[index]
+                    : null;
+
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                continue;
+            }
+
+            segments.Add(new ReferralOverlaySegment
+            {
+                Text = text,
+                PageNumber = row.PageNumber,
+                PositionX = row.PositionX,
+                PositionY = row.PositionY,
+                Width = row.Width,
+                Height = row.Height,
+                TextAlignment = row.TextAlignment,
+                HorizontalAlignment = row.HorizontalAlignment ?? row.TextAlignment.ToString(),
+                VerticalAlignment = row.VerticalAlignment,
+                FontName = row.FontName ?? item.FontName,
+                FontSize = row.FontSize ?? item.FontSize,
+                TextOffsetX = first.TextOffsetX,
+                TextOffsetY = first.TextOffsetY
+            });
+        }
+
+        return true;
+    }
+
+    private async Task<List<CalibrationLayoutRow>> LoadCalibrationLayoutRowsAsync(
+        Guid templateVersionId,
+        CancellationToken cancellationToken) =>
+        await (
                 from segment in _context.TemplateFieldSegments.AsNoTracking()
                 join field in _context.TemplateFields.AsNoTracking() on segment.TemplateFieldId equals field.Id
                 where field.TemplateVersionId == templateVersionId
                       && !field.IsAnnulled
                       && !segment.IsAnnulled
                 orderby field.SortOrder, segment.Sequence
-                select new
-                {
+                select new CalibrationLayoutRow(
                     field.Id,
                     field.Tag,
                     field.TextOffsetX,
@@ -380,91 +478,25 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
                     segment.HorizontalAlignment,
                     segment.VerticalAlignment,
                     segment.FontName,
-                    segment.FontSize
-                })
+                    segment.FontSize))
             .ToListAsync(cancellationToken);
 
-        var textByFieldId = clientOverlays
-            .Where(item => item.FieldId.HasValue && item.FieldId.Value != Guid.Empty)
-            .GroupBy(item => item.FieldId!.Value)
-            .ToDictionary(
-                group => group.Key,
-                group => string.Join(
-                    "\n",
-                    group.Select(item => item.Text.Trim()).Where(text => !string.IsNullOrWhiteSpace(text))));
-
-        var textByTag = clientOverlays
-            .Where(item => !string.IsNullOrWhiteSpace(item.Tag))
-            .GroupBy(item => item.Tag!.Trim(), StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(
-                group => group.Key,
-                group => string.Join(
-                    "\n",
-                    group.Select(item => item.Text.Trim()).Where(text => !string.IsNullOrWhiteSpace(text))),
-                StringComparer.OrdinalIgnoreCase);
-
-        var overlaySegments = new List<ReferralOverlaySegment>();
-
-        foreach (var fieldGroup in layoutRows.GroupBy(row => row.Id))
-        {
-            string? sampleText = null;
-            if (textByFieldId.TryGetValue(fieldGroup.Key, out var byId))
-            {
-                sampleText = byId;
-            }
-            else
-            {
-                var tag = fieldGroup.First().Tag;
-                if (!string.IsNullOrWhiteSpace(tag) && textByTag.TryGetValue(tag, out var byTag))
-                {
-                    sampleText = byTag;
-                }
-            }
-
-            if (string.IsNullOrWhiteSpace(sampleText))
-            {
-                continue;
-            }
-
-            var orderedSegments = fieldGroup.OrderBy(row => row.Sequence).ToList();
-            var lines = SplitStoredLines(sampleText);
-            var first = orderedSegments[0];
-
-            for (var index = 0; index < orderedSegments.Count; index++)
-            {
-                var row = orderedSegments[index];
-                var text = orderedSegments.Count == 1
-                    ? sampleText.Trim()
-                    : index < lines.Count
-                        ? lines[index]
-                        : null;
-
-                if (string.IsNullOrWhiteSpace(text))
-                {
-                    continue;
-                }
-
-                overlaySegments.Add(new ReferralOverlaySegment
-                {
-                    Text = text,
-                    PageNumber = row.PageNumber,
-                    PositionX = row.PositionX,
-                    PositionY = row.PositionY,
-                    Width = row.Width,
-                    Height = row.Height,
-                    TextAlignment = row.TextAlignment,
-                    HorizontalAlignment = row.HorizontalAlignment ?? row.TextAlignment.ToString(),
-                    VerticalAlignment = row.VerticalAlignment,
-                    FontName = row.FontName,
-                    FontSize = row.FontSize,
-                    TextOffsetX = first.TextOffsetX,
-                    TextOffsetY = first.TextOffsetY
-                });
-            }
-        }
-
-        return overlaySegments;
-    }
+    private sealed record CalibrationLayoutRow(
+        Guid FieldId,
+        string? Tag,
+        decimal TextOffsetX,
+        decimal TextOffsetY,
+        int PageNumber,
+        decimal PositionX,
+        decimal PositionY,
+        decimal Width,
+        decimal Height,
+        int Sequence,
+        TextAlignment TextAlignment,
+        string? HorizontalAlignment,
+        string? VerticalAlignment,
+        string? FontName,
+        decimal? FontSize);
 
     private static TextAlignment ParseTextAlignment(string? value) =>
         value?.Trim().ToLowerInvariant() switch

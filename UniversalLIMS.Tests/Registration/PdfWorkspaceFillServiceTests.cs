@@ -339,6 +339,142 @@ public sealed class PdfWorkspaceFillServiceTests
     }
 
     [Fact]
+    public async Task GenerateCalibrationPreviewPdfAsync_ClientGeometryWithoutDatabaseSegments_RendersText()
+    {
+        await using var context = CreateContext();
+        var versionId = Guid.NewGuid();
+        var templateId = Guid.NewGuid();
+
+        context.Templates.Add(new Template
+        {
+            Id = templateId,
+            Code = "PDF-CAL-WYSIWYG",
+            NameUk = "Calibration WYSIWYG",
+            Status = TemplateStatus.Draft
+        });
+
+        context.TemplateVersions.Add(new TemplateVersion
+        {
+            Id = versionId,
+            TemplateId = templateId,
+            VersionNumber = 33,
+            Status = TemplateVersionStatus.Draft,
+            DocumentFormat = TemplateDocumentFormat.Pdf,
+            OriginalFileName = "template.pdf",
+            StorageKey = "templates/template.pdf",
+            ContentType = "application/pdf",
+            FileSizeBytes = 1,
+            Sha256Hash = new string('w', 64),
+            UploadedAtUtc = DateTime.UtcNow
+        });
+
+        await context.SaveChangesAsync();
+
+        var service = new PdfWorkspaceFillService(
+            context,
+            new FakeTemplateDocumentStorage(CreateBlankPdf()),
+            new OrderFieldValueService(context),
+            NullLogger<PdfWorkspaceFillService>.Instance);
+
+        var overlays = new List<CalibrationPreviewOverlayDto>
+        {
+            new()
+            {
+                Text = "живий текст з екрана",
+                PageNumber = 1,
+                PositionX = 80,
+                PositionY = 120,
+                Width = 200,
+                Height = 28,
+                FontSize = 10
+            }
+        };
+
+        var pdf = await service.GenerateCalibrationPreviewPdfAsync(versionId, overlays);
+        Assert.NotEmpty(pdf);
+        Assert.True(pdf.Length > CreateBlankPdf().Length);
+    }
+
+    [Fact]
+    public async Task GenerateCalibrationPreviewPdfAsync_FallbackToDatabaseLayout_WhenGeometryMissing()
+    {
+        await using var context = CreateContext();
+        var versionId = Guid.NewGuid();
+        var templateId = Guid.NewGuid();
+        var fieldId = Guid.NewGuid();
+
+        context.Templates.Add(new Template
+        {
+            Id = templateId,
+            Code = "PDF-CAL-DB",
+            NameUk = "Calibration DB fallback",
+            Status = TemplateStatus.Draft
+        });
+
+        context.TemplateVersions.Add(new TemplateVersion
+        {
+            Id = versionId,
+            TemplateId = templateId,
+            VersionNumber = 34,
+            Status = TemplateVersionStatus.Draft,
+            DocumentFormat = TemplateDocumentFormat.Pdf,
+            OriginalFileName = "template.pdf",
+            StorageKey = "templates/template.pdf",
+            ContentType = "application/pdf",
+            FileSizeBytes = 1,
+            Sha256Hash = new string('d', 64),
+            UploadedAtUtc = DateTime.UtcNow,
+            Fields =
+            [
+                new TemplateField
+                {
+                    Id = fieldId,
+                    TemplateVersionId = versionId,
+                    Tag = "PatientName",
+                    Title = "Пацієнт",
+                    SortOrder = 1,
+                    Segments =
+                    [
+                        new TemplateFieldSegment
+                        {
+                            Id = Guid.NewGuid(),
+                            Sequence = 1,
+                            PageNumber = 1,
+                            PositionX = 60,
+                            PositionY = 90,
+                            Width = 240,
+                            Height = 24,
+                            IsPrimary = true,
+                            FontSize = 10
+                        }
+                    ]
+                }
+            ]
+        });
+
+        await context.SaveChangesAsync();
+
+        var service = new PdfWorkspaceFillService(
+            context,
+            new FakeTemplateDocumentStorage(CreateBlankPdf()),
+            new OrderFieldValueService(context),
+            NullLogger<PdfWorkspaceFillService>.Instance);
+
+        var overlays = new List<CalibrationPreviewOverlayDto>
+        {
+            new()
+            {
+                FieldId = fieldId,
+                Text = "Іваненко"
+            }
+        };
+
+        var pdf = await service.GenerateCalibrationPreviewPdfAsync(versionId, overlays);
+        Assert.NotEmpty(pdf);
+        Assert.True(pdf.Length > CreateBlankPdf().Length);
+    }
+
+    [Fact]
     public async Task SaveValuesAsync_ThenGenerateFilledPdf_RendersAllWorkspaceFields()
     {
         await using var context = CreateContext();

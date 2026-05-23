@@ -7345,23 +7345,45 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         return fields;
                     }
 
+                    getCalibrationPreviewLayout(index, field) {
+                        const coordScale = this.getCoordinateScale();
+                        const box = this.boxesByIndex.get(index);
+                        const page = Number.parseInt(
+                            box?.dataset.page || String(field?.page ?? 1),
+                            10);
+
+                        if (box) {
+                            const preview = this.getFieldInPreviewSpace(box, page);
+                            return {
+                                page: preview.page,
+                                x: preview.x,
+                                y: preview.y,
+                                width: preview.width,
+                                height: preview.height
+                            };
+                        }
+
+                        return {
+                            page: this.clampInt(page, 1, this.pdf?.numPages ?? 1, 1),
+                            x: Math.max(0, Math.round((field?.x ?? 0) / coordScale)),
+                            y: Math.max(0, Math.round((field?.y ?? 0) / coordScale)),
+                            width: Math.max(20, Math.round((field?.width ?? 220) / coordScale)),
+                            height: Math.max(14, Math.round((field?.height ?? 28) / coordScale))
+                        };
+                    }
+
                     collectCalibrationPreviewOverlays() {
+                        this.applyCalibrationPanelToActiveField();
                         this.syncAllCalibrationTextFromDom();
                         const overlays = [];
 
-                        this.boxesByIndex.forEach((box, index) => {
-                            const field = this.fieldByIndex.get(index);
-                            if (!field || !box) {
-                                return;
-                            }
-
+                        this.fieldByIndex.forEach((field, index) => {
                             const text = this.readCalibrationTextForIndex(index);
                             if (!text) {
                                 return;
                             }
 
-                            const page = Number.parseInt(box.dataset.page || "1", 10);
-                            const preview = this.getFieldInPreviewSpace(box, page);
+                            const layout = this.getCalibrationPreviewLayout(index, field);
                             const fieldIdRaw = String(field.fieldId ?? "").trim();
                             const fieldId = /^[0-9a-f-]{36}$/i.test(fieldIdRaw) ? fieldIdRaw : null;
 
@@ -7369,11 +7391,11 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                                 fieldId,
                                 tag: field.tag || null,
                                 text,
-                                page: preview.page,
-                                x: preview.x,
-                                y: preview.y,
-                                width: preview.width,
-                                height: preview.height,
+                                page: layout.page,
+                                x: layout.x,
+                                y: layout.y,
+                                width: layout.width,
+                                height: layout.height,
                                 textOffsetX: this.parsePixel(field.textOffsetX ?? 0),
                                 textOffsetY: this.parsePixel(field.textOffsetY ?? 0),
                                 fontSize: field.fontSize ?? null,
@@ -7384,6 +7406,15 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         });
 
                         return overlays;
+                    }
+
+                    collectCalibrationPreviewSamples(overlays) {
+                        return overlays
+                            .filter((item) => item.fieldId && item.text)
+                            .map((item) => ({
+                                fieldId: item.fieldId,
+                                text: item.text
+                            }));
                     }
 
                     async persistCalibrationOffsetsToApi(options = {}) {
@@ -7432,23 +7463,16 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             return;
                         }
 
-                        this.applyCalibrationPanelToActiveField();
-                        this.syncAllCalibrationTextFromDom();
-
                         const overlays = this.collectCalibrationPreviewOverlays();
                         if (overlays.length === 0) {
                             showOverlayToast("Введіть текст хоча в одному полі (клік на PDF).", true);
                             return;
                         }
 
-                        const persisted = await this.persistCalibrationToApi({ silent: true });
-                        if (!persisted) {
-                            console.warn(
-                                "[Calibration] Preview PDF: offset/стиль не збережено в БД — preview з поточного екрана.");
-                        }
+                        const samples = this.collectCalibrationPreviewSamples(overlays);
 
                         console.info(
-                            "[Calibration] Preview PDF:",
+                            "[Calibration] Preview PDF (WYSIWYG):",
                             overlays.length,
                             "сегментів із текстом",
                             overlays);
@@ -7468,7 +7492,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                                     "Accept": "application/pdf",
                                     "RequestVerificationToken": this.getAntiForgeryToken()
                                 },
-                                body: JSON.stringify({ overlays })
+                                body: JSON.stringify({ overlays, samples })
                             });
                             if (!response.ok) {
                                 const message = await parseServerErrorMessageFromResponse(

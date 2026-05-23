@@ -462,6 +462,11 @@ public sealed class TemplateFieldsController : Controller
                     .ToList();
             }
 
+            if (overlays.Count == 0)
+            {
+                return BadRequest(new { message = "Немає полів з текстом для preview." });
+            }
+
             var pdfBytes = await _pdfWorkspaceFillService.GenerateCalibrationPreviewPdfAsync(
                 templateVersionId,
                 overlays,
