@@ -435,34 +435,20 @@ public sealed class TemplateFieldsController : Controller
             return BadRequest(new { message = "No fields for preview" });
         }
 
-        foreach (var field in request.Fields)
-        {
-            field.NormalizeDrawableText();
-        }
-
-        var fieldsWithText = request.Fields
-            .Where(field => !string.IsNullOrWhiteSpace(field.ResolveDrawableText()))
-            .ToList();
-        if (fieldsWithText.Count == 0)
-        {
-            return BadRequest(new { message = "No fields for preview" });
-        }
-
-        var fieldLog = string.Join(
+        var firstThree = string.Join(
             "; ",
-            fieldsWithText.Select(field =>
+            request.Fields.Take(3).Select(field =>
             {
-                var drawable = field.ResolveDrawableText();
-                var preview = drawable.Length <= 30 ? drawable : $"{drawable[..30]}…";
+                var preview = field.Text.Length <= 40 ? field.Text : $"{field.Text[..40]}…";
                 return $"{field.TemplateFieldId?.ToString("D") ?? "no-id"}:'{preview}'";
             }));
 
         _logger.LogInformation(
-            "POST preview-calibration: version={VersionId}, fields={FieldCount}, withText={TextFieldCount}, uiValues=[{FieldLog}]",
-            templateVersionId,
+            "Preview received {FieldCount} fields. First 3: {FirstThree}",
             request.Fields.Count,
-            fieldsWithText.Count,
-            fieldLog);
+            firstThree);
+
+        var fieldsWithText = request.Fields.Count(field => !string.IsNullOrWhiteSpace(field.Text));
 
         try
         {
@@ -475,7 +461,8 @@ public sealed class TemplateFieldsController : Controller
                 request,
                 cancellationToken);
 
-            Response.Headers["X-Calibration-Fields-Sent"] = fieldsWithText.Count.ToString();
+            Response.Headers["X-Calibration-Fields-Sent"] = request.Fields.Count.ToString();
+            Response.Headers["X-Calibration-Fields-With-Text"] = fieldsWithText.ToString();
             Response.Headers["X-Calibration-Segments-Drawn"] = previewResult.SegmentsDrawn.ToString();
             Response.Headers["X-Calibration-Segments-Skipped-Empty"] = previewResult.SegmentsSkippedEmpty.ToString();
             Response.Headers["X-Calibration-Segments-Skipped-Page"] = previewResult.SegmentsSkippedPage.ToString();

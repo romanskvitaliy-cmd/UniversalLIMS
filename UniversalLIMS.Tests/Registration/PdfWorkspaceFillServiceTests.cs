@@ -324,7 +324,7 @@ public sealed class PdfWorkspaceFillServiceTests
         {
             TemplateVersionId = versionId,
             IsCalibrationPreview = true,
-            Fields = fieldIds.Select((id, index) => new PreviewCalibrationFieldRequest
+            Fields = fieldIds.Select((id, index) => new PreviewFieldDto
             {
                 TemplateFieldId = id,
                 Text = $"текст-{index + 1}",
@@ -388,7 +388,7 @@ public sealed class PdfWorkspaceFillServiceTests
             IsCalibrationPreview = true,
             Fields =
             [
-                new PreviewCalibrationFieldRequest
+                new PreviewFieldDto
                 {
                     Text = "живий текст з екрана",
                     Page = 1,
@@ -408,7 +408,7 @@ public sealed class PdfWorkspaceFillServiceTests
     }
 
     [Fact]
-    public async Task GenerateCalibrationPreviewAsync_WithoutText_Throws()
+    public async Task GenerateCalibrationPreviewAsync_WithoutText_StillReturnsPdf()
     {
         await using var context = CreateContext();
         var versionId = Guid.NewGuid();
@@ -445,13 +445,26 @@ public sealed class PdfWorkspaceFillServiceTests
             new OrderFieldValueService(context),
             NullLogger<PdfWorkspaceFillService>.Instance);
 
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            service.GenerateCalibrationPreviewAsync(new PreviewCalibrationRequest
-            {
-                TemplateVersionId = versionId,
-                Fields = [new PreviewCalibrationFieldRequest { Text = "   " }]
-            }));
-        Assert.Equal("No fields for preview", exception.Message);
+        var preview = await service.GenerateCalibrationPreviewAsync(new PreviewCalibrationRequest
+        {
+            TemplateVersionId = versionId,
+            Fields =
+            [
+                new PreviewFieldDto
+                {
+                    Text = "   ",
+                    Page = 1,
+                    X = 80,
+                    Y = 120,
+                    Width = 200,
+                    Height = 28
+                }
+            ]
+        });
+
+        Assert.NotEmpty(preview.PdfBytes);
+        Assert.Equal(1, preview.SegmentsDrawn);
+        Assert.Equal(0, preview.SegmentsSkippedEmpty);
     }
 
     [Fact]
@@ -497,9 +510,9 @@ public sealed class PdfWorkspaceFillServiceTests
             TemplateVersionId = versionId,
             Fields =
             [
-                new PreviewCalibrationFieldRequest
+                new PreviewFieldDto
                 {
-                    TextToDraw = "11",
+                    Text = "11",
                     Page = 1,
                     X = 80,
                     Y = 120,
@@ -512,6 +525,67 @@ public sealed class PdfWorkspaceFillServiceTests
 
         Assert.Equal(1, preview.SegmentsDrawn);
         Assert.Equal(0, preview.SegmentsSkippedEmpty);
+        Assert.True(preview.PdfBytes.Length > CreateBlankPdf().Length);
+    }
+
+    [Fact]
+    public async Task GenerateCalibrationPreviewAsync_ValuePropertyFromOverlay_RendersOnPdf()
+    {
+        await using var context = CreateContext();
+        var versionId = Guid.NewGuid();
+        var templateId = Guid.NewGuid();
+
+        context.Templates.Add(new Template
+        {
+            Id = templateId,
+            Code = "PDF-CAL-VALUE",
+            NameUk = "Calibration value",
+            Status = TemplateStatus.Draft
+        });
+
+        context.TemplateVersions.Add(new TemplateVersion
+        {
+            Id = versionId,
+            TemplateId = templateId,
+            VersionNumber = 37,
+            Status = TemplateVersionStatus.Draft,
+            DocumentFormat = TemplateDocumentFormat.Pdf,
+            OriginalFileName = "template.pdf",
+            StorageKey = "templates/template.pdf",
+            ContentType = "application/pdf",
+            FileSizeBytes = 1,
+            Sha256Hash = new string('v', 64),
+            UploadedAtUtc = DateTime.UtcNow
+        });
+
+        await context.SaveChangesAsync();
+
+        var service = new PdfWorkspaceFillService(
+            context,
+            new FakeTemplateDocumentStorage(CreateBlankPdf()),
+            new OrderFieldValueService(context),
+            NullLogger<PdfWorkspaceFillService>.Instance);
+
+        var preview = await service.GenerateCalibrationPreviewAsync(new PreviewCalibrationRequest
+        {
+            TemplateVersionId = versionId,
+            IsCalibrationPreview = true,
+            Fields =
+            [
+                new PreviewFieldDto
+                {
+                    Text = "текст з overlay input",
+                    Page = 1,
+                    X = 90,
+                    Y = 140,
+                    Width = 220,
+                    Height = 28,
+                    FontSize = 12
+                }
+            ]
+        });
+
+        Assert.Equal(1, preview.SegmentsDrawn);
         Assert.True(preview.PdfBytes.Length > CreateBlankPdf().Length);
     }
 
@@ -585,7 +659,7 @@ public sealed class PdfWorkspaceFillServiceTests
             TemplateVersionId = versionId,
             Fields =
             [
-                new PreviewCalibrationFieldRequest
+                new PreviewFieldDto
                 {
                     TemplateFieldId = fieldId,
                     Text = "текст з UI",

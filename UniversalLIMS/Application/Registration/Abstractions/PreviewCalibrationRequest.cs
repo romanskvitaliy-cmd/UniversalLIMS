@@ -12,7 +12,7 @@ public sealed class PreviewCalibrationRequest
     public bool IsCalibrationPreview { get; set; } = true;
 
     [JsonPropertyName("fields")]
-    public List<PreviewCalibrationFieldRequest> Fields { get; set; } = [];
+    public List<PreviewFieldDto> Fields { get; set; } = [];
 }
 
 public sealed class PreviewCalibrationFieldRequest
@@ -23,9 +23,16 @@ public sealed class PreviewCalibrationFieldRequest
     [JsonPropertyName("text")]
     public string Text { get; set; } = string.Empty;
 
+    /// <summary>Значення з overlay input/textarea у режимі калібрування (основне ім'я з UI).</summary>
+    [JsonPropertyName("value")]
+    public string? Value { get; set; }
+
     /// <summary>Альтернативне ім'я з клієнта (деякі збірки payload використовують textToDraw).</summary>
     [JsonPropertyName("textToDraw")]
     public string? TextToDraw { get; set; }
+
+    [JsonPropertyName("segmentSequence")]
+    public int SegmentSequence { get; set; }
 
     [JsonPropertyName("offsetX")]
     public decimal OffsetX { get; set; }
@@ -60,21 +67,25 @@ public sealed class PreviewCalibrationFieldRequest
     [JsonPropertyName("verticalAlignment")]
     public string? VerticalAlignment { get; set; }
 
-    /// <summary>Текст для малювання: <see cref="Text"/> або <see cref="TextToDraw"/>.</summary>
+    /// <summary>Текст для малювання: лише з UI (value / text / textToDraw), не з БД.</summary>
     public string ResolveDrawableText()
     {
-        if (!string.IsNullOrWhiteSpace(Text))
+        foreach (var candidate in new[] { Value, Text, TextToDraw })
         {
-            return Text.Trim();
+            if (!string.IsNullOrWhiteSpace(candidate))
+            {
+                return candidate.Trim();
+            }
         }
 
-        return string.IsNullOrWhiteSpace(TextToDraw) ? string.Empty : TextToDraw.Trim();
+        return string.Empty;
     }
 
     public void NormalizeDrawableText()
     {
         var resolved = ResolveDrawableText();
         Text = resolved;
+        Value = resolved;
         if (!string.IsNullOrEmpty(resolved))
         {
             TextToDraw = resolved;

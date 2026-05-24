@@ -29,7 +29,9 @@ public sealed class ReferralPdfOverlayRenderer
     public PdfOverlayRenderStats RenderWithStats(
         Stream originalPdfStream,
         IReadOnlyList<ReferralOverlaySegment> segments,
-        IReadOnlyDictionary<Guid, string?> valuesByDataFieldId)
+        IReadOnlyDictionary<Guid, string?> valuesByDataFieldId,
+        bool skipEmptyText = true,
+        IReadOnlyDictionary<(Guid TemplateFieldId, int SegmentSequence), string>? textByUiField = null)
     {
         ArgumentNullException.ThrowIfNull(originalPdfStream);
 
@@ -42,8 +44,8 @@ public sealed class ReferralPdfOverlayRenderer
 
         foreach (var overlaySegment in segments)
         {
-            var value = ResolveOverlayText(overlaySegment, valuesByDataFieldId);
-            if (string.IsNullOrWhiteSpace(value))
+            var value = ResolveOverlayText(overlaySegment, valuesByDataFieldId, textByUiField) ?? string.Empty;
+            if (skipEmptyText && string.IsNullOrWhiteSpace(value))
             {
                 skippedEmpty++;
                 continue;
@@ -89,11 +91,26 @@ public sealed class ReferralPdfOverlayRenderer
 
     private static string? ResolveOverlayText(
         ReferralOverlaySegment segment,
-        IReadOnlyDictionary<Guid, string?> valuesByDataFieldId)
+        IReadOnlyDictionary<Guid, string?> valuesByDataFieldId,
+        IReadOnlyDictionary<(Guid TemplateFieldId, int SegmentSequence), string>? textByUiField = null)
     {
-        if (!string.IsNullOrWhiteSpace(segment.Text))
+        if (segment.TemplateFieldId is Guid templateFieldId && textByUiField is not null)
         {
-            return segment.Text.Trim();
+            var sequence = segment.SegmentSequence > 0 ? segment.SegmentSequence : 1;
+            if (textByUiField.TryGetValue((templateFieldId, sequence), out var uiText))
+            {
+                return uiText;
+            }
+
+            if (sequence != 1 && textByUiField.TryGetValue((templateFieldId, 1), out uiText))
+            {
+                return uiText;
+            }
+        }
+
+        if (segment.Text is not null)
+        {
+            return segment.Text;
         }
 
         if (segment.DataFieldId is null ||
@@ -222,6 +239,10 @@ public sealed record PdfOverlayRenderStats(
 public sealed class ReferralOverlaySegment
 {
     public Guid? DataFieldId { get; init; }
+
+    public Guid? TemplateFieldId { get; init; }
+
+    public int SegmentSequence { get; init; }
 
     public string? StorageKey { get; init; }
 
