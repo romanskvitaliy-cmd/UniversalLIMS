@@ -84,6 +84,9 @@ namespace UniversalLIMS
             builder.Services.AddScoped<ICustomerService, CustomerService>();
             builder.Services.AddScoped<IOrderRegistrationService, OrderRegistrationService>();
             builder.Services.AddScoped<ILaboratoryJournalService, LaboratoryJournalService>();
+            builder.Services.AddScoped<IResultFieldPermissionService, ResultFieldPermissionService>();
+            builder.Services.AddScoped<IResultEntryService, ResultEntryService>();
+            builder.Services.AddScoped<ISampleWorkflowService, SampleWorkflowService>();
             builder.Services.AddScoped<IOrderFieldValueService, OrderFieldValueService>();
             builder.Services.AddScoped<INumberingService, NumberingService>();
             builder.Services.AddScoped<IReferralPdfGenerator, ReferralPdfGenerator>();

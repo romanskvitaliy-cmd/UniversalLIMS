@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using UniversalLIMS.Domain.Laboratory;
 using UniversalLIMS.Domain.Templates;
 
 namespace UniversalLIMS.Infrastructure.Persistence.Seed;
@@ -7,6 +8,8 @@ public static class LaboratoryDataSeeder
 {
     public static async Task SeedAsync(ApplicationDbContext context, CancellationToken cancellationToken = default)
     {
+        await SeedEquipmentAsync(context, cancellationToken);
+
         var existingKeys = await context.DataFields
             .IgnoreQueryFilters()
             .Select(dataField => dataField.Key)
@@ -83,6 +86,29 @@ public static class LaboratoryDataSeeder
         }
 
         context.DataFields.AddRange(toAdd);
+        await context.SaveChangesAsync(cancellationToken);
+    }
+
+    private static async Task SeedEquipmentAsync(
+        ApplicationDbContext context,
+        CancellationToken cancellationToken)
+    {
+        var hasActive = await context.Equipment
+            .IgnoreQueryFilters()
+            .AnyAsync(equipment => equipment.IsActive && !equipment.IsAnnulled, cancellationToken);
+
+        if (hasActive)
+        {
+            return;
+        }
+
+        context.Equipment.Add(new Equipment
+        {
+            Code = "LAB-GEN-01",
+            NameUk = "Універсальне лабораторне обладнання",
+            IsActive = true
+        });
+
         await context.SaveChangesAsync(cancellationToken);
     }
 

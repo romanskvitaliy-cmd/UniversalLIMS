@@ -1,0 +1,132 @@
+@model LaboratoryResultsViewModel
+@using UniversalLIMS.Application.Laboratory
+
+@{
+    Layout = "_LayoutWorkspace";
+    ViewData["Title"] = $"Результати — {Model.Form.SampleNumber}";
+}
+
+<div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+    <div>
+        <h1 class="h3 mb-1">Внесення результатів</h1>
+        <p class="text-muted mb-0">
+            Проба <strong>@Model.Form.SampleNumber</strong> · @Model.Form.InvestigationTypeName ·
+            <span class="badge text-bg-light border">@SampleStatusDisplay.ToUk(Model.Form.Status)</span>
+        </p>
+        <p class="small text-muted mb-0">
+            Замовник: @Model.Form.CustomerFullName
+            @if (!string.IsNullOrWhiteSpace(Model.Form.ReferralNumber))
+            {
+                <span>· Направлення @Model.Form.ReferralNumber</span>
+            }
+        </p>
+    </div>
+    <a class="btn btn-outline-secondary btn-sm" asp-action="Index">← Журнал проб</a>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+{
+    <div class="alert alert-@(Model.StatusType ?? "info")">@Model.StatusMessage</div>
+}
+
+<form method="post" asp-action="Results" asp-route-sampleId="@Model.Form.SampleId">
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="Input.MarkResultsComplete" id="markResultsComplete" />
+
+    <div class="card mb-3">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Показник</th>
+                            <th style="min-width: 200px;">Значення</th>
+                            <th style="width: 120px;">Невизначеність</th>
+                            <th style="min-width: 180px;">Обладнання</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (var index = 0; index < Model.Form.Fields.Count; index++)
+                        {
+                            var field = Model.Form.Fields[index];
+                            var input = Model.Input.Values.ElementAtOrDefault(index);
+                            <tr>
+                                <td>
+                                    <div class="fw-semibold">@field.DisplayNameUk</div>
+                                    <div class="small text-muted">@field.Key@(string.IsNullOrWhiteSpace(field.Unit) ? "" : $" · {field.Unit}")</div>
+                                </td>
+                                <td>
+                                    <input type="hidden" name="Input.Values[@index].DataFieldId" value="@field.DataFieldId" />
+                                    @if (field.CanWrite)
+                                    {
+                                        <input class="form-control form-control-sm"
+                                               name="Input.Values[@index].Value"
+                                               value="@(input?.Value ?? field.CurrentValue)"
+                                               autocomplete="off" />
+                                    }
+                                    else
+                                    {
+                                        <input class="form-control form-control-sm"
+                                               value="@field.CurrentValue"
+                                               readonly disabled />
+                                    }
+                                </td>
+                                <td>
+                                    @if (field.CanWrite)
+                                    {
+                                        <input class="form-control form-control-sm"
+                                               type="number"
+                                               step="0.000001"
+                                               name="Input.Values[@index].Uncertainty"
+                                               value="@(input?.Uncertainty ?? field.CurrentUncertainty)" />
+                                    }
+                                    else
+                                    {
+                                        <input class="form-control form-control-sm"
+                                               value="@field.CurrentUncertainty"
+                                               readonly disabled />
+                                    }
+                                </td>
+                                <td>
+                                    @if (field.CanWrite && Model.Form.EquipmentOptions.Any())
+                                    {
+                                        <select class="form-select form-select-sm" name="Input.Values[@index].EquipmentId">
+                                            @foreach (var equipment in Model.Form.EquipmentOptions)
+                                            {
+                                                var selectedId = input?.EquipmentId ?? field.CurrentEquipmentId;
+                                                if (selectedId == equipment.Id)
+                                                {
+                                                    <option value="@equipment.Id" selected="selected">@equipment.Code — @equipment.NameUk</option>
+                                                }
+                                                else
+                                                {
+                                                    <option value="@equipment.Id">@equipment.Code — @equipment.NameUk</option>
+                                                }
+                                            }
+                                        </select>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted small">—</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+        <button type="submit" class="btn btn-primary"
+                onclick="document.getElementById('markResultsComplete').value = 'false';">
+            Зберегти
+        </button>
+        <button type="submit" class="btn btn-success"
+                onclick="document.getElementById('markResultsComplete').value = 'true';">
+            Зберегти й позначити «Результати внесено»
+        </button>
+        <span class="small text-muted">Корекція: старе значення анулюється (ISO), створюється новий запис.</span>
+    </div>
+</form>
