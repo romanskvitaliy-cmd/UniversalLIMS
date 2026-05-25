@@ -1,0 +1,177 @@
+@model OrdersIndexViewModel
+@using UniversalLIMS.Application.Registration
+
+@{
+    Layout = "_LayoutWorkspace";
+    ViewData["Title"] = "Реєстр замовлень";
+}
+
+<div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+    <div>
+        <h1 class="h3 mb-1">Реєстр замовлень</h1>
+        <p class="text-muted mb-0">Список справ реєстратури. ПІБ замовника — з картки клієнта (SSOT).</p>
+    </div>
+    <a class="btn btn-sm btn-primary" asp-action="Create">
+        <i class="bi bi-plus-lg me-1"></i>Нове замовлення
+    </a>
+</div>
+
+@if (TempData["OrderCreateSuccess"] is string successMessage)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @successMessage
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Закрити"></button>
+    </div>
+}
+
+<form method="get" asp-action="Index" class="card mb-3">
+    <div class="card-body">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label small text-muted" for="referralNumber">Номер направлення</label>
+                <input type="text" class="form-control form-control-sm" id="referralNumber" name="referralNumber"
+                       value="@Model.Filter.ReferralNumber" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small text-muted" for="customerFullName">ПІБ замовника</label>
+                <input type="text" class="form-control form-control-sm" id="customerFullName" name="customerFullName"
+                       value="@Model.Filter.CustomerFullName" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small text-muted" for="dateFrom">Дата від</label>
+                <input type="date" class="form-control form-control-sm" id="dateFrom" name="dateFrom"
+                       value="@(Model.Filter.DateFrom?.ToString("yyyy-MM-dd"))" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small text-muted" for="dateTo">Дата до</label>
+                <input type="date" class="form-control form-control-sm" id="dateTo" name="dateTo"
+                       value="@(Model.Filter.DateTo?.ToString("yyyy-MM-dd"))" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small text-muted" for="status">Статус</label>
+                <select class="form-select form-select-sm" id="status" name="status">
+                    <option value="">Усі</option>
+                    @foreach (var option in OrdersIndexViewModel.StatusOptions)
+                    {
+                        if (Model.Filter.Status == option.Value)
+                        {
+                            <option value="@((int)option.Value)" selected="selected">@option.Label</option>
+                        }
+                        else
+                        {
+                            <option value="@((int)option.Value)">@option.Label</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-md-12 col-lg-auto d-flex gap-2">
+                <button type="submit" class="btn btn-sm btn-primary">Застосувати</button>
+                <a class="btn btn-sm btn-outline-secondary" asp-action="Index">Скинути</a>
+            </div>
+        </div>
+    </div>
+</form>
+
+@if (!Model.Result.Items.Any())
+{
+    <div class="alert alert-info mb-0">Замовлень за обраними критеріями не знайдено.</div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle">
+            <thead>
+                <tr>
+                    <th>Направлення</th>
+                    <th>Замовник</th>
+                    <th>Дата</th>
+                    <th>Статус</th>
+                    <th class="text-center">Проб</th>
+                    <th>Філія призначення</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var order in Model.Result.Items)
+                {
+                    <tr>
+                        <td>@(string.IsNullOrWhiteSpace(order.ReferralNumber) ? "—" : order.ReferralNumber)</td>
+                        <td>@order.CustomerFullName</td>
+                        <td class="text-nowrap">@order.OrderDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                        <td><span class="badge text-bg-light border">@OrderStatusDisplay.ToUk(order.Status)</span></td>
+                        <td class="text-center">@order.SampleCount</td>
+                        <td>@order.TargetBranchName</td>
+                        <td class="text-end text-nowrap">
+                            @if (order.PrimaryTemplateVersionId.HasValue)
+                            {
+                                <a class="btn btn-sm btn-outline-primary"
+                                   asp-controller="PdfWorkspace"
+                                   asp-action="Fill"
+                                   asp-route-templateVersionId="@order.PrimaryTemplateVersionId"
+                                   asp-route-orderId="@order.OrderId">
+                                    Відкрити PDF
+                                </a>
+                            }
+                            else
+                            {
+                                <span class="text-muted small" title="Немає прив’язаного документа шаблону">PDF —</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @if (Model.Result.TotalPages > 1)
+    {
+        <nav aria-label="Сторінки реєстру" class="mt-3">
+            <ul class="pagination pagination-sm mb-0">
+                @{
+                    var currentPage = Model.Result.Page;
+                    var query = new Dictionary<string, string?>();
+                    if (!string.IsNullOrWhiteSpace(Model.Filter.ReferralNumber))
+                    {
+                        query["referralNumber"] = Model.Filter.ReferralNumber;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(Model.Filter.CustomerFullName))
+                    {
+                        query["customerFullName"] = Model.Filter.CustomerFullName;
+                    }
+
+                    if (Model.Filter.DateFrom.HasValue)
+                    {
+                        query["dateFrom"] = Model.Filter.DateFrom.Value.ToString("yyyy-MM-dd");
+                    }
+
+                    if (Model.Filter.DateTo.HasValue)
+                    {
+                        query["dateTo"] = Model.Filter.DateTo.Value.ToString("yyyy-MM-dd");
+                    }
+
+                    if (Model.Filter.Status.HasValue)
+                    {
+                        query["status"] = ((int)Model.Filter.Status.Value).ToString();
+                    }
+                }
+                @for (var pageNumber = 1; pageNumber <= Model.Result.TotalPages; pageNumber++)
+                {
+                    query["page"] = pageNumber.ToString();
+                    query["pageSize"] = Model.Result.PageSize.ToString();
+                    var isActive = pageNumber == currentPage;
+                    <li class="page-item @(isActive ? "active" : null)">
+                        <a class="page-link"
+                           asp-action="Index"
+                           asp-all-route-data="query">@pageNumber</a>
+                    </li>
+                }
+            </ul>
+        </nav>
+    }
+
+    <p class="text-muted small mt-2 mb-0">
+        Показано @Model.Result.Items.Count з @Model.Result.TotalCount
+        (сторінка @Model.Result.Page з @(Model.Result.TotalPages == 0 ? 1 : Model.Result.TotalPages)).
+    </p>
+}

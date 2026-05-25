@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using Syncfusion.Pdf;
 using Syncfusion.Pdf.Graphics;
@@ -114,7 +116,8 @@ public sealed class PdfWorkspaceFillServiceTests
             new FakeTemplateDocumentStorage(),
             new OrderFieldValueService(context),
             NullLogger<PdfWorkspaceFillService>.Instance,
-            NullLogger<ReferralPdfOverlayRenderer>.Instance);
+            NullLogger<ReferralPdfOverlayRenderer>.Instance,
+            TestHostEnvironment.Development);
 
         var templateField = await context.TemplateFields.SingleAsync(field => field.TemplateVersionId == versionId);
 
@@ -226,7 +229,8 @@ public sealed class PdfWorkspaceFillServiceTests
             new FakeTemplateDocumentStorage(),
             new OrderFieldValueService(context),
             NullLogger<PdfWorkspaceFillService>.Instance,
-            NullLogger<ReferralPdfOverlayRenderer>.Instance);
+            NullLogger<ReferralPdfOverlayRenderer>.Instance,
+            TestHostEnvironment.Development);
 
         var submissions = templateFieldIds
             .Select((id, index) => new PdfWorkspaceFieldValueDto
@@ -321,7 +325,8 @@ public sealed class PdfWorkspaceFillServiceTests
             new FakeTemplateDocumentStorage(CreateBlankPdf()),
             new OrderFieldValueService(context),
             NullLogger<PdfWorkspaceFillService>.Instance,
-            NullLogger<ReferralPdfOverlayRenderer>.Instance);
+            NullLogger<ReferralPdfOverlayRenderer>.Instance,
+            TestHostEnvironment.Development);
 
         var request = new PreviewCalibrationRequest
         {
@@ -384,7 +389,8 @@ public sealed class PdfWorkspaceFillServiceTests
             new FakeTemplateDocumentStorage(CreateBlankPdf()),
             new OrderFieldValueService(context),
             NullLogger<PdfWorkspaceFillService>.Instance,
-            NullLogger<ReferralPdfOverlayRenderer>.Instance);
+            NullLogger<ReferralPdfOverlayRenderer>.Instance,
+            TestHostEnvironment.Development);
 
         var request = new PreviewCalibrationRequest
         {
@@ -448,7 +454,8 @@ public sealed class PdfWorkspaceFillServiceTests
             new FakeTemplateDocumentStorage(CreateBlankPdf()),
             new OrderFieldValueService(context),
             NullLogger<PdfWorkspaceFillService>.Instance,
-            NullLogger<ReferralPdfOverlayRenderer>.Instance);
+            NullLogger<ReferralPdfOverlayRenderer>.Instance,
+            TestHostEnvironment.Development);
 
         var preview = await service.GenerateCalibrationPreviewAsync(new PreviewCalibrationRequest
         {
@@ -509,7 +516,8 @@ public sealed class PdfWorkspaceFillServiceTests
             new FakeTemplateDocumentStorage(CreateBlankPdf()),
             new OrderFieldValueService(context),
             NullLogger<PdfWorkspaceFillService>.Instance,
-            NullLogger<ReferralPdfOverlayRenderer>.Instance);
+            NullLogger<ReferralPdfOverlayRenderer>.Instance,
+            TestHostEnvironment.Development);
 
         var preview = await service.GenerateCalibrationPreviewAsync(new PreviewCalibrationRequest
         {
@@ -572,7 +580,8 @@ public sealed class PdfWorkspaceFillServiceTests
             new FakeTemplateDocumentStorage(CreateBlankPdf()),
             new OrderFieldValueService(context),
             NullLogger<PdfWorkspaceFillService>.Instance,
-            NullLogger<ReferralPdfOverlayRenderer>.Instance);
+            NullLogger<ReferralPdfOverlayRenderer>.Instance,
+            TestHostEnvironment.Development);
 
         var preview = await service.GenerateCalibrationPreviewAsync(new PreviewCalibrationRequest
         {
@@ -661,7 +670,8 @@ public sealed class PdfWorkspaceFillServiceTests
             new FakeTemplateDocumentStorage(CreateBlankPdf()),
             new OrderFieldValueService(context),
             NullLogger<PdfWorkspaceFillService>.Instance,
-            NullLogger<ReferralPdfOverlayRenderer>.Instance);
+            NullLogger<ReferralPdfOverlayRenderer>.Instance,
+            TestHostEnvironment.Development);
 
         var preview = await service.GenerateCalibrationPreviewAsync(new PreviewCalibrationRequest
         {
@@ -749,7 +759,8 @@ public sealed class PdfWorkspaceFillServiceTests
             new FakeTemplateDocumentStorage(CreateBlankPdf()),
             new OrderFieldValueService(context),
             NullLogger<PdfWorkspaceFillService>.Instance,
-            NullLogger<ReferralPdfOverlayRenderer>.Instance);
+            NullLogger<ReferralPdfOverlayRenderer>.Instance,
+            TestHostEnvironment.Development);
 
         var preview = await service.GenerateCalibrationPreviewAsync(new PreviewCalibrationRequest
         {
@@ -848,7 +859,8 @@ public sealed class PdfWorkspaceFillServiceTests
             new FakeTemplateDocumentStorage(CreateBlankPdf()),
             new OrderFieldValueService(context),
             NullLogger<PdfWorkspaceFillService>.Instance,
-            NullLogger<ReferralPdfOverlayRenderer>.Instance);
+            NullLogger<ReferralPdfOverlayRenderer>.Instance,
+            TestHostEnvironment.Development);
 
         var preview = await service.GenerateCalibrationPreviewAsync(new PreviewCalibrationRequest
         {
@@ -959,7 +971,8 @@ public sealed class PdfWorkspaceFillServiceTests
             new FakeTemplateDocumentStorage(CreateBlankPdf()),
             new OrderFieldValueService(context),
             NullLogger<PdfWorkspaceFillService>.Instance,
-            NullLogger<ReferralPdfOverlayRenderer>.Instance);
+            NullLogger<ReferralPdfOverlayRenderer>.Instance,
+            TestHostEnvironment.Development);
 
         var submissions = templateFieldIds
             .Select((id, index) => new PdfWorkspaceFieldValueDto
@@ -1108,7 +1121,8 @@ public sealed class PdfWorkspaceFillServiceTests
             new FakeTemplateDocumentStorage(CreateBlankPdf()),
             new OrderFieldValueService(context),
             NullLogger<PdfWorkspaceFillService>.Instance,
-            NullLogger<ReferralPdfOverlayRenderer>.Instance);
+            NullLogger<ReferralPdfOverlayRenderer>.Instance,
+            TestHostEnvironment.Development);
 
         var blankPdf = CreateBlankPdf();
         var rendered = await service.GenerateFilledPdfAsync(versionId, orderId);
@@ -1248,7 +1262,8 @@ public sealed class PdfWorkspaceFillServiceTests
             new FakeTemplateDocumentStorage(CreateBlankPdf()),
             new OrderFieldValueService(context),
             NullLogger<PdfWorkspaceFillService>.Instance,
-            NullLogger<ReferralPdfOverlayRenderer>.Instance);
+            NullLogger<ReferralPdfOverlayRenderer>.Instance,
+            TestHostEnvironment.Development);
 
         var rendered = await service.GenerateFilledPdfAsync(versionId, orderId);
 
@@ -1386,7 +1401,8 @@ public sealed class PdfWorkspaceFillServiceTests
             new FakeTemplateDocumentStorage(),
             new OrderFieldValueService(context),
             NullLogger<PdfWorkspaceFillService>.Instance,
-            NullLogger<ReferralPdfOverlayRenderer>.Instance);
+            NullLogger<ReferralPdfOverlayRenderer>.Instance,
+            TestHostEnvironment.Development);
 
         var result = await service.SaveValuesAsync(
             versionId,
@@ -1416,6 +1432,20 @@ public sealed class PdfWorkspaceFillServiceTests
         using var stream = new MemoryStream();
         document.Save(stream);
         return stream.ToArray();
+    }
+
+    private sealed class TestHostEnvironment : IHostEnvironment
+    {
+        public static TestHostEnvironment Development { get; } = new();
+
+        public string EnvironmentName { get; set; } = Environments.Development;
+
+        public string ApplicationName { get; set; } = "UniversalLIMS.Tests";
+
+        public string ContentRootPath { get; set; } = AppContext.BaseDirectory;
+
+        public IFileProvider ContentRootFileProvider { get; set; } =
+            new PhysicalFileProvider(AppContext.BaseDirectory);
     }
 
     private sealed class FakeTemplateDocumentStorage : Application.Templates.Abstractions.ITemplateDocumentStorage

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using UniversalLIMS.Application.Registration;
 using UniversalLIMS.Infrastructure.Diagnostics;
@@ -17,19 +18,22 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
     private readonly IOrderFieldValueService _orderFieldValueService;
     private readonly ReferralPdfOverlayRenderer _overlayRenderer;
     private readonly ILogger<PdfWorkspaceFillService> _logger;
+    private readonly bool _allowImplicitOrderCreation;
 
     public PdfWorkspaceFillService(
         ApplicationDbContext context,
         ITemplateDocumentStorage templateDocumentStorage,
         IOrderFieldValueService orderFieldValueService,
         ILogger<PdfWorkspaceFillService> logger,
-        ILogger<ReferralPdfOverlayRenderer> overlayLogger)
+        ILogger<ReferralPdfOverlayRenderer> overlayLogger,
+        IHostEnvironment hostEnvironment)
     {
         _context = context;
         _templateDocumentStorage = templateDocumentStorage;
         _orderFieldValueService = orderFieldValueService;
         _logger = logger;
         _overlayRenderer = new ReferralPdfOverlayRenderer(overlayLogger);
+        _allowImplicitOrderCreation = hostEnvironment.IsDevelopment();
     }
 
     public async Task<PdfWorkspaceSaveResult> SaveValuesAsync(
@@ -1078,8 +1082,15 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
             if (existing is not null)
             {
                 await EnsureSampleAsync(existing, cancellationToken);
+                await EnsureOrderDocumentAsync(existing, templateVersionId, cancellationToken);
                 return existing;
             }
+        }
+
+        if (!_allowImplicitOrderCreation)
+        {
+            throw new InvalidOperationException(
+                "Спочатку створіть замовлення в реєстрі, потім відкрийте PDF Workspace з посиланням «Відкрити PDF».");
         }
 
         var branch = await _context.Branches

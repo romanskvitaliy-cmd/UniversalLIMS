@@ -44,6 +44,7 @@ namespace UniversalLIMS
                     .AddInterceptors(
                         serviceProvider.GetRequiredService<SoftAnnulmentSaveChangesInterceptor>(),
                         serviceProvider.GetRequiredService<AuditSaveChangesInterceptor>()));
+
             builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
             builder.Services.AddOptions<LimsPortalOptions>()
@@ -79,6 +80,7 @@ namespace UniversalLIMS
             builder.Services.AddScoped<ITemplateFieldMappingService, TemplateFieldMappingService>();
             builder.Services.AddSingleton<ITemplateOriginalOpenTokenIssuer, TemplateOriginalOpenTokenIssuer>();
             builder.Services.AddScoped<ICustomerService, CustomerService>();
+            builder.Services.AddScoped<IOrderRegistrationService, OrderRegistrationService>();
             builder.Services.AddScoped<IOrderFieldValueService, OrderFieldValueService>();
             builder.Services.AddScoped<INumberingService, NumberingService>();
             builder.Services.AddScoped<IReferralPdfGenerator, ReferralPdfGenerator>();

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using UniversalLIMS.Application.Abstractions;
 using UniversalLIMS.Application.Security;
+using UniversalLIMS.Domain.Identity;
 using UniversalLIMS.Domain.Organization;
 using UniversalLIMS.Domain.Registration;
 using UniversalLIMS.Domain.Templates;
@@ -33,6 +34,7 @@ public sealed class DataSeeder
         await SeedDataFieldsAsync(cancellationToken);
         await SeedInvestigationTypesAsync(cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
+        await AssignDefaultBranchesToUsersAsync(cancellationToken);
     }
 
     private async Task SeedRolesAsync()
@@ -207,6 +209,46 @@ public sealed class DataSeeder
                 SortOrder = sortOrder++
             });
         }
+    }
+
+    private async Task AssignDefaultBranchesToUsersAsync(CancellationToken cancellationToken)
+    {
+        var defaultBranchId = await _context.Branches
+            .AsNoTracking()
+            .Where(branch => branch.Code == "ZHY" && branch.IsActive && !branch.IsAnnulled)
+            .Select(branch => branch.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (defaultBranchId == Guid.Empty)
+        {
+            defaultBranchId = await _context.Branches
+                .AsNoTracking()
+                .Where(branch => branch.IsActive && !branch.IsAnnulled)
+                .OrderBy(branch => branch.Code)
+                .Select(branch => branch.Id)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
+        if (defaultBranchId == Guid.Empty)
+        {
+            return;
+        }
+
+        var usersWithoutBranch = await _context.Users
+            .Where(user => user.BranchId == null)
+            .ToListAsync(cancellationToken);
+
+        if (usersWithoutBranch.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var user in usersWithoutBranch)
+        {
+            user.BranchId = defaultBranchId;
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
     }
 
     private static DataField CreateSystemField(

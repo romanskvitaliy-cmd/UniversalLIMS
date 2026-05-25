@@ -1,0 +1,109 @@
+@model OrderCreateViewModel
+@using System.Text.Json
+
+@{
+    Layout = "_LayoutWorkspace";
+    ViewData["Title"] = "Нове замовлення";
+    var templateOptionsJson = JsonSerializer.Serialize(Model.Form.TemplateOptions);
+}
+
+<div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+    <div>
+        <h1 class="h3 mb-1">Нове замовлення</h1>
+        <p class="text-muted mb-0">Замовник (SSOT), тип дослідження, нумерація проби та направлення.</p>
+    </div>
+    <a class="btn btn-sm btn-outline-secondary" asp-action="Index">← До реєстру</a>
+</div>
+
+<form asp-action="Create" method="post" class="card" id="orderCreateForm">
+    <div class="card-body">
+        <div asp-validation-summary="ModelOnly" class="text-danger small mb-3"></div>
+
+        <h2 class="h6 text-muted text-uppercase mb-3">Замовник</h2>
+        <div class="btn-group btn-group-sm mb-3" role="group" aria-label="Режим замовника">
+            <input type="radio" class="btn-check" asp-for="Input.CustomerMode" id="customerModeExisting" value="existing" />
+            <label class="btn btn-outline-primary" for="customerModeExisting">Існуючий</label>
+            <input type="radio" class="btn-check" asp-for="Input.CustomerMode" id="customerModeNew" value="new" />
+            <label class="btn btn-outline-primary" for="customerModeNew">Новий</label>
+        </div>
+
+        <div id="existingCustomerPanel" class="mb-4">
+            <label class="form-label small text-muted" for="customerSearch">Пошук (ПІБ, телефон, ЄДРПОУ)</label>
+            <input type="search" class="form-control form-control-sm" id="customerSearch"
+                   value="@Model.Input.CustomerSearchQuery" autocomplete="off" />
+            <input type="hidden" asp-for="Input.SelectedCustomerId" id="selectedCustomerId" />
+            <input type="hidden" asp-for="Input.SelectedCustomerLabel" id="selectedCustomerLabel" />
+            <div id="customerSearchResults" class="list-group list-group-flush mt-1 d-none"></div>
+            <p id="selectedCustomerSummary" class="small text-success mt-2 mb-0"></p>
+        </div>
+
+        <div id="newCustomerPanel" class="mb-4 d-none">
+            <div class="row g-2">
+                <div class="col-md-4">
+                    <label class="form-label small text-muted" asp-for="Input.NewCustomerKind">Тип</label>
+                    <select asp-for="Input.NewCustomerKind" class="form-select form-select-sm"
+                            asp-items="@(new SelectList(
+                                Enum.GetValues<CustomerKind>().Select(kind => new { Value = (int)kind, Text = CustomerKindDisplay.ToUk(kind) }),
+                                "Value",
+                                "Text"))"></select>
+                </div>
+                <div class="col-md-8">
+                    <label class="form-label small text-muted" asp-for="Input.NewCustomerFullName"></label>
+                    <input asp-for="Input.NewCustomerFullName" class="form-control form-control-sm" />
+                    <span asp-validation-for="Input.NewCustomerFullName" class="text-danger small"></span>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label small text-muted" asp-for="Input.NewCustomerOrganizationName"></label>
+                    <input asp-for="Input.NewCustomerOrganizationName" class="form-control form-control-sm" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label small text-muted" asp-for="Input.NewCustomerContactPhone"></label>
+                    <input asp-for="Input.NewCustomerContactPhone" class="form-control form-control-sm" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label small text-muted" asp-for="Input.NewCustomerAddress"></label>
+                    <input asp-for="Input.NewCustomerAddress" class="form-control form-control-sm" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label small text-muted" asp-for="Input.NewCustomerEdrpou"></label>
+                    <input asp-for="Input.NewCustomerEdrpou" class="form-control form-control-sm" />
+                </div>
+            </div>
+        </div>
+
+        <h2 class="h6 text-muted text-uppercase mb-3">Дослідження</h2>
+        <div class="row g-2 mb-3">
+            <div class="col-md-6">
+                <label class="form-label small text-muted" asp-for="Input.InvestigationTypeId">Тип дослідження</label>
+                <select asp-for="Input.InvestigationTypeId" class="form-select form-select-sm" id="investigationTypeId"
+                        asp-items="@(new SelectList(Model.Form.InvestigationTypes, nameof(InvestigationTypeOptionDto.Id), nameof(InvestigationTypeOptionDto.NameUk)))">
+                    <option value="">— оберіть —</option>
+                </select>
+                <span asp-validation-for="Input.InvestigationTypeId" class="text-danger small"></span>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label small text-muted" asp-for="Input.TemplateVersionId">PDF-шаблон</label>
+                <select asp-for="Input.TemplateVersionId" class="form-select form-select-sm" id="templateVersionId">
+                    <option value="">— за замовчуванням —</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-check mb-3">
+            <input asp-for="Input.OpenPdfAfterCreate" class="form-check-input" />
+            <label class="form-check-label small" asp-for="Input.OpenPdfAfterCreate">
+                Відкрити PDF Workspace після створення
+            </label>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Створити замовлення</button>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        window.__orderCreateTemplateOptions = @Html.Raw(templateOptionsJson);
+    </script>
+    <script src="~/js/order-create.js" asp-append-version="true"></script>
+}

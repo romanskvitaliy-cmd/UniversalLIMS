@@ -17,6 +17,7 @@ public static class WorkspaceNavigationCatalog
             LimsRoles.Registrar =>
             [
                 new("Кабінет", "Home", "Workspace", "bi-house-door"),
+                new("Замовлення", "Orders", "Index", "bi-journal-plus"),
                 new("PDF Workspace", "PdfWorkspace", "Index", "bi-file-earmark-pdf"),
             ],
             LimsRoles.LaboratoryTechnician =>
@@ -46,8 +47,8 @@ public static class WorkspaceNavigationCatalog
             [
                 Link("PDF Workspace", "Прийом проб і заповнення направлень", "bi-file-earmark-pdf",
                     "/PdfWorkspace", true),
-                Link("Замовлення", "Реєстр замовлень (незабаром)", "bi-journal-plus",
-                    null, false),
+                Link("Замовлення", "Реєстр замовлень і направлень", "bi-journal-plus",
+                    "/Orders", true),
             ],
             LimsRoles.LaboratoryTechnician =>
             [
