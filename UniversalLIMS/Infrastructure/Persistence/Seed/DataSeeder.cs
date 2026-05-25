@@ -6,6 +6,7 @@ using UniversalLIMS.Domain.Identity;
 using UniversalLIMS.Domain.Organization;
 using UniversalLIMS.Domain.Registration;
 using UniversalLIMS.Domain.Templates;
+using UniversalLIMS.Infrastructure.Registration;
 
 namespace UniversalLIMS.Infrastructure.Persistence.Seed;
 
@@ -160,6 +161,13 @@ public sealed class DataSeeder
                 Code = "FOOD",
                 NameUk = "Дослідження харчових продуктів",
                 SortOrder = 2
+            },
+            new InvestigationType
+            {
+                Code = "INDOOR_AIR",
+                NameUk = "Повітря закритих приміщень",
+                DescriptionUk = "Дослідження якості повітря у закритих приміщеннях",
+                SortOrder = 3
             }
         };
 
@@ -170,45 +178,8 @@ public sealed class DataSeeder
 
         await _context.SaveChangesAsync(cancellationToken);
 
-        var publishedTemplates = await _context.Templates
-            .Where(template => template.CurrentPublishedVersionId != null)
-            .Select(template => new { template.Id, template.Code })
-            .ToListAsync(cancellationToken);
-
-        if (publishedTemplates.Count == 0)
-        {
-            return;
-        }
-
-        var investigationTypeIds = await _context.InvestigationTypes
-            .Select(item => new { item.Id, item.Code })
-            .ToListAsync(cancellationToken);
-
-        var waterTypeId = investigationTypeIds.FirstOrDefault(item => item.Code == "WATER")?.Id;
-        if (waterTypeId is null)
-        {
-            return;
-        }
-
-        var existingLinks = await _context.InvestigationTypeTemplates
-            .Select(link => new { link.InvestigationTypeId, link.TemplateId })
-            .ToListAsync(cancellationToken);
-
-        var sortOrder = 1;
-        foreach (var template in publishedTemplates)
-        {
-            if (existingLinks.Any(link => link.InvestigationTypeId == waterTypeId && link.TemplateId == template.Id))
-            {
-                continue;
-            }
-
-            _context.InvestigationTypeTemplates.Add(new InvestigationTypeTemplate
-            {
-                InvestigationTypeId = waterTypeId.Value,
-                TemplateId = template.Id,
-                SortOrder = sortOrder++
-            });
-        }
+        await InvestigationTypeTemplateLinker.EnsureLinksForAllPublishedTemplatesAsync(_context, cancellationToken);
+        await _context.SaveChangesAsync(cancellationToken);
     }
 
     private async Task AssignDefaultBranchesToUsersAsync(CancellationToken cancellationToken)

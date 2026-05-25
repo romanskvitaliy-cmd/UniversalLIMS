@@ -23,6 +23,7 @@ public static class WorkspaceNavigationCatalog
             LimsRoles.LaboratoryTechnician =>
             [
                 new("Кабінет", "Home", "Workspace", "bi-house-door"),
+                new("Журнал проб", "Laboratory", "Index", "bi-droplet-half"),
             ],
             LimsRoles.Specialist =>
             [
@@ -52,8 +53,8 @@ public static class WorkspaceNavigationCatalog
             ],
             LimsRoles.LaboratoryTechnician =>
             [
-                Link("Лабораторний журнал", "Облік проб (незабаром)", "bi-droplet-half",
-                    null, false),
+                Link("Лабораторний журнал", "Список проб філії з фільтрами", "bi-droplet-half",
+                    "/Laboratory", true),
                 Link("Результати", "Внесення результатів (незабаром)", "bi-clipboard2-pulse",
                     null, false),
             ],

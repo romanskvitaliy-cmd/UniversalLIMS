@@ -30,7 +30,6 @@
 
     #pdfFillZoomContainer {
         transform-origin: top center;
-        transition: transform 0.12s ease-out;
     }
 
     .pdf-fill-overlay-layer {
@@ -41,22 +40,34 @@
         pointer-events: none;
     }
 
+    /* Кліки лише по полях; порожній шар не перехоплює події */
+    .pdf-fill-overlay-layer .pdf-fill-field-box {
+        pointer-events: auto;
+    }
+
     .pdf-fill-field-box {
         position: absolute;
         box-sizing: border-box;
         display: flex;
         margin: 0;
         padding: 0;
-        border: 1px dashed rgba(0, 123, 255, 0.25);
+        border: 1px dashed rgba(0, 123, 255, 0.45);
         overflow: hidden;
         pointer-events: auto;
-        background: transparent;
+        background: rgba(255, 255, 255, 0.35);
         cursor: text;
+        z-index: 20;
+    }
+
+    .pdf-fill-field-box:hover {
+        border-color: rgba(0, 123, 255, 0.85);
+        background: rgba(0, 123, 255, 0.08);
     }
 
     .pdf-fill-field-box.is-focused {
-        border-color: rgba(0, 123, 255, 0.65);
-        background: rgba(0, 123, 255, 0.04);
+        border-color: rgba(0, 123, 255, 0.95);
+        background: rgba(0, 123, 255, 0.12);
+        box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
     }
 
     /* Один елемент для перегляду й редагування — без стрибків при фокусі */
@@ -67,7 +78,7 @@
         width: 100%;
         height: 100%;
         margin: 0;
-        padding: 0;
+        padding: 0 2px;
         border: none;
         outline: none;
         resize: none;
@@ -85,6 +96,12 @@
         -webkit-user-select: text;
         user-select: text;
         cursor: text;
+        pointer-events: auto;
+    }
+
+    .pdf-fill-field-box textarea.pdf-field-input {
+        white-space: pre-wrap;
+        word-break: break-word;
     }
 
     .pdf-fill-field-box .pdf-field--multiline {
@@ -107,6 +124,10 @@
     .pdf-fill-page-canvas {
         display: block;
         pointer-events: none;
+    }
+
+    .pdf-fill-page {
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
     }
 </style>
 
@@ -166,7 +187,7 @@ else
         <div class="col-auto small text-muted ms-auto">Полів: @Model.Segments.Count</div>
     </div>
 
-    <div id="pdfFillWorkspaceRoot" class="p-2">
+    <div id="pdfFillWorkspaceRoot" class="p-2" data-pdf-preview-url="@Model.PdfPreviewUrl">
         <div id="pdfFillZoomContainer">
             <div id="pdfFillPagesHost"></div>
         </div>
@@ -177,9 +198,11 @@ else
 @section Scripts {
     @if (!string.IsNullOrWhiteSpace(Model.PdfPreviewUrl))
     {
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" referrerpolicy="no-referrer"></script>
+        <script src="~/lib/pdfjs/pdf.min.js" asp-append-version="true"></script>
+        <script src="~/js/pdf-overlay-text-layout.js" asp-append-version="true"></script>
         <script>
-            window.__pdfPreviewUrl = "@Model.PdfPreviewUrl";
+            window.__pdfJsWorkerSrc = @Html.Raw(JsonSerializer.Serialize(Url.Content("~/lib/pdfjs/pdf.worker.min.js")));
+            window.__pdfPreviewUrl = @Html.Raw(JsonSerializer.Serialize(Model.PdfPreviewUrl));
             window.__templateVersionId = "@Model.TemplateVersionId";
             window.__pdfFillOrderId = @(Model.OrderId.HasValue ? $"\"{Model.OrderId}\"" : "null");
             window.__pdfFillSaveUrl = "@($"/PdfWorkspace/Fill/{Model.TemplateVersionId}/values")";

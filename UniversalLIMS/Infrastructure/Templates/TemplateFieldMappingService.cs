@@ -468,46 +468,138 @@ public sealed class TemplateFieldMappingService : ITemplateFieldMappingService
         CancellationToken cancellationToken = default)
     {
         var version = await _context.TemplateVersions
-            .Include(templateVersion => templateVersion.Fields)
-                .ThenInclude(field => field.Permissions)
-            .FirstOrDefaultAsync(templateVersion => templateVersion.Id == templateVersionId, cancellationToken);
+            .AsNoTracking()
+            .Where(item => item.Id == templateVersionId)
+            .Select(item => new { item.Status, FieldIds = item.Fields.Select(field => field.Id).ToList() })
+            .FirstOrDefaultAsync(cancellationToken);
 
         if (version is null)
         {
             throw new InvalidOperationException("Версію шаблону не знайдено.");
         }
 
-        EnsureDraftVersion(version);
-        var validRoles = LimsRoles.All.ToHashSet(StringComparer.Ordinal);
-
-        foreach (var field in version.Fields)
+        if (version.Status is not TemplateVersionStatus.Draft and not TemplateVersionStatus.ReadyForPublication)
         {
-            if (!accessLevelsByFieldId.TryGetValue(field.Id, out var accessLevelsByRole))
+            throw new InvalidOperationException("Опубліковану версію шаблону змінювати заборонено.");
+        }
+
+        var validRoles = LimsRoles.All.ToHashSet(StringComparer.Ordinal);
+        var timestampUtc = _dateTimeProvider.UtcNow;
+        var userId = _currentUserService.UserId;
+        var pendingInserts = new List<TemplateFieldPermission>();
+
+        await AnnulDuplicateActivePermissionsAsync(version.FieldIds, cancellationToken);
+
+        foreach (var fieldId in version.FieldIds)
+        {
+            if (!accessLevelsByFieldId.TryGetValue(fieldId, out var accessLevelsByRole))
             {
                 continue;
             }
 
             foreach (var roleAccess in accessLevelsByRole.Where(roleAccess => validRoles.Contains(roleAccess.Key)))
             {
-                var permission = field.Permissions
-                    .FirstOrDefault(existingPermission => existingPermission.RoleName == roleAccess.Key);
+                var roleName = roleAccess.Key;
+                var accessLevel = roleAccess.Value;
 
-                if (permission is null)
+                var activeUpdated = await _context.TemplateFieldPermissions
+                    .IgnoreQueryFilters()
+                    .Where(permission =>
+                        permission.TemplateFieldId == fieldId &&
+                        permission.RoleName == roleName &&
+                        !permission.IsAnnulled)
+                    .ExecuteUpdateAsync(
+                        setters => setters
+                            .SetProperty(permission => permission.AccessLevel, accessLevel)
+                            .SetProperty(permission => permission.UpdatedAtUtc, timestampUtc)
+                            .SetProperty(permission => permission.UpdatedByUserId, userId),
+                        cancellationToken);
+
+                if (activeUpdated > 0)
                 {
-                    field.Permissions.Add(new TemplateFieldPermission
-                    {
-                        RoleName = roleAccess.Key,
-                        AccessLevel = roleAccess.Value
-                    });
-
                     continue;
                 }
 
-                permission.AccessLevel = roleAccess.Value;
+                var reactivated = await _context.TemplateFieldPermissions
+                    .IgnoreQueryFilters()
+                    .Where(permission =>
+                        permission.TemplateFieldId == fieldId &&
+                        permission.RoleName == roleName &&
+                        permission.IsAnnulled)
+                    .ExecuteUpdateAsync(
+                        setters => setters
+                            .SetProperty(permission => permission.IsAnnulled, false)
+                            .SetProperty(permission => permission.AnnulledAtUtc, (DateTime?)null)
+                            .SetProperty(permission => permission.AnnulledByUserId, (string?)null)
+                            .SetProperty(permission => permission.AnnulmentReason, (string?)null)
+                            .SetProperty(permission => permission.AccessLevel, accessLevel)
+                            .SetProperty(permission => permission.UpdatedAtUtc, timestampUtc)
+                            .SetProperty(permission => permission.UpdatedByUserId, userId),
+                        cancellationToken);
+
+                if (reactivated > 0)
+                {
+                    continue;
+                }
+
+                pendingInserts.Add(new TemplateFieldPermission
+                {
+                    TemplateFieldId = fieldId,
+                    RoleName = roleName,
+                    AccessLevel = accessLevel
+                });
             }
         }
 
+        if (pendingInserts.Count == 0)
+        {
+            return;
+        }
+
+        _context.TemplateFieldPermissions.AddRange(pendingInserts);
         await _context.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task AnnulDuplicateActivePermissionsAsync(
+        IReadOnlyCollection<Guid> fieldIds,
+        CancellationToken cancellationToken)
+    {
+        if (fieldIds.Count == 0)
+        {
+            return;
+        }
+
+        var activePermissions = await _context.TemplateFieldPermissions
+            .IgnoreQueryFilters()
+            .Where(permission => fieldIds.Contains(permission.TemplateFieldId) && !permission.IsAnnulled)
+            .Select(permission => new { permission.Id, permission.TemplateFieldId, permission.RoleName, permission.CreatedAtUtc })
+            .ToListAsync(cancellationToken);
+
+        var duplicateIds = activePermissions
+            .GroupBy(permission => (permission.TemplateFieldId, permission.RoleName))
+            .Where(group => group.Count() > 1)
+            .SelectMany(group => group.OrderBy(permission => permission.CreatedAtUtc).Skip(1).Select(permission => permission.Id))
+            .ToList();
+
+        if (duplicateIds.Count == 0)
+        {
+            return;
+        }
+
+        var annulledAtUtc = _dateTimeProvider.UtcNow;
+        var annulledByUserId = _currentUserService.UserId;
+        const string annulmentReason = "Дублікат права доступу до поля шаблону.";
+
+        await _context.TemplateFieldPermissions
+            .IgnoreQueryFilters()
+            .Where(permission => duplicateIds.Contains(permission.Id))
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(permission => permission.IsAnnulled, true)
+                    .SetProperty(permission => permission.AnnulledAtUtc, annulledAtUtc)
+                    .SetProperty(permission => permission.AnnulledByUserId, annulledByUserId)
+                    .SetProperty(permission => permission.AnnulmentReason, annulmentReason),
+                cancellationToken);
     }
 
     public async Task<Guid> CreateDataFieldFromTemplateFieldAsync(

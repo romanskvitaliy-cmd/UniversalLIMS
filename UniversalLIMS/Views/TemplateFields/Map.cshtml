@@ -2014,9 +2014,10 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
 {
     <script src="~/js/searchable-combo.js" asp-append-version="true"></script>
     <script src="~/js/pdf-overlay-text-layout.js" asp-append-version="true"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" referrerpolicy="no-referrer"></script>
+    <script src="~/lib/pdfjs/pdf.min.js" asp-append-version="true"></script>
     <script>
-        window.__pdfPreviewUrl = "@Model.PdfPreviewUrl";
+        window.__pdfJsWorkerSrc = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Url.Content("~/lib/pdfjs/pdf.worker.min.js")));
+        window.__pdfPreviewUrl = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.PdfPreviewUrl));
         window.__templateVersionId = "@Model.TemplateVersionId";
         window.__dataFieldCatalog = @Html.Raw(JsonSerializer.Serialize(
             Model.DataFields.Select(df => new
@@ -2846,7 +2847,9 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         }
 
                         const pdfjsLib = window.pdfjsLib;
-                        pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+                        pdfjsLib.GlobalWorkerOptions.workerSrc = window.__pdfJsWorkerSrc
+                            || document.querySelector('script[src*="pdf.min.js"]')?.src?.replace("pdf.min.js", "pdf.worker.min.js")
+                            || "";
                         this.pdf = await pdfjsLib.getDocument(window.__pdfPreviewUrl).promise;
                         this.debugLog("PDF loaded", { pages: this.pdf.numPages });
                         this.applyNudgeLayoutMode();

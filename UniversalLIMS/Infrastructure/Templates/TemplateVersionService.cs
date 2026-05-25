@@ -4,6 +4,7 @@ using UniversalLIMS.Application.Templates;
 using UniversalLIMS.Application.Templates.Abstractions;
 using UniversalLIMS.Domain.Templates;
 using UniversalLIMS.Infrastructure.Persistence;
+using UniversalLIMS.Infrastructure.Registration;
 
 namespace UniversalLIMS.Infrastructure.Templates;
 
@@ -302,6 +303,11 @@ public sealed class TemplateVersionService : ITemplateVersionService
         version.Template.Status = TemplateStatus.Active;
         version.Template.CurrentPublishedVersionId = version.Id;
 
+        await InvestigationTypeTemplateLinker.EnsureLinksForTemplateAsync(
+            _context,
+            version.TemplateId,
+            cancellationToken);
+
         await _context.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
@@ -498,6 +504,9 @@ public sealed class TemplateVersionService : ITemplateVersionService
                 LastMappedByUserId = sourceField.LastMappedByUserId,
                 Segments = clonedSegments,
                 Permissions = sourceField.Permissions
+                    .Where(permission => !permission.IsAnnulled)
+                    .GroupBy(permission => permission.RoleName)
+                    .Select(group => group.First())
                     .Select(permission => new TemplateFieldPermission
                     {
                         Id = Guid.NewGuid(),

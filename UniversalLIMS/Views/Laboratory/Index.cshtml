@@ -1,0 +1,139 @@
+@model LaboratoryIndexViewModel
+@using UniversalLIMS.Application.Laboratory
+
+@{
+    Layout = "_LayoutWorkspace";
+    ViewData["Title"] = "Лабораторний журнал";
+}
+
+<div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+    <div>
+        <h1 class="h3 mb-1">Лабораторний журнал проб</h1>
+        <p class="text-muted mb-0">Облік проб вашої філії. Номер проби та ПІБ замовника — з SSOT (колонки <code>Samples</code> та <code>Customers</code>).</p>
+    </div>
+</div>
+
+<form method="get" asp-action="Index" class="card mb-3">
+    <div class="card-body">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label small text-muted" for="sampleNumber">Номер проби</label>
+                <input type="text" class="form-control form-control-sm" id="sampleNumber" name="sampleNumber"
+                       value="@Model.Filter.SampleNumber" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small text-muted" for="dateFrom">Дата від</label>
+                <input type="date" class="form-control form-control-sm" id="dateFrom" name="dateFrom"
+                       value="@(Model.Filter.DateFrom?.ToString("yyyy-MM-dd"))" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small text-muted" for="dateTo">Дата до</label>
+                <input type="date" class="form-control form-control-sm" id="dateTo" name="dateTo"
+                       value="@(Model.Filter.DateTo?.ToString("yyyy-MM-dd"))" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small text-muted" for="status">Статус проби</label>
+                <select class="form-select form-select-sm" id="status" name="status">
+                    <option value="">Усі</option>
+                    @foreach (var option in LaboratoryIndexViewModel.StatusOptions)
+                    {
+                        if (Model.Filter.Status == option.Value)
+                        {
+                            <option value="@((int)option.Value)" selected="selected">@option.Label</option>
+                        }
+                        else
+                        {
+                            <option value="@((int)option.Value)">@option.Label</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-md-12 col-lg-auto d-flex gap-2">
+                <button type="submit" class="btn btn-sm btn-primary">Застосувати</button>
+                <a class="btn btn-sm btn-outline-secondary" asp-action="Index">Скинути</a>
+            </div>
+        </div>
+    </div>
+</form>
+
+@if (!Model.Result.Items.Any())
+{
+    <div class="alert alert-info mb-0">Проб за обраними критеріями не знайдено.</div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle">
+            <thead>
+                <tr>
+                    <th>Номер проби</th>
+                    <th>Направлення</th>
+                    <th>Замовник</th>
+                    <th>Тип дослідження</th>
+                    <th>Дата реєстрації</th>
+                    <th>Статус</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var sample in Model.Result.Items)
+                {
+                    <tr>
+                        <td class="fw-semibold">@sample.SampleNumber</td>
+                        <td>@(string.IsNullOrWhiteSpace(sample.ReferralNumber) ? "—" : sample.ReferralNumber)</td>
+                        <td>@sample.CustomerFullName</td>
+                        <td>@sample.InvestigationTypeName</td>
+                        <td class="text-nowrap">@sample.RegisteredAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                        <td><span class="badge text-bg-light border">@SampleStatusDisplay.ToUk(sample.Status)</span></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @if (Model.Result.TotalPages > 1)
+    {
+        <nav aria-label="Сторінки журналу" class="mt-3">
+            <ul class="pagination pagination-sm mb-0">
+                @{
+                    var currentPage = Model.Result.Page;
+                    var query = new Dictionary<string, string?>();
+                    if (!string.IsNullOrWhiteSpace(Model.Filter.SampleNumber))
+                    {
+                        query["sampleNumber"] = Model.Filter.SampleNumber;
+                    }
+
+                    if (Model.Filter.DateFrom.HasValue)
+                    {
+                        query["dateFrom"] = Model.Filter.DateFrom.Value.ToString("yyyy-MM-dd");
+                    }
+
+                    if (Model.Filter.DateTo.HasValue)
+                    {
+                        query["dateTo"] = Model.Filter.DateTo.Value.ToString("yyyy-MM-dd");
+                    }
+
+                    if (Model.Filter.Status.HasValue)
+                    {
+                        query["status"] = ((int)Model.Filter.Status.Value).ToString();
+                    }
+                }
+                @for (var pageNumber = 1; pageNumber <= Model.Result.TotalPages; pageNumber++)
+                {
+                    query["page"] = pageNumber.ToString();
+                    query["pageSize"] = Model.Result.PageSize.ToString();
+                    var isActive = pageNumber == currentPage;
+                    <li class="page-item @(isActive ? "active" : null)">
+                        <a class="page-link"
+                           asp-action="Index"
+                           asp-all-route-data="query">@pageNumber</a>
+                    </li>
+                }
+            </ul>
+        </nav>
+    }
+
+    <p class="text-muted small mt-2 mb-0">
+        Показано @Model.Result.Items.Count з @Model.Result.TotalCount
+        (сторінка @Model.Result.Page з @(Model.Result.TotalPages == 0 ? 1 : Model.Result.TotalPages)).
+    </p>
+}

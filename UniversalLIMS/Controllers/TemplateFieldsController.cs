@@ -334,7 +334,28 @@ public sealed class TemplateFieldsController : Controller
                 rolePermission => rolePermission.RoleName,
                 rolePermission => rolePermission.AccessLevel));
 
-        await _fieldMappingService.UpdatePermissionsAsync(model.TemplateVersionId, accessLevels, cancellationToken);
+        try
+        {
+            await _fieldMappingService.UpdatePermissionsAsync(model.TemplateVersionId, accessLevels, cancellationToken);
+        }
+        catch (DbUpdateException exception) when (exception is DbUpdateConcurrencyException or { InnerException: DbUpdateConcurrencyException })
+        {
+            ModelState.AddModelError(string.Empty, "Права доступу були змінені паралельно. Оновіть сторінку та спробуйте ще раз.");
+            var refreshed = await BuildPermissionsViewModelAsync(model.TemplateVersionId, cancellationToken);
+            return View(refreshed ?? model);
+        }
+        catch (DbUpdateException exception)
+        {
+            ModelState.AddModelError(string.Empty, $"Не вдалося зберегти права доступу: {exception.GetBaseException().Message}");
+            var refreshed = await BuildPermissionsViewModelAsync(model.TemplateVersionId, cancellationToken);
+            return View(refreshed ?? model);
+        }
+        catch (InvalidOperationException exception)
+        {
+            ModelState.AddModelError(string.Empty, exception.Message);
+            var refreshed = await BuildPermissionsViewModelAsync(model.TemplateVersionId, cancellationToken);
+            return View(refreshed ?? model);
+        }
 
         return RedirectToAction(nameof(Permissions), new { templateVersionId = model.TemplateVersionId });
     }

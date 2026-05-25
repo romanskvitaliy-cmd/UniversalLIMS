@@ -1,8 +1,15 @@
 (() => {
+    /** Має збігатися з PdfOverlayTextLayout.ConstructorPreviewScale і конструктором Map. */
     const PREVIEW_SCALE = 1.35;
     const BASELINE_OFFSET_PX = 3;
 
+    const getOutputScale = () => {
+        const ratio = window.devicePixelRatio || 1;
+        return Math.min(Math.max(ratio * 1.5, 2), 4);
+    };
+
     const pagesHost = document.getElementById("pdfFillPagesHost");
+    const workspaceRoot = document.getElementById("pdfFillWorkspaceRoot");
     const zoomContainer = document.getElementById("pdfFillZoomContainer");
     const previewError = document.getElementById("pdfFillPreviewError");
     const saveButton = document.getElementById("pdfFillSaveButton");
@@ -17,7 +24,7 @@
     }
 
     const segments = Array.isArray(window.__pdfFillSegments) ? window.__pdfFillSegments : [];
-    const pdfUrl = window.__pdfPreviewUrl;
+    const pdfUrl = window.__pdfPreviewUrl || workspaceRoot?.dataset?.pdfPreviewUrl || null;
     const savedByKey = window.__pdfFillSavedValues && typeof window.__pdfFillSavedValues === "object"
         ? window.__pdfFillSavedValues
         : {};
@@ -27,6 +34,7 @@
     let focusSegmentId = null;
     let pdfDoc = null;
     const pageLayers = new Map();
+    const pageMetrics = new Map();
 
     const tagByTemplateFieldId = new Map();
     const segmentsByTemplateFieldId = new Map();
@@ -127,14 +135,22 @@
         if (!fieldEl) {
             return "";
         }
-        return fieldEl.innerText.replace(/\r/g, "");
+        if (fieldEl instanceof HTMLInputElement || fieldEl instanceof HTMLTextAreaElement) {
+            return (fieldEl.value || "").replace(/\r/g, "");
+        }
+        return (fieldEl.innerText || fieldEl.textContent || "").replace(/\r/g, "");
     };
 
     const writeFieldText = (fieldEl, text) => {
         if (!fieldEl) {
             return;
         }
-        fieldEl.textContent = text ?? "";
+        const normalized = text ?? "";
+        if (fieldEl instanceof HTMLInputElement || fieldEl instanceof HTMLTextAreaElement) {
+            fieldEl.value = normalized;
+            return;
+        }
+        fieldEl.textContent = normalized;
     };
 
     const collectFilledValues = () => {
@@ -198,10 +214,11 @@
 
     const applyZoomTransform = () => {
         const percent = getZoomPercent();
-        const scale = percent / 100;
         if (zoomContainer) {
-            zoomContainer.style.transform = `scale(${scale})`;
-            zoomContainer.style.transformOrigin = "top center";
+            // CSS zoom зберігає hit-area полів; transform: scale() зміщує кліки.
+            zoomContainer.style.transform = "";
+            zoomContainer.style.transformOrigin = "";
+            zoomContainer.style.zoom = `${percent / 100}`;
         }
         if (zoomValue) {
             zoomValue.textContent = `${percent}%`;
@@ -254,13 +271,15 @@
 
     const createEditableField = (segment, segmentId, templateFieldId, coordScale) => {
         const multiline = segment.allowMultiline === true;
-        const fieldEl = document.createElement("div");
+        const fieldEl = document.createElement(multiline ? "textarea" : "input");
+        if (!multiline) {
+            fieldEl.type = "text";
+        }
         fieldEl.className = multiline
             ? "pdf-field pdf-field-input pdf-field--multiline"
             : "pdf-field pdf-field-input";
-        fieldEl.contentEditable = "true";
         fieldEl.spellcheck = false;
-        fieldEl.setAttribute("role", "textbox");
+        fieldEl.autocomplete = "off";
         fieldEl.setAttribute("aria-label", segment.title || segment.tag || "Поле PDF");
         fieldEl.dataset.segmentId = segmentId;
         fieldEl.dataset.templateFieldId = templateFieldId;
@@ -276,15 +295,8 @@
             fieldEl.style.fontFamily = `${segment.fontName}, Arial, sans-serif`;
         }
 
-        fieldEl.addEventListener("paste", (event) => {
-            event.preventDefault();
-            const plain = event.clipboardData?.getData("text/plain") ?? "";
-            if (document.queryCommandSupported("insertText")) {
-                document.execCommand("insertText", false, plain);
-            } else {
-                fieldEl.textContent = `${readFieldText(fieldEl)}${plain}`;
-            }
-        });
+        fieldEl.addEventListener("mousedown", (event) => event.stopPropagation());
+        fieldEl.addEventListener("click", (event) => event.stopPropagation());
 
         fieldEl.addEventListener("keydown", (event) => {
             if (!multiline && event.key === "Enter") {
@@ -312,12 +324,35 @@
         return fieldEl;
     };
 
+    const resolveSegmentBounds = (segment, coordScale) => {
+        const layout = window.PdfOverlayTextLayout;
+        if (layout?.getPreviewBounds) {
+            return layout.getPreviewBounds(
+                num(segment.x),
+                num(segment.y),
+                num(segment.width, 120),
+                num(segment.height, 28),
+                num(segment.textOffsetX, 0),
+                num(segment.textOffsetY, 0),
+                coordScale
+            );
+        }
+
+        return {
+            left: num(segment.x) * coordScale + num(segment.textOffsetX, 0),
+            top: num(segment.y) * coordScale + num(segment.textOffsetY, 0) + BASELINE_OFFSET_PX,
+            width: num(segment.width, 120) * coordScale,
+            height: num(segment.height, 28) * coordScale
+        };
+    };
+
     const renderPages = async () => {
         pagesHost.innerHTML = "";
         pageLayers.clear();
+        pageMetrics.clear();
 
         const viewportScale = PREVIEW_SCALE;
-        const deviceScale = Math.min(window.devicePixelRatio || 1, 3);
+        const deviceScale = getOutputScale();
 
         for (let pageNumber = 1; pageNumber <= pdfDoc.numPages; pageNumber++) {
             const page = await pdfDoc.getPage(pageNumber);
@@ -346,13 +381,16 @@
             layer.dataset.page = String(pageNumber);
             wrapper.appendChild(layer);
             pageLayers.set(pageNumber, layer);
+            pageMetrics.set(pageNumber, { width: cssWidth, height: cssHeight });
 
             pagesHost.appendChild(wrapper);
 
             const ctx = canvas.getContext("2d", { alpha: false });
             if (ctx) {
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = "high";
                 const transform = deviceScale !== 1 ? [deviceScale, 0, 0, deviceScale, 0, 0] : null;
-                await page.render({ canvasContext: ctx, viewport, transform }).promise;
+                await page.render({ canvasContext: ctx, viewport, transform, intent: "display" }).promise;
             }
         }
     };
@@ -373,14 +411,14 @@
                 return;
             }
 
-            const offsetX = num(segment.textOffsetX, 0);
-            const offsetY = num(segment.textOffsetY, 0) + BASELINE_OFFSET_PX;
-            const width = Math.max(24, px(num(segment.width) * coordScale, 120));
-            const height = Math.max(14, px(num(segment.height) * coordScale, 28));
-            const layerWidth = layer.clientWidth || width;
-            const layerHeight = layer.clientHeight || height;
-            const left = Math.min(px(num(segment.x) * coordScale + offsetX), Math.max(0, layerWidth - width));
-            const top = Math.min(px(num(segment.y) * coordScale + offsetY), Math.max(0, layerHeight - height));
+            const bounds = resolveSegmentBounds(segment, coordScale);
+            const width = Math.max(24, px(bounds.width, 120));
+            const height = Math.max(14, px(bounds.height, 28));
+            const metrics = pageMetrics.get(page) ?? pageMetrics.get(1);
+            const layerWidth = metrics?.width || layer.clientWidth || width;
+            const layerHeight = metrics?.height || layer.clientHeight || height;
+            const left = Math.min(px(bounds.left), Math.max(0, layerWidth - width));
+            const top = Math.min(px(bounds.top), Math.max(0, layerHeight - height));
 
             const box = document.createElement("div");
             box.className = "pdf-fill-field-box";
@@ -389,6 +427,7 @@
             box.style.width = `${width}px`;
             box.style.height = `${height}px`;
             box.style.alignItems = mapVerticalAlign(segment);
+            box.style.zIndex = "20";
             box.title = segment.title || segment.tag || "";
 
             const fieldEl = createEditableField(segment, segmentId, templateFieldId, coordScale);
@@ -399,16 +438,11 @@
             fieldEl.classList.toggle("is-empty", initialValue.length === 0);
 
             box.addEventListener("mousedown", (event) => {
-                if (event.target !== fieldEl) {
+                if (!fieldEl.contains(event.target)) {
                     event.preventDefault();
                     fieldEl.focus();
-                    const selection = window.getSelection();
-                    if (selection && fieldEl.childNodes.length > 0) {
-                        const range = document.createRange();
-                        range.selectNodeContents(fieldEl);
-                        range.collapse(false);
-                        selection.removeAllRanges();
-                        selection.addRange(range);
+                    if (typeof fieldEl.select === "function") {
+                        fieldEl.select();
                     }
                 }
             });
@@ -423,13 +457,8 @@
             );
             if (fieldEl) {
                 fieldEl.focus();
-                const selection = window.getSelection();
-                if (selection) {
-                    const range = document.createRange();
-                    range.selectNodeContents(fieldEl);
-                    range.collapse(false);
-                    selection.removeAllRanges();
-                    selection.addRange(range);
+                if (typeof fieldEl.select === "function") {
+                    fieldEl.select();
                 }
             }
         }
@@ -544,20 +573,48 @@
         }
     };
 
+    const resolvePdfJsWorkerSrc = () => {
+        if (window.__pdfJsWorkerSrc) {
+            return window.__pdfJsWorkerSrc;
+        }
+
+        const script = document.querySelector('script[src*="pdf.min.js"]');
+        if (!script?.src) {
+            return null;
+        }
+
+        return script.src.replace("pdf.min.js", "pdf.worker.min.js");
+    };
+
     const init = async () => {
-        if (!window.pdfjsLib || !pdfUrl) {
-            showPreviewError("Не вдалося ініціалізувати PDF preview.");
+        if (!pdfUrl) {
+            showPreviewError("Не задано URL PDF-файлу. Відкрийте сторінку знову з реєстру замовлення.");
             return;
         }
 
-        window.pdfjsLib.GlobalWorkerOptions.workerSrc =
-            "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+        if (!window.pdfjsLib) {
+            showPreviewError(
+                "Бібліотека PDF.js не завантажилась. Перезавантажте сторінку або зверніться до адміністратора."
+            );
+            return;
+        }
 
-        pdfDoc = await window.pdfjsLib.getDocument(pdfUrl).promise;
+        const workerSrc = resolvePdfJsWorkerSrc();
+        if (!workerSrc) {
+            showPreviewError("Не знайдено worker PDF.js (pdf.worker.min.js).");
+            return;
+        }
+
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
+
+        const documentUrl = pdfUrl.startsWith("http") ? pdfUrl : new URL(pdfUrl, window.location.origin).href;
+        pdfDoc = await window.pdfjsLib.getDocument({ url: documentUrl, withCredentials: true }).promise;
         await renderPages();
-        mountOverlays(buildInitialValues());
-        applyZoomTransform();
-        updateFinalPdfActions(currentOrderId);
+        requestAnimationFrame(() => {
+            mountOverlays(buildInitialValues());
+            applyZoomTransform();
+            updateFinalPdfActions(currentOrderId);
+        });
 
         zoomSlider?.addEventListener("input", () => {
             applyZoomTransform();
@@ -568,6 +625,9 @@
 
     init().catch((error) => {
         console.error("[PdfWorkspace Fill] init error:", error);
-        showPreviewError("Помилка завантаження PDF.");
+        const message = error?.message?.includes("404") || error?.name === "MissingPDFException"
+            ? "PDF-файл не знайдено у сховищі. Перевірте, що оригінал шаблону завантажено (кнопка «Оригінал PDF»)."
+            : "Помилка завантаження PDF. Спробуйте «Оригінал PDF» у новій вкладці.";
+        showPreviewError(message);
     });
 })();
