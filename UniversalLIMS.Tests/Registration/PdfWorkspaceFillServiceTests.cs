@@ -113,7 +113,8 @@ public sealed class PdfWorkspaceFillServiceTests
             context,
             new FakeTemplateDocumentStorage(),
             new OrderFieldValueService(context),
-            NullLogger<PdfWorkspaceFillService>.Instance);
+            NullLogger<PdfWorkspaceFillService>.Instance,
+            NullLogger<ReferralPdfOverlayRenderer>.Instance);
 
         var templateField = await context.TemplateFields.SingleAsync(field => field.TemplateVersionId == versionId);
 
@@ -224,7 +225,8 @@ public sealed class PdfWorkspaceFillServiceTests
             context,
             new FakeTemplateDocumentStorage(),
             new OrderFieldValueService(context),
-            NullLogger<PdfWorkspaceFillService>.Instance);
+            NullLogger<PdfWorkspaceFillService>.Instance,
+            NullLogger<ReferralPdfOverlayRenderer>.Instance);
 
         var submissions = templateFieldIds
             .Select((id, index) => new PdfWorkspaceFieldValueDto
@@ -318,7 +320,8 @@ public sealed class PdfWorkspaceFillServiceTests
             context,
             new FakeTemplateDocumentStorage(CreateBlankPdf()),
             new OrderFieldValueService(context),
-            NullLogger<PdfWorkspaceFillService>.Instance);
+            NullLogger<PdfWorkspaceFillService>.Instance,
+            NullLogger<ReferralPdfOverlayRenderer>.Instance);
 
         var request = new PreviewCalibrationRequest
         {
@@ -380,7 +383,8 @@ public sealed class PdfWorkspaceFillServiceTests
             context,
             new FakeTemplateDocumentStorage(CreateBlankPdf()),
             new OrderFieldValueService(context),
-            NullLogger<PdfWorkspaceFillService>.Instance);
+            NullLogger<PdfWorkspaceFillService>.Instance,
+            NullLogger<ReferralPdfOverlayRenderer>.Instance);
 
         var request = new PreviewCalibrationRequest
         {
@@ -443,7 +447,8 @@ public sealed class PdfWorkspaceFillServiceTests
             context,
             new FakeTemplateDocumentStorage(CreateBlankPdf()),
             new OrderFieldValueService(context),
-            NullLogger<PdfWorkspaceFillService>.Instance);
+            NullLogger<PdfWorkspaceFillService>.Instance,
+            NullLogger<ReferralPdfOverlayRenderer>.Instance);
 
         var preview = await service.GenerateCalibrationPreviewAsync(new PreviewCalibrationRequest
         {
@@ -463,8 +468,8 @@ public sealed class PdfWorkspaceFillServiceTests
         });
 
         Assert.NotEmpty(preview.PdfBytes);
-        Assert.Equal(1, preview.SegmentsDrawn);
-        Assert.Equal(0, preview.SegmentsSkippedEmpty);
+        Assert.Equal(0, preview.SegmentsDrawn);
+        Assert.Equal(1, preview.SegmentsSkippedEmpty);
     }
 
     [Fact]
@@ -503,7 +508,8 @@ public sealed class PdfWorkspaceFillServiceTests
             context,
             new FakeTemplateDocumentStorage(CreateBlankPdf()),
             new OrderFieldValueService(context),
-            NullLogger<PdfWorkspaceFillService>.Instance);
+            NullLogger<PdfWorkspaceFillService>.Instance,
+            NullLogger<ReferralPdfOverlayRenderer>.Instance);
 
         var preview = await service.GenerateCalibrationPreviewAsync(new PreviewCalibrationRequest
         {
@@ -512,7 +518,8 @@ public sealed class PdfWorkspaceFillServiceTests
             [
                 new PreviewFieldDto
                 {
-                    Text = "11",
+                    Text = string.Empty,
+                    TextToDraw = "11",
                     Page = 1,
                     X = 80,
                     Y = 120,
@@ -564,7 +571,8 @@ public sealed class PdfWorkspaceFillServiceTests
             context,
             new FakeTemplateDocumentStorage(CreateBlankPdf()),
             new OrderFieldValueService(context),
-            NullLogger<PdfWorkspaceFillService>.Instance);
+            NullLogger<PdfWorkspaceFillService>.Instance,
+            NullLogger<ReferralPdfOverlayRenderer>.Instance);
 
         var preview = await service.GenerateCalibrationPreviewAsync(new PreviewCalibrationRequest
         {
@@ -652,7 +660,8 @@ public sealed class PdfWorkspaceFillServiceTests
             context,
             new FakeTemplateDocumentStorage(CreateBlankPdf()),
             new OrderFieldValueService(context),
-            NullLogger<PdfWorkspaceFillService>.Instance);
+            NullLogger<PdfWorkspaceFillService>.Instance,
+            NullLogger<ReferralPdfOverlayRenderer>.Instance);
 
         var preview = await service.GenerateCalibrationPreviewAsync(new PreviewCalibrationRequest
         {
@@ -668,6 +677,194 @@ public sealed class PdfWorkspaceFillServiceTests
                     Y = 0,
                     Width = 0,
                     Height = 0
+                }
+            ]
+        });
+
+        Assert.Equal(1, preview.SegmentsDrawn);
+        Assert.True(preview.PdfBytes.Length > CreateBlankPdf().Length);
+    }
+
+    [Fact]
+    public async Task GenerateCalibrationPreviewAsync_SameTemplateFieldIdAtDifferentPositions_DrawsAllSegments()
+    {
+        await using var context = CreateContext();
+        var versionId = Guid.NewGuid();
+        var templateId = Guid.NewGuid();
+        var fieldId = Guid.NewGuid();
+
+        context.Templates.Add(new Template
+        {
+            Id = templateId,
+            Code = "PDF-CAL-DUP",
+            NameUk = "Calibration duplicate field",
+            Status = TemplateStatus.Draft
+        });
+
+        context.TemplateVersions.Add(new TemplateVersion
+        {
+            Id = versionId,
+            TemplateId = templateId,
+            VersionNumber = 36,
+            Status = TemplateVersionStatus.Draft,
+            DocumentFormat = TemplateDocumentFormat.Pdf,
+            OriginalFileName = "template.pdf",
+            StorageKey = "templates/template.pdf",
+            ContentType = "application/pdf",
+            FileSizeBytes = 1,
+            Sha256Hash = new string('d', 64),
+            UploadedAtUtc = DateTime.UtcNow,
+            Fields =
+            [
+                new TemplateField
+                {
+                    Id = fieldId,
+                    TemplateVersionId = versionId,
+                    Tag = "DupField",
+                    Title = "Дубль",
+                    SortOrder = 1,
+                    Segments =
+                    [
+                        new TemplateFieldSegment
+                        {
+                            Id = Guid.NewGuid(),
+                            Sequence = 1,
+                            PageNumber = 1,
+                            PositionX = 50,
+                            PositionY = 80,
+                            Width = 200,
+                            Height = 24,
+                            IsPrimary = true,
+                            FontSize = 10
+                        }
+                    ]
+                }
+            ]
+        });
+
+        await context.SaveChangesAsync();
+
+        var service = new PdfWorkspaceFillService(
+            context,
+            new FakeTemplateDocumentStorage(CreateBlankPdf()),
+            new OrderFieldValueService(context),
+            NullLogger<PdfWorkspaceFillService>.Instance,
+            NullLogger<ReferralPdfOverlayRenderer>.Instance);
+
+        var preview = await service.GenerateCalibrationPreviewAsync(new PreviewCalibrationRequest
+        {
+            TemplateVersionId = versionId,
+            Fields =
+            [
+                new PreviewFieldDto
+                {
+                    TemplateFieldId = fieldId,
+                    SegmentSequence = 1,
+                    Text = "верх",
+                    Page = 1,
+                    X = 50,
+                    Y = 80,
+                    Width = 200,
+                    Height = 24
+                },
+                new PreviewFieldDto
+                {
+                    TemplateFieldId = fieldId,
+                    SegmentSequence = 1,
+                    Text = "низ",
+                    Page = 1,
+                    X = 50,
+                    Y = 140,
+                    Width = 200,
+                    Height = 24
+                }
+            ]
+        });
+
+        Assert.Equal(2, preview.SegmentsDrawn);
+    }
+
+    [Fact]
+    public async Task GenerateCalibrationPreviewAsync_ClientLayoutMismatchAddsOverlayPositionSegment()
+    {
+        await using var context = CreateContext();
+        var versionId = Guid.NewGuid();
+        var templateId = Guid.NewGuid();
+        var fieldId = Guid.NewGuid();
+
+        context.Templates.Add(new Template
+        {
+            Id = templateId,
+            Code = "PDF-CAL-MISMATCH",
+            NameUk = "Calibration layout mismatch",
+            Status = TemplateStatus.Draft
+        });
+
+        context.TemplateVersions.Add(new TemplateVersion
+        {
+            Id = versionId,
+            TemplateId = templateId,
+            VersionNumber = 37,
+            Status = TemplateVersionStatus.Draft,
+            DocumentFormat = TemplateDocumentFormat.Pdf,
+            OriginalFileName = "template.pdf",
+            StorageKey = "templates/template.pdf",
+            ContentType = "application/pdf",
+            FileSizeBytes = 1,
+            Sha256Hash = new string('m', 64),
+            UploadedAtUtc = DateTime.UtcNow,
+            Fields =
+            [
+                new TemplateField
+                {
+                    Id = fieldId,
+                    TemplateVersionId = versionId,
+                    Tag = "RegistrationNumber",
+                    Title = "Реєстраційний №",
+                    SortOrder = 1,
+                    Segments =
+                    [
+                        new TemplateFieldSegment
+                        {
+                            Id = Guid.NewGuid(),
+                            Sequence = 1,
+                            PageNumber = 1,
+                            PositionX = 295,
+                            PositionY = 400,
+                            Width = 200,
+                            Height = 14,
+                            IsPrimary = true,
+                            FontSize = 10
+                        }
+                    ]
+                }
+            ]
+        });
+
+        await context.SaveChangesAsync();
+
+        var service = new PdfWorkspaceFillService(
+            context,
+            new FakeTemplateDocumentStorage(CreateBlankPdf()),
+            new OrderFieldValueService(context),
+            NullLogger<PdfWorkspaceFillService>.Instance,
+            NullLogger<ReferralPdfOverlayRenderer>.Instance);
+
+        var preview = await service.GenerateCalibrationPreviewAsync(new PreviewCalibrationRequest
+        {
+            TemplateVersionId = versionId,
+            Fields =
+            [
+                new PreviewFieldDto
+                {
+                    TemplateFieldId = fieldId,
+                    Text = "REG-123",
+                    Page = 1,
+                    // DOM drift (як у конструкторі), БД — PositionY = 400.
+                    X = 295,
+                    Y = 518,
+                    Width = 448,
+                    Height = 14
                 }
             ]
         });
@@ -761,7 +958,8 @@ public sealed class PdfWorkspaceFillServiceTests
             context,
             new FakeTemplateDocumentStorage(CreateBlankPdf()),
             new OrderFieldValueService(context),
-            NullLogger<PdfWorkspaceFillService>.Instance);
+            NullLogger<PdfWorkspaceFillService>.Instance,
+            NullLogger<ReferralPdfOverlayRenderer>.Instance);
 
         var submissions = templateFieldIds
             .Select((id, index) => new PdfWorkspaceFieldValueDto
@@ -909,7 +1107,8 @@ public sealed class PdfWorkspaceFillServiceTests
             context,
             new FakeTemplateDocumentStorage(CreateBlankPdf()),
             new OrderFieldValueService(context),
-            NullLogger<PdfWorkspaceFillService>.Instance);
+            NullLogger<PdfWorkspaceFillService>.Instance,
+            NullLogger<ReferralPdfOverlayRenderer>.Instance);
 
         var blankPdf = CreateBlankPdf();
         var rendered = await service.GenerateFilledPdfAsync(versionId, orderId);
@@ -1048,7 +1247,8 @@ public sealed class PdfWorkspaceFillServiceTests
             context,
             new FakeTemplateDocumentStorage(CreateBlankPdf()),
             new OrderFieldValueService(context),
-            NullLogger<PdfWorkspaceFillService>.Instance);
+            NullLogger<PdfWorkspaceFillService>.Instance,
+            NullLogger<ReferralPdfOverlayRenderer>.Instance);
 
         var rendered = await service.GenerateFilledPdfAsync(versionId, orderId);
 
@@ -1185,7 +1385,8 @@ public sealed class PdfWorkspaceFillServiceTests
             context,
             new FakeTemplateDocumentStorage(),
             new OrderFieldValueService(context),
-            NullLogger<PdfWorkspaceFillService>.Instance);
+            NullLogger<PdfWorkspaceFillService>.Instance,
+            NullLogger<ReferralPdfOverlayRenderer>.Instance);
 
         var result = await service.SaveValuesAsync(
             versionId,

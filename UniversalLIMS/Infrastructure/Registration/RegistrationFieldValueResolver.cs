@@ -31,6 +31,7 @@ public sealed class RegistrationFieldValueResolver
         "Branch.Code",
         "Branch.Name",
         "Sample.Number",
+        "Sample.RegistrationNumber",
         "Sample.RegisteredAt",
         "Order.ReferralNumber"
     ];
@@ -65,6 +66,7 @@ public sealed class RegistrationFieldValueResolver
             "Branch.Code" => context.Branch.Code,
             "Branch.Name" => context.Branch.Name,
             "Sample.Number" => context.Sample.Number,
+            "Sample.RegistrationNumber" => context.Sample.Number,
             "Sample.RegisteredAt" => context.Sample.RegisteredAt.ToString("dd.MM.yyyy HH:mm"),
             "Order.ReferralNumber" => context.Order.ReferralNumber,
             _ => null

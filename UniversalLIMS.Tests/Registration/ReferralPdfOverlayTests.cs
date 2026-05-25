@@ -31,6 +31,17 @@ public sealed class RegistrationFieldValueResolverTests
         Assert.Equal("Склад №3", value);
     }
 
+    [Fact]
+    public void Resolve_SampleRegistrationNumber_ReturnsSampleNumberColumn()
+    {
+        var resolver = new RegistrationFieldValueResolver();
+        var context = CreateContext();
+
+        var value = resolver.Resolve("Sample.RegistrationNumber", context);
+
+        Assert.Equal("ZHY-2026-00001", value);
+    }
+
     private static RegistrationRenderContext CreateContext() =>
         new()
         {
@@ -77,6 +88,67 @@ public sealed class ReferralPdfOverlayRendererTests
 
         Assert.NotEmpty(rendered);
         Assert.NotEqual(originalPdf.Length, rendered.Length);
+    }
+
+    [Fact]
+    public void Render_TextToDrawWhenTextEmpty_DrawsValue()
+    {
+        var originalPdf = CreateBlankPdf();
+        var renderer = new ReferralPdfOverlayRenderer();
+
+        var stats = renderer.RenderWithStats(
+            new MemoryStream(originalPdf),
+            [
+                new ReferralOverlaySegment
+                {
+                    Text = string.Empty,
+                    TextToDraw = "11",
+                    PageNumber = 1,
+                    PositionX = 50,
+                    PositionY = 80,
+                    Width = 200,
+                    Height = 28,
+                    FontSize = 12,
+                    TextAlignment = TextAlignment.Left
+                }
+            ],
+            new Dictionary<Guid, string?>());
+
+        Assert.Equal(1, stats.SegmentsDrawn);
+        Assert.Equal(0, stats.SegmentsSkippedEmpty);
+    }
+
+    [Fact]
+    public void Render_CenterAndBottomAlignment_DrawsSegment()
+    {
+        var originalPdf = CreateBlankPdf();
+        var renderer = new ReferralPdfOverlayRenderer();
+
+        var stats = renderer.RenderWithStats(
+            new MemoryStream(originalPdf),
+            [
+                new ReferralOverlaySegment
+                {
+                    Text = "Центр",
+                    TextToDraw = "Центр",
+                    PageNumber = 1,
+                    PositionX = 80,
+                    PositionY = 120,
+                    Width = 200,
+                    Height = 28,
+                    FontSize = 12,
+                    TextAlignment = TextAlignment.Center,
+                    HorizontalAlignment = "Center",
+                    VerticalAlignment = "Bottom",
+                    TextColor = "#201e1e"
+                }
+            ],
+            new Dictionary<Guid, string?>(),
+            skipEmptyText: false);
+
+        Assert.Equal(1, stats.SegmentsDrawn);
+        Assert.Equal(0, stats.SegmentsSkippedEmpty);
+        Assert.True(stats.PdfBytes.Length > originalPdf.Length);
     }
 
     private static byte[] CreateBlankPdf()

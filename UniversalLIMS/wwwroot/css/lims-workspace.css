@@ -1,0 +1,496 @@
+/* UniversalLIMS — робочий простір (три теми порталу) */
+
+.lims-workspace-body {
+    --ws-bg: #eef2f6;
+    --ws-bg-accent: rgba(99, 102, 241, 0.06);
+    --ws-surface: #ffffff;
+    --ws-border: #e2e8f0;
+    --ws-text: #0f172a;
+    --ws-muted: #64748b;
+    --ws-nav-bg: rgba(255, 255, 255, 0.92);
+    --ws-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--ws-bg);
+    color: var(--ws-text);
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Тема 1 — Сірий (сталь, нейтральний premium) */
+.workspace-theme-1 {
+    --ws-bg: #eceef2;
+    --ws-bg-accent: rgba(113, 113, 122, 0.08);
+    --ws-border: #d4d4d8;
+    --ws-nav-bg: rgba(250, 250, 250, 0.94);
+}
+
+/* Тема 2 — Медичний (темно-зелений клінічний) */
+.workspace-theme-2 {
+    --ws-bg: #e8f3ef;
+    --ws-bg-accent: rgba(20, 83, 45, 0.07);
+    --ws-border: #c5e0d4;
+    --ws-nav-bg: rgba(248, 252, 250, 0.94);
+}
+
+/* Тема 3 — Салатовий (свіжий лайм) */
+.workspace-theme-3 {
+    --ws-bg: #edf5e4;
+    --ws-bg-accent: rgba(132, 204, 22, 0.1);
+    --ws-border: #d9e8c4;
+    --ws-nav-bg: rgba(252, 255, 248, 0.94);
+}
+
+.lims-workspace-body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background:
+        radial-gradient(ellipse 70% 50% at 100% 0%, var(--ws-bg-accent) 0%, transparent 55%),
+        radial-gradient(ellipse 55% 40% at 0% 100%, var(--ws-bg-accent) 0%, transparent 50%);
+}
+
+.lims-workspace-body > header,
+.lims-workspace-body > .lims-workspace-main,
+.lims-workspace-body > .lims-workspace-footer {
+    position: relative;
+    z-index: 1;
+}
+
+/* ── Navbar ── */
+.lims-workspace-navbar {
+    background: var(--ws-nav-bg);
+    border-bottom: 1px solid var(--ws-border);
+    box-shadow: var(--ws-shadow);
+    padding: 0.55rem 0;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+}
+
+.lims-workspace-navbar .navbar-brand {
+    font-weight: 800;
+    font-size: 1.15rem;
+    letter-spacing: -0.03em;
+    color: var(--workspace-accent, #0f766e);
+    background: linear-gradient(
+        135deg,
+        var(--workspace-accent, #0f766e) 0%,
+        color-mix(in srgb, var(--workspace-accent, #0f766e) 55%, #0f172a) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.lims-workspace-navbar .nav-link {
+    color: var(--ws-muted);
+    font-weight: 500;
+    font-size: 0.875rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 0.75rem;
+    border-radius: 8px;
+    transition: color 0.2s ease, background 0.2s ease;
+}
+
+.lims-workspace-navbar .nav-link:hover {
+    color: var(--workspace-accent, #0f766e);
+    background: color-mix(in srgb, var(--workspace-accent, #0f766e) 8%, transparent);
+}
+
+.lims-workspace-navbar .nav-link.active {
+    color: var(--workspace-accent, #0f766e);
+    font-weight: 600;
+    background: color-mix(in srgb, var(--workspace-accent, #0f766e) 12%, #fff);
+}
+
+.lims-workspace-role-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.85rem;
+    border-radius: 999px;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #fff;
+    background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--workspace-accent, #6366f1) 88%, #fff) 0%,
+        var(--workspace-accent, #6366f1) 100%);
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.2) inset,
+        0 4px 14px color-mix(in srgb, var(--workspace-accent, #6366f1) 35%, transparent);
+}
+
+.lims-workspace-role-badge i {
+    font-size: 1rem;
+}
+
+.lims-workspace-change-role {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--ws-muted);
+    text-decoration: none;
+    white-space: nowrap;
+    padding: 0.35rem 0.5rem;
+    border-radius: 8px;
+    transition: color 0.2s ease, background 0.2s ease;
+}
+
+.lims-workspace-change-role:hover {
+    color: var(--workspace-accent, #0f766e);
+    background: color-mix(in srgb, var(--workspace-accent, #0f766e) 8%, transparent);
+}
+
+.lims-workspace-user-nav {
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.lims-workspace-user-nav__email {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--ws-muted);
+    max-width: 12rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 0.35rem 0.5rem;
+}
+
+.lims-workspace-user-nav__logout,
+.lims-workspace-user-nav__link {
+    border: 1px solid var(--ws-border);
+    border-radius: 8px;
+    padding: 0.35rem 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--ws-text);
+    background: var(--ws-surface);
+    text-decoration: none;
+    transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.lims-workspace-user-nav__logout:hover,
+.lims-workspace-user-nav__link:hover {
+    border-color: color-mix(in srgb, var(--workspace-accent, #0f766e) 35%, var(--ws-border));
+    color: var(--workspace-accent, #0f766e);
+    background: color-mix(in srgb, var(--workspace-accent, #0f766e) 6%, var(--ws-surface));
+}
+
+.lims-workspace-main {
+    flex: 1;
+    padding-top: 1.75rem;
+    padding-bottom: 2.5rem;
+}
+
+.lims-workspace-footer {
+    border-top: 1px solid var(--ws-border);
+    background: var(--ws-nav-bg);
+    color: var(--ws-muted);
+    font-size: 0.8125rem;
+    backdrop-filter: blur(10px);
+}
+
+/* ── Кабінет ── */
+.lims-workspace-welcome {
+    background: var(--ws-surface);
+    border: 1px solid var(--ws-border);
+    border-radius: 20px;
+    padding: 2rem 2.25rem;
+    margin-bottom: 1.75rem;
+    box-shadow: var(--ws-shadow);
+}
+
+.lims-workspace-welcome__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 60px;
+    height: 60px;
+    border-radius: 16px;
+    background: color-mix(in srgb, var(--workspace-accent, #0d9488) 14%, var(--ws-surface));
+    color: var(--workspace-accent, #0d9488);
+    font-size: 1.75rem;
+    margin-bottom: 1.15rem;
+    border: 1px solid color-mix(in srgb, var(--workspace-accent, #0d9488) 20%, var(--ws-border));
+}
+
+.lims-workspace-welcome h1 {
+    font-size: 1.625rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    margin: 0 0 0.4rem;
+    color: var(--ws-text);
+}
+
+.lims-workspace-welcome p {
+    margin: 0;
+    color: var(--ws-muted);
+    line-height: 1.55;
+    max-width: 36rem;
+}
+
+.lims-section-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ws-muted);
+    margin: 0 0 1rem;
+}
+
+.lims-workspace-quicklinks {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+}
+
+@media (min-width: 768px) {
+    .lims-workspace-quicklinks {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (min-width: 1200px) {
+    .lims-workspace-quicklinks {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+.lims-workspace-quicklink {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 1.35rem 1.5rem;
+    background: var(--ws-surface);
+    border: 1px solid var(--ws-border);
+    border-radius: 16px;
+    text-decoration: none;
+    color: inherit;
+    box-shadow: var(--ws-shadow);
+    transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+}
+
+a.lims-workspace-quicklink:hover {
+    border-color: color-mix(in srgb, var(--workspace-accent, #0d9488) 45%, var(--ws-border));
+    box-shadow:
+        0 12px 32px color-mix(in srgb, var(--workspace-accent, #0d9488) 12%, transparent),
+        var(--ws-shadow);
+    transform: translateY(-3px);
+    color: inherit;
+}
+
+.lims-workspace-quicklink--disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.lims-workspace-quicklink__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    margin-bottom: 0.9rem;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--workspace-accent, #0d9488) 10%, var(--ws-bg));
+    color: var(--workspace-accent, #0d9488);
+    font-size: 1.4rem;
+}
+
+.lims-workspace-quicklink__title {
+    font-size: 1.0625rem;
+    font-weight: 700;
+    color: var(--ws-text);
+    margin: 0 0 0.35rem;
+    letter-spacing: -0.02em;
+}
+
+.lims-workspace-quicklink__desc {
+    font-size: 0.875rem;
+    color: var(--ws-muted);
+    margin: 0;
+    line-height: 1.5;
+    flex: 1;
+}
+
+.lims-workspace-quicklink__soon {
+    margin-top: 0.85rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ws-muted);
+}
+
+/* ── Сторінки з таблицями ── */
+.lims-page {
+    max-width: 1280px;
+}
+
+.lims-page-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.lims-page-header__title {
+    font-size: clamp(1.5rem, 3vw, 1.875rem);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    margin: 0 0 0.35rem;
+    color: var(--ws-text);
+}
+
+.lims-page-header__subtitle {
+    margin: 0;
+    font-size: 0.9375rem;
+    color: var(--ws-muted);
+    line-height: 1.5;
+    max-width: 40rem;
+}
+
+.lims-panel {
+    background: var(--ws-surface);
+    border: 1px solid var(--ws-border);
+    border-radius: 20px;
+    box-shadow: var(--ws-shadow);
+    overflow: hidden;
+}
+
+.lims-data-table-wrap {
+    overflow-x: auto;
+}
+
+.lims-data-table {
+    width: 100%;
+    margin: 0;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.lims-data-table thead {
+    background: color-mix(in srgb, var(--workspace-accent, #6366f1) 6%, var(--ws-bg));
+    border-bottom: 1px solid var(--ws-border);
+}
+
+.lims-data-table th {
+    padding: 0.85rem 1.25rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ws-muted);
+    white-space: nowrap;
+}
+
+.lims-data-table td {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--ws-border);
+    vertical-align: middle;
+}
+
+.lims-data-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.lims-data-table tbody tr {
+    transition: background 0.15s ease;
+}
+
+.lims-data-table tbody tr:hover {
+    background: color-mix(in srgb, var(--workspace-accent, #6366f1) 4%, var(--ws-surface));
+}
+
+.lims-data-table__name {
+    font-weight: 600;
+    color: var(--ws-text);
+}
+
+.lims-data-table__muted {
+    color: var(--ws-muted);
+}
+
+.lims-code {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--workspace-accent, #6366f1);
+    background: color-mix(in srgb, var(--workspace-accent, #6366f1) 10%, var(--ws-bg));
+    border: 1px solid color-mix(in srgb, var(--workspace-accent, #6366f1) 18%, var(--ws-border));
+    padding: 0.2rem 0.5rem;
+    border-radius: 6px;
+}
+
+.lims-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.lims-badge--draft {
+    color: #92400e;
+    background: #fef3c7;
+    border: 1px solid #fde68a;
+}
+
+.lims-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    padding: 0.6rem 1.15rem;
+    border-radius: 10px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+
+.lims-btn--primary {
+    color: #fff;
+    background: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--workspace-accent, #6366f1) 90%, #fff) 0%,
+        var(--workspace-accent, #6366f1) 100%);
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.2) inset,
+        0 4px 14px color-mix(in srgb, var(--workspace-accent, #6366f1) 30%, transparent);
+}
+
+.lims-btn--primary:hover {
+    color: #fff;
+    filter: brightness(1.06);
+    transform: translateY(-1px);
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.25) inset,
+        0 8px 22px color-mix(in srgb, var(--workspace-accent, #6366f1) 38%, transparent);
+}
+
+.lims-btn--outline {
+    color: var(--workspace-accent, #6366f1);
+    background: var(--ws-surface);
+    border: 1px solid color-mix(in srgb, var(--workspace-accent, #6366f1) 35%, var(--ws-border));
+}
+
+.lims-btn--outline:hover {
+    color: var(--workspace-accent, #6366f1);
+    background: color-mix(in srgb, var(--workspace-accent, #6366f1) 8%, var(--ws-surface));
+    border-color: var(--workspace-accent, #6366f1);
+}
+
+.lims-btn--sm {
+    padding: 0.4rem 0.85rem;
+    font-size: 0.8125rem;
+}

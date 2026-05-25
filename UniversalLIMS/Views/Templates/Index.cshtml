@@ -1,41 +1,59 @@
 @model IReadOnlyCollection<TemplateListItemViewModel>
 
 @{
+    Layout = "_LayoutWorkspace";
     ViewData["Title"] = "Конструктор шаблонів";
 }
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <div>
-        <h1 class="h3 mb-1">Конструктор шаблонів</h1>
-        <p class="text-muted mb-0">Керування PDF overlay шаблонами, версіями та правами полів (legacy .docx підтримується).</p>
-    </div>
-    <a class="btn btn-primary" asp-action="Create">Створити шаблон</a>
-</div>
+<section class="lims-page">
+    <header class="lims-page-header">
+        <div class="lims-page-header__text">
+            <h1 class="lims-page-header__title">Конструктор шаблонів</h1>
+            <p class="lims-page-header__subtitle">
+                Керування PDF overlay шаблонами, версіями та правами полів (legacy .docx підтримується).
+            </p>
+        </div>
+        <a class="lims-btn lims-btn--primary" asp-action="Create">
+            <i class="bi bi-plus-lg" aria-hidden="true"></i>
+            Створити шаблон
+        </a>
+    </header>
 
-<table class="table table-striped align-middle">
-    <thead>
-        <tr>
-            <th>Код</th>
-            <th>Назва</th>
-            <th>Статус</th>
-            <th>Версії</th>
-            <th>Чинна версія</th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var template in Model)
-        {
-            <tr>
-                <td><code>@template.Code</code></td>
-                <td>@template.NameUk</td>
-                <td>@template.Status</td>
-                <td>@template.VersionCount</td>
-                <td>@(template.CurrentPublishedVersionNumber?.ToString() ?? "немає")</td>
-                <td class="text-end">
-                    <a class="btn btn-sm btn-outline-primary" asp-action="Details" asp-route-id="@template.Id">Відкрити</a>
-                </td>
-            </tr>
-        }
-    </tbody>
-</table>
+    <div class="lims-panel">
+        <div class="lims-data-table-wrap">
+            <table class="lims-data-table">
+                <thead>
+                    <tr>
+                        <th>Код</th>
+                        <th>Назва</th>
+                        <th>Статус</th>
+                        <th class="text-center">Версії</th>
+                        <th>Чинна версія</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var template in Model)
+                    {
+                        <tr>
+                            <td><code class="lims-code">@template.Code</code></td>
+                            <td class="lims-data-table__name">@template.NameUk</td>
+                            <td>
+                                <span class="lims-badge lims-badge--draft">@template.Status</span>
+                            </td>
+                            <td class="text-center">@template.VersionCount</td>
+                            <td class="lims-data-table__muted">
+                                @(template.CurrentPublishedVersionNumber?.ToString() ?? "немає")
+                            </td>
+                            <td class="text-end">
+                                <a class="lims-btn lims-btn--outline lims-btn--sm" asp-action="Details" asp-route-id="@template.Id">
+                                    Відкрити
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>

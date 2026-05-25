@@ -20,25 +20,14 @@
                 <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
                     <ul class="navbar-nav flex-grow-1">
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Головна</a>
+                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Портал ролей</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Workspace">Робочий кабінет</a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Конфіденційність</a>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Templates" asp-action="Index">Шаблони</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="PdfWorkspace" asp-action="Index">PDF Workspace</a>
-                        </li>
-                        <environment include="Development">
-                            <li class="nav-item">
-                                <a class="nav-link text-dark" asp-area="" asp-controller="Diagnostics" asp-action="Foundation">Перевірка фундаменту</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link text-dark" asp-area="" asp-controller="Diagnostics" asp-action="TemplateConstructor">Перевірка шаблонів</a>
-                            </li>
-                        </environment>
                     </ul>
                     <partial name="_LoginPartial" />
                 </div>

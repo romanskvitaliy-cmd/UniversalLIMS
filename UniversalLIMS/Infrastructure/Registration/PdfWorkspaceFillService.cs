@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using UniversalLIMS.Application.Registration;
+using UniversalLIMS.Infrastructure.Diagnostics;
 using UniversalLIMS.Application.Registration.Abstractions;
 using UniversalLIMS.Application.Templates.Abstractions;
 using UniversalLIMS.Domain.Registration;
@@ -21,13 +22,14 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
         ApplicationDbContext context,
         ITemplateDocumentStorage templateDocumentStorage,
         IOrderFieldValueService orderFieldValueService,
-        ILogger<PdfWorkspaceFillService> logger)
+        ILogger<PdfWorkspaceFillService> logger,
+        ILogger<ReferralPdfOverlayRenderer> overlayLogger)
     {
         _context = context;
         _templateDocumentStorage = templateDocumentStorage;
         _orderFieldValueService = orderFieldValueService;
         _logger = logger;
-        _overlayRenderer = new ReferralPdfOverlayRenderer();
+        _overlayRenderer = new ReferralPdfOverlayRenderer(overlayLogger);
     }
 
     public async Task<PdfWorkspaceSaveResult> SaveValuesAsync(
@@ -290,8 +292,9 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
                 return $"{field.TemplateFieldId?.ToString("D") ?? "no-id"}:'{preview}'";
             }));
 
+        Console.WriteLine($"Preview received {request.Fields.Count} fields");
         _logger.LogInformation(
-            "Preview received {FieldCount} fields. First 3: {FirstThree}",
+            "Preview received {FieldCount} fields from UI. First 3: {FirstThree}",
             request.Fields.Count,
             firstThreePreview);
 
@@ -335,8 +338,37 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
             throw new InvalidOperationException("Оригінальний PDF шаблону не знайдено у сховищі.");
         }
 
-        var textByUiField = BuildUiTextLookup(request.Fields);
-        var overlaySegments = fields.Select(MapPreviewCalibrationField).ToList();
+        var textById = BuildPreviewTextById(request.Fields);
+
+        _logger.LogInformation(
+            "Preview using UI fields: {FieldCount}, textById keys={KeyCount}",
+            request.Fields.Count,
+            textById.Count);
+
+        // Геометрія з БД (усі сегменти поля); текст — лише з textById у renderer.
+        var overlaySegments = await BuildCalibrationPreviewOverlaySegmentsAsync(
+            templateVersionId,
+            fields,
+            textById,
+            cancellationToken);
+
+        // #region agent log
+        AgentDebugLog.Write("C", "GenerateCalibrationPreviewAsync", "request vs segments", new
+        {
+            requestFields = request.Fields.Select(f => new
+            {
+                id = f.TemplateFieldId,
+                textLen = (f.Text ?? "").Length,
+                textToDrawLen = (f.TextToDraw ?? "").Length,
+                resolvedLen = f.ResolveDrawableText().Length,
+                page = f.Page,
+                x = f.X,
+                y = f.Y
+            }),
+            segmentCount = overlaySegments.Count,
+            emptySegmentText = overlaySegments.Count(s => string.IsNullOrWhiteSpace(s.Text))
+        });
+        // #endregion
 
         await using var originalPdfStream = await _templateDocumentStorage.OpenReadAsync(
             version.StorageKey,
@@ -353,7 +385,7 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
             overlaySegments,
             valuesByDataFieldId: new Dictionary<Guid, string?>(),
             skipEmptyText: false,
-            textByUiField: textByUiField);
+            textById: textById);
 
         _logger.LogInformation(
             "Calibration preview render: drawn={Drawn}, skippedEmpty={SkippedEmpty}, skippedPage={SkippedPage}, pdfPages={PdfPages}",
@@ -491,10 +523,247 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
     private static bool NeedsDatabaseLayoutFallback(PreviewCalibrationFieldRequest field) =>
         field.Width <= 0 || field.Height <= 0;
 
-    private static Dictionary<(Guid TemplateFieldId, int SegmentSequence), string> BuildUiTextLookup(
+    private static bool HasClientCalibrationStyle(PreviewCalibrationFieldRequest? clientField) =>
+        clientField is not null;
+
+    private static PreviewCalibrationFieldRequest? ResolveBestClientFieldForDbSegment(
+        Guid fieldId,
+        int segmentSequence,
+        decimal dbPositionX,
+        decimal dbPositionY,
+        IReadOnlyDictionary<Guid, List<PreviewCalibrationFieldRequest>> clientFieldsByFieldId)
+    {
+        if (!clientFieldsByFieldId.TryGetValue(fieldId, out var candidates) || candidates.Count == 0)
+        {
+            return null;
+        }
+
+        PreviewCalibrationFieldRequest? best = null;
+        var bestDistance = decimal.MaxValue;
+        foreach (var candidate in candidates)
+        {
+            if (candidate.SegmentSequence > 0 && candidate.SegmentSequence != segmentSequence)
+            {
+                continue;
+            }
+
+            var distance = Math.Abs(candidate.X - dbPositionX) + Math.Abs(candidate.Y - dbPositionY);
+            if (distance < bestDistance)
+            {
+                bestDistance = distance;
+                best = candidate;
+            }
+        }
+
+        return best ?? candidates[^1];
+    }
+
+    private static Dictionary<string, string> BuildPreviewTextById(IReadOnlyList<PreviewFieldDto> fields)
+    {
+        var textById = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var field in fields)
+        {
+            if (!field.TemplateFieldId.HasValue || field.TemplateFieldId.Value == Guid.Empty)
+            {
+                continue;
+            }
+
+            var key = field.TemplateFieldId.Value.ToString("D");
+            var text = field.ResolveDrawableText();
+            if (!textById.TryGetValue(key, out var existing)
+                || text.Length > existing.Length)
+            {
+                textById[key] = text;
+            }
+        }
+
+        return textById;
+    }
+
+    private static string ResolveCalibrationPreviewText(
+        Guid fieldId,
+        IReadOnlyDictionary<string, string> textById,
+        PreviewCalibrationFieldRequest? clientField = null)
+    {
+        var key = fieldId.ToString("D");
+        if (textById.TryGetValue(key, out var uiText) && !string.IsNullOrWhiteSpace(uiText))
+        {
+            return uiText.Trim();
+        }
+
+        return clientField?.ResolveDrawableText() ?? string.Empty;
+    }
+
+    /// <summary>
+    /// Сегменти для preview: усі сегменти з БД для полів з UI; текст підставляє renderer через textById.
+    /// </summary>
+    private async Task<List<ReferralOverlaySegment>> BuildCalibrationPreviewOverlaySegmentsAsync(
+        Guid templateVersionId,
+        IReadOnlyList<PreviewCalibrationFieldRequest> clientFields,
+        IReadOnlyDictionary<string, string> textById,
+        CancellationToken cancellationToken)
+    {
+        var fieldIds = clientFields
+            .Where(item => item.TemplateFieldId.HasValue && item.TemplateFieldId.Value != Guid.Empty)
+            .Where(item => !string.IsNullOrWhiteSpace(item.ResolveDrawableText()))
+            .Select(item => item.TemplateFieldId!.Value)
+            .Concat(
+                textById
+                    .Where(pair => !string.IsNullOrWhiteSpace(pair.Value))
+                    .Select(pair => Guid.TryParse(pair.Key, out var id) ? id : Guid.Empty)
+                    .Where(id => id != Guid.Empty))
+            .Distinct()
+            .ToList();
+
+        if (fieldIds.Count == 0)
+        {
+            return clientFields.Select(MapPreviewCalibrationField).ToList();
+        }
+
+        var dbRows = await (
+                from segment in _context.TemplateFieldSegments.AsNoTracking()
+                join field in _context.TemplateFields.AsNoTracking() on segment.TemplateFieldId equals field.Id
+                where field.TemplateVersionId == templateVersionId
+                      && !field.IsAnnulled
+                      && !segment.IsAnnulled
+                      && fieldIds.Contains(field.Id)
+                orderby field.SortOrder, segment.Sequence
+                select new
+                {
+                    field.Id,
+                    field.TextOffsetX,
+                    field.TextOffsetY,
+                    segment.PageNumber,
+                    segment.PositionX,
+                    segment.PositionY,
+                    segment.Width,
+                    segment.Height,
+                    segment.FontSize,
+                    segment.FontName,
+                    segment.TextAlignment,
+                    segment.HorizontalAlignment,
+                    segment.VerticalAlignment,
+                    segment.Sequence
+                })
+            .ToListAsync(cancellationToken);
+
+        var clientFieldsByFieldId = clientFields
+            .Where(item => item.TemplateFieldId.HasValue && item.TemplateFieldId.Value != Guid.Empty)
+            .GroupBy(item => item.TemplateFieldId!.Value)
+            .ToDictionary(group => group.Key, group => group.ToList());
+
+        var clientByFieldId = clientFieldsByFieldId.ToDictionary(
+            pair => pair.Key,
+            pair => pair.Value[^1]);
+
+        var segments = new List<ReferralOverlaySegment>();
+        var fieldsWithDbSegments = new HashSet<Guid>();
+
+        foreach (var group in dbRows.GroupBy(row => row.Id))
+        {
+            fieldsWithDbSegments.Add(group.Key);
+            foreach (var dbSegment in group.OrderBy(row => row.Sequence))
+            {
+                var clientField = ResolveBestClientFieldForDbSegment(
+                    group.Key,
+                    dbSegment.Sequence,
+                    dbSegment.PositionX,
+                    dbSegment.PositionY,
+                    clientFieldsByFieldId);
+                var useClientStyle = clientField is not null;
+                var useClientLayout = useClientStyle && !NeedsDatabaseLayoutFallback(clientField!);
+                var drawText = ResolveCalibrationPreviewText(group.Key, textById, clientField);
+
+                // WYSIWYG: координати з UI, якщо overlay надіслав layout; інакше — сегмент з БД.
+                segments.Add(new ReferralOverlaySegment
+                {
+                    TemplateFieldId = group.Key,
+                    SegmentSequence = dbSegment.Sequence,
+                    Text = drawText,
+                    TextToDraw = drawText,
+                    DataFieldId = null,
+                    PageNumber = useClientLayout && clientField!.Page > 0 ? clientField.Page : dbSegment.PageNumber,
+                    PositionX = useClientLayout ? clientField!.X : dbSegment.PositionX,
+                    PositionY = useClientLayout ? clientField!.Y : dbSegment.PositionY,
+                    Width = useClientLayout ? clientField!.Width : dbSegment.Width,
+                    Height = useClientLayout ? clientField!.Height : dbSegment.Height,
+                    TextAlignment = ParseTextAlignment(
+                        useClientStyle
+                            ? clientField!.Alignment ?? dbSegment.HorizontalAlignment ?? dbSegment.TextAlignment.ToString()
+                            : dbSegment.HorizontalAlignment ?? dbSegment.TextAlignment.ToString()),
+                    HorizontalAlignment = useClientStyle
+                        ? clientField!.Alignment ?? dbSegment.HorizontalAlignment ?? dbSegment.TextAlignment.ToString()
+                        : dbSegment.HorizontalAlignment ?? dbSegment.TextAlignment.ToString(),
+                    VerticalAlignment = useClientStyle
+                        ? clientField!.VerticalAlignment ?? dbSegment.VerticalAlignment ?? "Top"
+                        : dbSegment.VerticalAlignment ?? "Top",
+                    FontName = useClientStyle ? clientField!.FontName ?? dbSegment.FontName : dbSegment.FontName,
+                    FontSize = useClientStyle ? clientField!.FontSize ?? dbSegment.FontSize : dbSegment.FontSize,
+                    TextOffsetX = useClientLayout ? clientField!.OffsetX : dbSegment.TextOffsetX,
+                    TextOffsetY = useClientLayout ? clientField!.OffsetY : dbSegment.TextOffsetY,
+                    TextColor = useClientStyle ? clientField!.TextColor : null
+                });
+            }
+        }
+
+        foreach (var fieldId in fieldIds.Where(id => !fieldsWithDbSegments.Contains(id)))
+        {
+            if (!clientByFieldId.TryGetValue(fieldId, out var clientField))
+            {
+                continue;
+            }
+
+            segments.Add(MapPreviewCalibrationField(clientField));
+        }
+
+        // Додаткові позиції з UI (той самий templateFieldId, інші X/Y) — без другого сегмента в БД.
+        foreach (var clientField in clientFields)
+        {
+            if (!clientField.TemplateFieldId.HasValue
+                || clientField.TemplateFieldId.Value == Guid.Empty
+                || string.IsNullOrWhiteSpace(clientField.ResolveDrawableText())
+                || NeedsDatabaseLayoutFallback(clientField))
+            {
+                continue;
+            }
+
+            var fieldId = clientField.TemplateFieldId.Value;
+            var hasMatchingSegment = segments.Any(segment =>
+                segment.TemplateFieldId == fieldId
+                && segment.SegmentSequence == (clientField.SegmentSequence > 0 ? clientField.SegmentSequence : 1)
+                && Math.Abs(segment.PositionX - clientField.X) < 1m
+                && Math.Abs(segment.PositionY - clientField.Y) < 1m);
+
+            if (hasMatchingSegment)
+            {
+                continue;
+            }
+
+            // DOM-бокс на інших X/Y (зсув конструктора) — додатковий сегмент з координат UI.
+            segments.Add(MapPreviewCalibrationField(clientField));
+        }
+
+        if (segments.Count == 0)
+        {
+            return clientFields.Select(MapPreviewCalibrationField).ToList();
+        }
+
+        _logger.LogInformation(
+            "Calibration preview segments: dbFields={DbFieldCount}, segmentCount={SegmentCount}, clientOnly={ClientOnly}",
+            fieldsWithDbSegments.Count,
+            segments.Count,
+            fieldIds.Count(id => !fieldsWithDbSegments.Contains(id)));
+
+        return segments;
+    }
+
+    private static (
+        Dictionary<string, string> BySegment,
+        Dictionary<Guid, string> ByTemplateFieldId) BuildUiTextLookups(
         IReadOnlyList<PreviewFieldDto> uiFields)
     {
-        var lookup = new Dictionary<(Guid TemplateFieldId, int SegmentSequence), string>();
+        var bySegment = new Dictionary<string, string>(StringComparer.Ordinal);
+        var byTemplateFieldId = new Dictionary<Guid, string>();
         foreach (var field in uiFields)
         {
             if (!field.TemplateFieldId.HasValue || field.TemplateFieldId.Value == Guid.Empty)
@@ -502,16 +771,31 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
                 continue;
             }
 
+            var text = field.ResolveDrawableText();
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                continue;
+            }
+
+            var fieldId = field.TemplateFieldId.Value;
             var sequence = field.SegmentSequence > 0 ? field.SegmentSequence : 1;
-            lookup[(field.TemplateFieldId.Value, sequence)] = field.Text ?? string.Empty;
+            var positionKey = ReferralPdfOverlayRenderer.BuildUiTextLookupKey(
+                fieldId,
+                sequence,
+                field.X,
+                field.Y);
+            var sequenceKey = ReferralPdfOverlayRenderer.BuildUiTextLookupKey(fieldId, sequence);
+            bySegment[positionKey] = text;
+            bySegment[sequenceKey] = text;
+            byTemplateFieldId[fieldId] = text;
         }
 
-        return lookup;
+        return (bySegment, byTemplateFieldId);
     }
 
     private static PreviewCalibrationFieldRequest MapPreviewFieldDto(PreviewFieldDto field)
     {
-        var text = field.Text ?? string.Empty;
+        var text = field.ResolveDrawableText();
         return new PreviewCalibrationFieldRequest
         {
             TemplateFieldId = field.TemplateFieldId,
@@ -529,7 +813,8 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
             FontSize = field.FontSize,
             FontName = field.FontName,
             Alignment = field.Alignment,
-            VerticalAlignment = field.VerticalAlignment
+            VerticalAlignment = field.VerticalAlignment,
+            TextColor = field.TextColor
         };
     }
 
@@ -538,10 +823,19 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
         var horizontal = string.IsNullOrWhiteSpace(field.Alignment) ? "Left" : field.Alignment.Trim();
 
         var drawableText = field.Text ?? field.Value ?? field.TextToDraw ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(drawableText))
+        {
+            drawableText = string.Empty;
+        }
+        else
+        {
+            drawableText = drawableText.Trim();
+        }
 
         return new ReferralOverlaySegment
         {
             Text = drawableText,
+            TextToDraw = drawableText,
             TemplateFieldId = field.TemplateFieldId,
             SegmentSequence = field.SegmentSequence > 0 ? field.SegmentSequence : 1,
             DataFieldId = null,
@@ -556,7 +850,8 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
             FontName = field.FontName,
             FontSize = field.FontSize,
             TextOffsetX = field.OffsetX,
-            TextOffsetY = field.OffsetY
+            TextOffsetY = field.OffsetY,
+            TextColor = field.TextColor
         };
     }
 

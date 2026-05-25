@@ -1,8 +1,119 @@
-﻿@{
-    ViewData["Title"] = "Home Page";
+﻿@model RolePortalViewModel
+@{
+    Layout = "_LayoutPortal";
+    ViewData["Title"] = "Портал ролей";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<div class="lims-portal-page @Model.ThemeCssClass">
+    <section class="lims-portal-hero" aria-labelledby="portal-title">
+        <div class="lims-portal-hero__backdrop" aria-hidden="true">
+            <div class="lims-portal-hero__backdrop-base"></div>
+            <div class="lims-portal-hero__backdrop-radial"></div>
+            <div class="lims-portal-hero__backdrop-stars"></div>
+            <div class="lims-portal-hero__backdrop-grid"></div>
+            <div class="lims-portal-hero__backdrop-noise"></div>
+            <div class="lims-portal-hero__glow lims-portal-hero__glow--1"></div>
+            <div class="lims-portal-hero__glow lims-portal-hero__glow--2"></div>
+            <div class="lims-portal-hero__glow lims-portal-hero__glow--3"></div>
+        </div>
+
+        <header class="lims-portal-topbar">
+            <a class="lims-portal-logo" asp-controller="Home" asp-action="Index">UniversalLIMS</a>
+            <div class="lims-portal-topbar__actions">
+                @if (Model.HasActiveRole)
+                {
+                    <a class="lims-portal-change-role"
+                       asp-controller="Home"
+                       asp-action="ClearRole"
+                       title="Обрати іншу роль на порталі">
+                        <i class="bi bi-arrow-repeat" aria-hidden="true"></i>
+                        Змінити роль
+                    </a>
+                }
+                <partial name="_PortalThemePicker" model="Model.ThemeOptions" />
+                <partial name="_PortalUserMenu" />
+            </div>
+        </header>
+
+        @if (TempData["RoleSelectError"] is string roleError)
+        {
+            <div class="lims-portal-alert">
+                <div class="alert alert-warning mb-0 shadow-sm" role="alert">@roleError</div>
+            </div>
+        }
+
+        <div class="lims-portal-hero__inner">
+            <header class="lims-portal-hero__head">
+                <h1 id="portal-title" class="lims-portal-hero__title">UniversalLIMS</h1>
+                <p class="lims-portal-hero__slogan">Єдина цифрова платформа лабораторних досліджень</p>
+                <p class="lims-portal-hero__org">
+                    Житомирський обласний центр контролю та профілактики хвороб МОЗ України
+                </p>
+                <div class="lims-portal-hero__welcome">
+                    <p class="lims-portal-hero__greeting">@Model.GreetingText</p>
+                    <p class="lims-portal-hero__greeting-name">@Model.UserDisplayName</p>
+                    <p class="lims-portal-hero__date">@Model.FormattedDate</p>
+                </div>
+            </header>
+
+            <div class="lims-portal-roles @(Model.HasActiveRole ? "" : "lims-portal-roles--picking")" role="list">
+                @foreach (var card in Model.Cards)
+                {
+                    var cardClass = card.IsGranted ? "lims-role-card--granted" : "lims-role-card--locked";
+                    if (card.IsActiveRole)
+                    {
+                        cardClass += " lims-role-card--active";
+                    }
+                    else if (card.IsGranted && Model.HasActiveRole)
+                    {
+                        cardClass += " lims-role-card--overview";
+                    }
+                    <article class="lims-role-card @cardClass"
+                             role="listitem"
+                             style="--role-accent: @card.AccentColor; --role-accent-rgb: @card.AccentRgb; --anim-delay: @(card.AnimationDelayMs)ms;">
+                        @if (card.IsActiveRole)
+                        {
+                            <span class="lims-role-card__badge lims-role-card__badge--active">
+                                <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
+                                Активна роль
+                            </span>
+                        }
+
+                        <div class="lims-role-card__icon-wrap" aria-hidden="true">
+                            <i class="bi @card.IconClass"></i>
+                        </div>
+
+                        <h2 class="lims-role-card__title">@card.DisplayName</h2>
+                        <p class="lims-role-card__desc">@card.Description</p>
+
+                        @if (card.IsGranted && card.IsActiveRole)
+                        {
+                            <a asp-action="Workspace"
+                               class="lims-role-card__btn lims-role-card__btn--continue mt-auto">
+                                <i class="bi bi-arrow-right-circle-fill" aria-hidden="true"></i>
+                                Продовжити роботу
+                            </a>
+                        }
+                        else if (card.IsGranted && !Model.HasActiveRole)
+                        {
+                            <form asp-action="SelectRole" method="post" class="mt-auto">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="role" value="@card.RoleCode" />
+                                <button type="submit" class="lims-role-card__btn">
+                                    Увійти як @card.DisplayName
+                                </button>
+                            </form>
+                        }
+                        else if (!card.IsGranted)
+                        {
+                            <p class="lims-role-card__lock">
+                                <i class="bi bi-lock-fill" aria-hidden="true"></i>
+                                Роль не призначена
+                            </p>
+                        }
+                    </article>
+                }
+            </div>
+        </div>
+    </section>
 </div>

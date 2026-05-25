@@ -6,6 +6,7 @@ using UniversalLIMS.Application.Registration.Abstractions;
 using UniversalLIMS.Application.Security;
 using UniversalLIMS.Application.Templates.Abstractions;
 using UniversalLIMS.Domain.Templates;
+using UniversalLIMS.Infrastructure.Filters;
 using UniversalLIMS.Infrastructure.Persistence;
 using UniversalLIMS.Infrastructure.Registration;
 using UniversalLIMS.ViewModels.PdfWorkspace;
@@ -13,6 +14,7 @@ using UniversalLIMS.ViewModels.PdfWorkspace;
 namespace UniversalLIMS.Controllers;
 
 [Authorize(Policy = LimsPolicies.RegisterSamples)]
+[RequireActiveLimsRole]
 public sealed class PdfWorkspaceController : Controller
 {
     private readonly ApplicationDbContext _context;

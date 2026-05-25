@@ -3,12 +3,14 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using UniversalLIMS.Application.Security;
 using UniversalLIMS.Domain.Templates;
+using UniversalLIMS.Infrastructure.Filters;
 using UniversalLIMS.Infrastructure.Persistence;
 using UniversalLIMS.ViewModels.Templates;
 
 namespace UniversalLIMS.Controllers;
 
 [Authorize(Policy = LimsPolicies.ManageSystem)]
+[RequireActiveLimsRole]
 public sealed class TemplatesController : Controller
 {
     private readonly ApplicationDbContext _context;

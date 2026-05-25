@@ -1,0 +1,91 @@
+@using UniversalLIMS.Application.Home
+@using UniversalLIMS.Application.Security
+@inject IActiveLimsRoleService ActiveLimsRole
+@inject IPortalThemeService PortalTheme
+@inject IWebHostEnvironment HostEnvironment
+@{
+    var chrome = WorkspaceChromeViewModel.TryFromRole(
+        ActiveLimsRole.ResolveActiveRole(User),
+        HostEnvironment.IsDevelopment());
+    var accent = chrome?.AccentColor ?? "#0d9488";
+    var themeClass = PortalThemes.ToCssClass(PortalTheme.GetTheme()).Replace("portal-", "workspace-", StringComparison.Ordinal);
+}
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - UniversalLIMS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="~/css/lims-workspace.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body class="lims-workspace-body @themeClass" style="--workspace-accent: @accent; font-family: Inter, system-ui, sans-serif;">
+    <header>
+        <nav class="navbar navbar-expand-md lims-workspace-navbar">
+            <div class="container-fluid px-3 px-md-4">
+                <a class="navbar-brand" asp-controller="Home" asp-action="Workspace">UniversalLIMS</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#workspaceNav"
+                        aria-controls="workspaceNav" aria-expanded="false" aria-label="Меню">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="workspaceNav">
+                    @if (chrome?.NavItems.Count > 0)
+                    {
+                        <ul class="navbar-nav me-auto mb-2 mb-md-0">
+                            @foreach (var item in chrome.NavItems)
+                            {
+                                <li class="nav-item">
+                                    <a class="nav-link"
+                                       asp-controller="@item.Controller"
+                                       asp-action="@item.Action">
+                                        <i class="bi @item.IconClass" aria-hidden="true"></i>
+                                        @item.Title
+                                    </a>
+                                </li>
+                            }
+                        </ul>
+                    }
+                    else
+                    {
+                        <ul class="navbar-nav me-auto mb-2 mb-md-0">
+                            <li class="nav-item">
+                                <a class="nav-link active" asp-controller="Home" asp-action="Workspace">
+                                    <i class="bi bi-house-door" aria-hidden="true"></i>
+                                    Кабінет
+                                </a>
+                            </li>
+                        </ul>
+                    }
+                    <div class="d-flex align-items-center flex-wrap gap-2 ms-md-auto">
+                        <partial name="_WorkspaceChrome" />
+                        <partial name="_LoginPartialWorkspace" />
+                    </div>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <div class="container-fluid px-3 px-md-4 lims-workspace-main">
+        <main role="main">
+            @RenderBody()
+        </main>
+    </div>
+
+    <footer class="lims-workspace-footer py-3 mt-auto">
+        <div class="container-fluid px-3 px-md-4">
+            &copy; 2026 — UniversalLIMS
+        </div>
+    </footer>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

@@ -1,0 +1,1030 @@
+/* UniversalLIMS — role portal (premium SaaS, 3 themes) */
+
+/* ── Theme tokens ── */
+.portal-theme-1.lims-portal-page {
+    --portal-title-from: #ffffff;
+    --portal-title-to: #d4d4d8;
+    --portal-slogan: #e4e4e7;
+    --portal-card-bg: rgba(255, 255, 255, 0.075);
+    --portal-card-border: rgba(255, 255, 255, 0.12);
+    --portal-grid-line: rgba(255, 255, 255, 0.04);
+}
+
+.portal-theme-2.lims-portal-page {
+    --portal-title-from: #ffffff;
+    --portal-title-to: #bbf7d0;
+    --portal-slogan: #d1fae5;
+    --portal-card-bg: rgba(255, 255, 255, 0.08);
+    --portal-card-border: rgba(167, 243, 208, 0.18);
+    --portal-grid-line: rgba(52, 211, 153, 0.06);
+}
+
+.portal-theme-3.lims-portal-page {
+    --portal-title-from: #ffffff;
+    --portal-title-to: #d9f99d;
+    --portal-slogan: #ecfccb;
+    --portal-card-bg: rgba(255, 255, 255, 0.085);
+    --portal-card-border: rgba(190, 242, 100, 0.2);
+    --portal-grid-line: rgba(190, 242, 100, 0.07);
+}
+
+.lims-portal-body {
+    margin: 0;
+    min-height: 100vh;
+    overflow-x: hidden;
+    font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: #0a0f1a;
+    color: #f8fafc;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+.lims-portal-page {
+    min-height: 100vh;
+}
+
+/* ── Top bar ── */
+.lims-portal-topbar {
+    position: relative;
+    z-index: 10;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.85rem clamp(1.25rem, 4vw, 2.5rem);
+}
+
+.lims-portal-topbar__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+}
+
+.lims-portal-change-role {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 0.9rem;
+    border-radius: 999px;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #e2e8f0;
+    text-decoration: none;
+    white-space: nowrap;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    transition:
+        color 0.2s ease,
+        background 0.2s ease,
+        border-color 0.2s ease,
+        box-shadow 0.2s ease,
+        transform 0.2s ease;
+}
+
+.lims-portal-change-role:hover {
+    color: #fff;
+    text-decoration: none;
+    border-color: rgba(255, 255, 255, 0.28);
+    background: rgba(255, 255, 255, 0.14);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+    transform: translateY(-1px);
+}
+
+.lims-portal-change-role .bi {
+    font-size: 1rem;
+}
+
+/* ── Theme picker ── */
+.lims-portal-theme-trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.06);
+    color: #e2e8f0;
+    font-size: 1.1rem;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.lims-portal-theme-trigger:hover,
+.lims-portal-theme-trigger:focus-visible {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.22);
+    color: #fff;
+    transform: scale(1.05);
+}
+
+.lims-portal-theme-menu {
+    min-width: 13rem;
+    padding: 0.4rem;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 14px;
+    background: rgba(15, 23, 42, 0.94);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+}
+
+.lims-portal-theme-menu .dropdown-header {
+    color: #94a3b8;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.lims-portal-theme-form {
+    margin: 0;
+}
+
+.lims-portal-theme-option {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    width: 100%;
+    border: none;
+    border-radius: 8px;
+    padding: 0.5rem 0.65rem;
+    background: transparent;
+    text-align: left;
+}
+
+.lims-portal-theme-option:hover,
+.lims-portal-theme-option:focus-visible {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.lims-portal-theme-option.active {
+    background: rgba(99, 102, 241, 0.22);
+    font-weight: 600;
+}
+
+.lims-portal-theme-swatch {
+    flex-shrink: 0;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 999px;
+    border: 2px solid rgba(255, 255, 255, 0.85);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.lims-portal-theme-label {
+    flex: 1;
+    font-size: 0.875rem;
+    color: #f1f5f9;
+}
+
+.lims-portal-theme-check {
+    color: #a5b4fc;
+    font-size: 1rem;
+}
+
+.lims-portal-logo {
+    font-size: 1.2rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    text-decoration: none;
+    background: linear-gradient(135deg, #fff 0%, #c7d2fe 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.lims-portal-logo:hover {
+    opacity: 0.9;
+}
+
+.lims-portal-user-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.06);
+    color: #f1f5f9;
+    font-size: 0.875rem;
+    font-weight: 500;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+    transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.lims-portal-user-btn:hover,
+.lims-portal-user-btn:focus-visible {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.22);
+    color: #fff;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+}
+
+.lims-portal-dropdown .dropdown-menu {
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 12px;
+    box-shadow: 0 20px 50px rgba(15, 23, 42, 0.2);
+}
+
+/* ── Portal shell (full viewport on desktop) ── */
+.lims-portal-hero {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    overflow-x: hidden;
+    background: #0f172a;
+}
+
+/* Layered atmosphere (markup: .lims-portal-hero__backdrop) */
+.lims-portal-hero__backdrop {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.lims-portal-hero__backdrop-base,
+.lims-portal-hero__backdrop-radial {
+    position: absolute;
+    inset: 0;
+}
+
+.lims-portal-hero__backdrop-stars {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.lims-portal-hero__backdrop-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+        linear-gradient(var(--portal-grid-line, rgba(255, 255, 255, 0.035)) 1px, transparent 1px),
+        linear-gradient(90deg, var(--portal-grid-line, rgba(255, 255, 255, 0.035)) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse 90% 80% at 50% 40%, black 20%, transparent 75%);
+    -webkit-mask-image: radial-gradient(ellipse 90% 80% at 50% 40%, black 20%, transparent 75%);
+}
+
+.lims-portal-hero__backdrop-noise {
+    position: absolute;
+    inset: 0;
+    opacity: 0.45;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.08'/%3E%3C/svg%3E");
+}
+
+.lims-portal-hero__glow {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.5;
+    animation: lims-portal-glow-drift 18s ease-in-out infinite alternate;
+}
+
+@keyframes lims-portal-glow-drift {
+    from { transform: translate(0, 0) scale(1); }
+    to { transform: translate(12px, -8px) scale(1.06); }
+}
+
+.lims-portal-hero__glow--1 {
+    animation-duration: 22s;
+}
+
+.lims-portal-hero__glow--2 {
+    animation-duration: 16s;
+    animation-direction: alternate-reverse;
+}
+
+.lims-portal-hero__glow--1 {
+    width: 420px;
+    height: 420px;
+    top: -8%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(99, 102, 241, 0.35);
+}
+
+.lims-portal-hero__glow--2 {
+    width: 280px;
+    height: 280px;
+    bottom: 15%;
+    right: -5%;
+    background: rgba(49, 46, 129, 0.4);
+}
+
+.lims-portal-hero__glow--3 {
+    width: 200px;
+    height: 200px;
+    bottom: 25%;
+    left: -3%;
+    background: rgba(14, 165, 233, 0.2);
+}
+
+/* ── Portal themes ── */
+/* Theme 1 — Сірий: графіт, сталь, нейтральний premium */
+.portal-theme-1 .lims-portal-hero__backdrop-base {
+    background: linear-gradient(160deg, #09090b 0%, #18181b 35%, #27272a 65%, #3f3f46 100%);
+}
+
+.portal-theme-1 .lims-portal-hero__backdrop-radial {
+    background:
+        radial-gradient(ellipse 80% 55% at 50% 15%, rgba(161, 161, 170, 0.2) 0%, transparent 52%),
+        radial-gradient(ellipse 55% 42% at 88% 65%, rgba(113, 113, 122, 0.18) 0%, transparent 48%),
+        radial-gradient(ellipse 48% 38% at 8% 72%, rgba(63, 63, 70, 0.35) 0%, transparent 45%);
+}
+
+.portal-theme-1 .lims-portal-hero__glow--1 { background: rgba(161, 161, 170, 0.28); }
+.portal-theme-1 .lims-portal-hero__glow--2 { background: rgba(82, 82, 91, 0.38); }
+.portal-theme-1 .lims-portal-hero__glow--3 { background: rgba(212, 212, 216, 0.12); }
+
+.portal-theme-1 .lims-portal-logo {
+    background: linear-gradient(135deg, #fff 0%, #d4d4d8 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+}
+
+.portal-theme-2 .lims-portal-hero__backdrop-base {
+    background: linear-gradient(165deg, #0f172a 0%, #134e4a 42%, #14532d 78%, #052e16 100%);
+}
+
+.portal-theme-2 .lims-portal-hero__backdrop-radial {
+    background:
+        radial-gradient(ellipse 75% 50% at 50% 20%, rgba(34, 197, 94, 0.22) 0%, transparent 55%),
+        radial-gradient(ellipse 55% 38% at 88% 70%, rgba(20, 83, 45, 0.35) 0%, transparent 50%),
+        radial-gradient(ellipse 45% 32% at 10% 75%, rgba(6, 78, 59, 0.4) 0%, transparent 45%);
+}
+
+.portal-theme-2 .lims-portal-hero__glow--1 { background: rgba(34, 197, 94, 0.28); }
+.portal-theme-2 .lims-portal-hero__glow--2 { background: rgba(20, 83, 45, 0.38); }
+.portal-theme-2 .lims-portal-hero__glow--3 { background: rgba(16, 185, 129, 0.18); }
+
+.portal-theme-2 .lims-portal-logo {
+    background: linear-gradient(135deg, #fff 0%, #bbf7d0 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+}
+
+/* Theme 3 — Салатовий: темний фон + свіжий лайм */
+.portal-theme-3 .lims-portal-hero__backdrop-base {
+    background: linear-gradient(160deg, #0f172a 0%, #1a2e05 38%, #365314 72%, #3f6212 100%);
+}
+
+.portal-theme-3 .lims-portal-hero__backdrop-radial {
+    background:
+        radial-gradient(ellipse 78% 52% at 50% 16%, rgba(190, 242, 100, 0.3) 0%, transparent 54%),
+        radial-gradient(ellipse 58% 42% at 88% 62%, rgba(132, 204, 22, 0.22) 0%, transparent 50%),
+        radial-gradient(ellipse 50% 36% at 10% 70%, rgba(101, 163, 13, 0.28) 0%, transparent 46%);
+}
+
+.portal-theme-3 .lims-portal-hero__backdrop-stars {
+    opacity: 0;
+}
+
+.portal-theme-3 .lims-portal-hero__glow--1 { background: rgba(190, 242, 100, 0.35); }
+.portal-theme-3 .lims-portal-hero__glow--2 { background: rgba(132, 204, 22, 0.32); }
+.portal-theme-3 .lims-portal-hero__glow--3 { background: rgba(163, 230, 53, 0.22); }
+
+.portal-theme-3 .lims-portal-logo {
+    background: linear-gradient(135deg, #fff 0%, #d9f99d 55%, #bef264 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+}
+
+.portal-theme-1 .lims-portal-hero__title {
+    color: #fafafa;
+}
+
+.portal-theme-2 .lims-portal-hero__title {
+    color: #ecfdf5;
+    text-shadow:
+        0 2px 20px rgba(0, 0, 0, 0.35),
+        0 0 48px rgba(34, 197, 94, 0.22);
+}
+
+.portal-theme-3 .lims-portal-hero__title {
+    color: #f7fee7;
+    text-shadow:
+        0 2px 20px rgba(0, 0, 0, 0.35),
+        0 0 48px rgba(190, 242, 100, 0.25);
+}
+
+.portal-theme-2 .lims-portal-hero__slogan { color: var(--portal-slogan); }
+.portal-theme-3 .lims-portal-hero__slogan { color: var(--portal-slogan); }
+
+.portal-theme-2 .lims-portal-hero__welcome {
+    border-top-color: rgba(52, 211, 153, 0.2);
+}
+
+.portal-theme-3 .lims-portal-hero__welcome {
+    border-top-color: rgba(190, 242, 100, 0.22);
+}
+
+.lims-portal-hero__inner {
+    position: relative;
+    z-index: 1;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: 0 clamp(1.25rem, 4vw, 2.5rem) clamp(1rem, 2vh, 1.5rem);
+    max-width: 1140px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+/* ── Typography (hero) — compact ── */
+.lims-portal-hero__head {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: clamp(0.5rem, 2vh, 1rem) 0 clamp(0.75rem, 1.5vh, 1.25rem);
+    text-align: center;
+}
+
+.lims-portal-hero__title {
+    font-size: clamp(1.75rem, 4.5vw, 2.5rem);
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 1.05;
+    margin: 0 0 0.5rem;
+    color: #ffffff;
+    background: none;
+    -webkit-text-fill-color: currentColor;
+    text-shadow:
+        0 2px 16px rgba(0, 0, 0, 0.45),
+        0 0 40px rgba(199, 210, 254, 0.2);
+}
+
+.lims-portal-hero__slogan {
+    font-size: clamp(0.95rem, 2vw, 1.15rem);
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    line-height: 1.35;
+    margin: 0 0 0.35rem;
+    color: #e2e8f0;
+    max-width: 36rem;
+}
+
+.lims-portal-hero__org {
+    font-size: clamp(0.8rem, 1.5vw, 0.875rem);
+    font-weight: 400;
+    line-height: 1.45;
+    margin: 0 0 0.85rem;
+    color: #94a3b8;
+    max-width: 40rem;
+}
+
+.lims-portal-hero__welcome {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.15rem;
+    padding-top: 0.65rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    width: 100%;
+    max-width: 28rem;
+}
+
+.lims-portal-hero__greeting {
+    font-size: clamp(0.875rem, 1.8vw, 1rem);
+    font-weight: 400;
+    margin: 0;
+    color: #94a3b8;
+    letter-spacing: 0.01em;
+}
+
+.lims-portal-hero__greeting-name {
+    font-size: clamp(1rem, 2vw, 1.15rem);
+    font-weight: 600;
+    color: #f8fafc;
+    letter-spacing: -0.02em;
+}
+
+.lims-portal-hero__date {
+    margin: 0;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: #64748b;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.lims-portal-alert {
+    position: relative;
+    z-index: 2;
+    max-width: 1140px;
+    margin: 0 auto;
+    padding: 0 clamp(1.25rem, 4vw, 2.5rem);
+}
+
+.lims-portal-alert .alert {
+    border: 1px solid rgba(251, 191, 36, 0.35);
+    border-radius: 12px;
+    background: rgba(251, 191, 36, 0.12);
+    color: #fef3c7;
+    backdrop-filter: blur(10px);
+}
+
+/* Режим вибору ролі — картки з кнопками «Увійти як» світяться при наведенні */
+.lims-portal-roles--picking .lims-role-card--granted {
+    cursor: default;
+}
+
+.lims-portal-roles--picking .lims-role-card--granted:hover {
+    transform: translateY(-10px);
+    border-color: rgba(var(--role-accent-rgb), 0.45);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.2),
+        0 0 0 1px rgba(var(--role-accent-rgb), 0.22),
+        0 0 64px rgba(var(--role-accent-rgb), 0.28),
+        0 20px 48px rgba(0, 0, 0, 0.38);
+}
+
+.lims-portal-roles--picking .lims-role-card--granted:hover::after {
+    height: 6px;
+    box-shadow: 0 0 40px var(--role-accent);
+}
+
+.lims-portal-roles--picking .lims-role-card--granted:hover .lims-role-card__icon-wrap {
+    transform: scale(1.14) rotate(-2deg);
+    color: var(--role-accent);
+    box-shadow: 0 0 32px rgba(var(--role-accent-rgb), 0.45);
+}
+
+.lims-portal-roles--picking .lims-role-card--granted .lims-role-card__btn:hover {
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.3) inset,
+        0 10px 36px rgba(var(--role-accent-rgb), 0.55),
+        0 0 48px rgba(var(--role-accent-rgb), 0.35);
+}
+
+/* Інші доступні ролі, коли вже обрана активна — без кнопки, спокійний огляд */
+.lims-role-card--overview.lims-role-card--granted {
+    opacity: 0.82;
+    cursor: default;
+}
+
+.lims-role-card--overview.lims-role-card--granted:hover {
+    transform: none;
+    border-color: var(--portal-card-border, rgba(255, 255, 255, 0.1));
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.1),
+        0 4px 6px rgba(0, 0, 0, 0.08),
+        0 12px 40px rgba(0, 0, 0, 0.22);
+}
+
+.lims-role-card--overview.lims-role-card--granted:hover::before {
+    opacity: 0;
+}
+
+.lims-role-card--overview.lims-role-card--granted:hover::after {
+    opacity: 0.5;
+    height: 3px;
+    box-shadow: none;
+}
+
+.lims-role-card--overview.lims-role-card--granted:hover .lims-role-card__icon-wrap {
+    transform: none;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* ── Role grid ── */
+.lims-portal-roles {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    width: 100%;
+    margin-top: 0.25rem;
+}
+
+@media (min-width: 992px) {
+    .lims-portal-roles {
+        grid-template-columns: repeat(2, 1fr);
+        grid-template-rows: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+        align-content: stretch;
+    }
+
+    .lims-portal-hero__welcome {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.25rem 0.65rem;
+        padding-top: 0.5rem;
+    }
+
+    .lims-portal-hero__date::before {
+        content: "·";
+        margin-right: 0.65rem;
+        color: #475569;
+    }
+}
+
+/* Full HD+: весь портал без скролу */
+@media (min-width: 992px) and (min-height: 850px) {
+    .lims-portal-page {
+        height: 100dvh;
+        overflow: hidden;
+    }
+
+    .lims-portal-hero {
+        height: 100%;
+        min-height: 0;
+        max-height: 100dvh;
+    }
+
+    .lims-portal-hero__head {
+        max-height: 42vh;
+        padding-top: 0.35rem;
+        padding-bottom: 0.65rem;
+    }
+
+    .lims-portal-roles {
+        margin-top: 0.5rem;
+    }
+
+    .lims-role-card--granted:hover {
+        transform: translateY(-4px);
+    }
+}
+
+/* Мобільні: hero ~50vh, далі скрол */
+@media (max-width: 991.98px) {
+    .lims-portal-page {
+        min-height: 100vh;
+    }
+
+    .lims-portal-hero {
+        min-height: auto;
+    }
+
+    .lims-portal-hero__head {
+        min-height: 50vh;
+        padding: 1.5rem 0 1.25rem;
+    }
+
+    .lims-portal-hero__inner {
+        padding-bottom: 2rem;
+    }
+
+    .lims-portal-roles {
+        flex: none;
+    }
+}
+
+/* ── Role card (premium glass) ── */
+.lims-role-card {
+    --role-accent: #6366f1;
+    --role-accent-rgb: 99, 102, 241;
+    --anim-delay: 0ms;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: 1.15rem 1.25rem 1.1rem;
+    border-radius: 20px;
+    background: var(--portal-card-bg, rgba(255, 255, 255, 0.07));
+    border: 1px solid var(--portal-card-border, rgba(255, 255, 255, 0.1));
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.12),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.08),
+        0 4px 6px rgba(0, 0, 0, 0.08),
+        0 12px 40px rgba(0, 0, 0, 0.28);
+    transition:
+        transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+        box-shadow 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+        border-color 0.35s ease,
+        background 0.35s ease;
+    animation: lims-portal-fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: var(--anim-delay);
+}
+
+.lims-role-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(
+        145deg,
+        rgba(255, 255, 255, 0.1) 0%,
+        transparent 42%,
+        rgba(var(--role-accent-rgb), 0.06) 100%);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.35s ease;
+}
+
+.lims-role-card::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 4px;
+    border-radius: 0 0 20px 20px;
+    background: linear-gradient(90deg, transparent, var(--role-accent), transparent);
+    opacity: 0.9;
+    transition: opacity 0.35s ease, box-shadow 0.35s ease, height 0.35s ease;
+}
+
+.lims-role-card--granted:hover {
+    transform: translateY(-8px);
+    background: rgba(255, 255, 255, 0.09);
+    border-color: rgba(255, 255, 255, 0.18);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.18),
+        0 8px 16px rgba(0, 0, 0, 0.12),
+        0 24px 56px rgba(0, 0, 0, 0.38),
+        0 0 0 1px rgba(var(--role-accent-rgb), 0.15),
+        0 0 48px rgba(var(--role-accent-rgb), 0.12);
+}
+
+.lims-role-card--granted:hover::before {
+    opacity: 1;
+}
+
+.lims-role-card--granted:hover::after {
+    opacity: 1;
+    height: 5px;
+    box-shadow: 0 0 28px var(--role-accent);
+}
+
+.lims-role-card--granted:hover .lims-role-card__icon-wrap {
+    transform: scale(1.12) rotate(-3deg);
+    box-shadow: 0 8px 28px rgba(var(--role-accent-rgb), 0.35);
+    border-color: rgba(var(--role-accent-rgb), 0.35);
+}
+
+.lims-role-card--locked {
+    opacity: 0.34;
+    filter: saturate(0.65);
+    pointer-events: none;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.06),
+        0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.lims-role-card__badge {
+    position: absolute;
+    top: 1.15rem;
+    right: 1.15rem;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 0.28rem 0.65rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    color: #e2e8f0;
+    backdrop-filter: blur(8px);
+}
+
+.lims-role-card__badge--active {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    text-transform: none;
+    letter-spacing: 0.02em;
+    font-size: 0.6875rem;
+    padding: 0.35rem 0.75rem;
+    color: #fff;
+    background: linear-gradient(
+        135deg,
+        rgba(var(--role-accent-rgb), 0.55) 0%,
+        rgba(var(--role-accent-rgb), 0.28) 100%);
+    border: 1px solid rgba(var(--role-accent-rgb), 0.65);
+    box-shadow:
+        0 0 20px rgba(var(--role-accent-rgb), 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.lims-role-card__badge--active .bi {
+    font-size: 0.8rem;
+}
+
+/* Активна роль у сесії — максимально помітне виділення */
+.lims-role-card--active.lims-role-card--granted {
+    border: 3px solid var(--role-accent);
+    background: linear-gradient(
+        165deg,
+        rgba(var(--role-accent-rgb), 0.18) 0%,
+        var(--portal-card-bg, rgba(255, 255, 255, 0.09)) 48%,
+        rgba(255, 255, 255, 0.06) 100%);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.2),
+        0 0 0 1px rgba(var(--role-accent-rgb), 0.25),
+        0 0 56px rgba(var(--role-accent-rgb), 0.28),
+        0 16px 48px rgba(0, 0, 0, 0.35);
+    transform: translateY(-2px);
+}
+
+.lims-role-card--active.lims-role-card--granted::before {
+    opacity: 1;
+    background: linear-gradient(
+        145deg,
+        rgba(var(--role-accent-rgb), 0.22) 0%,
+        transparent 38%,
+        rgba(var(--role-accent-rgb), 0.12) 100%);
+}
+
+.lims-role-card--active.lims-role-card--granted::after {
+    opacity: 1;
+    height: 6px;
+    background: linear-gradient(90deg, transparent 0%, var(--role-accent) 20%, var(--role-accent) 80%, transparent 100%);
+    box-shadow: 0 0 36px var(--role-accent);
+}
+
+.lims-role-card--active.lims-role-card--granted .lims-role-card__icon-wrap {
+    transform: scale(1.06);
+    border-color: rgba(var(--role-accent-rgb), 0.45);
+    background: rgba(var(--role-accent-rgb), 0.14);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.15),
+        0 8px 24px rgba(var(--role-accent-rgb), 0.35);
+}
+
+.lims-role-card--active.lims-role-card--granted:hover {
+    transform: translateY(-6px);
+    border-color: color-mix(in srgb, var(--role-accent) 88%, #fff);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.22),
+        0 0 0 1px rgba(var(--role-accent-rgb), 0.35),
+        0 0 72px rgba(var(--role-accent-rgb), 0.38),
+        0 20px 56px rgba(0, 0, 0, 0.4);
+}
+
+.lims-role-card__icon-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    margin-bottom: 0.85rem;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: var(--role-accent);
+    font-size: 1.65rem;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    transition:
+        transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+        box-shadow 0.4s ease,
+        border-color 0.4s ease;
+}
+
+.lims-role-card__title {
+    font-size: 1.2rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    margin: 0 0 0.35rem;
+    color: #fff;
+    line-height: 1.2;
+}
+
+.lims-role-card__desc {
+    font-size: 0.8125rem;
+    font-weight: 400;
+    color: #94a3b8;
+    margin: 0 0 0.85rem;
+    line-height: 1.45;
+    flex: 1;
+}
+
+.lims-role-card__lock {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: #64748b;
+    margin: 0;
+}
+
+.lims-role-card__btn {
+    width: 100%;
+    padding: 0.6rem 1rem;
+    border: none;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    letter-spacing: 0.01em;
+    color: #fff;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--role-accent) 92%, #fff) 0%, var(--role-accent) 100%);
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.2) inset,
+        0 4px 14px rgba(0, 0, 0, 0.2),
+        0 0 0 1px rgba(0, 0, 0, 0.06);
+    transition:
+        transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+        box-shadow 0.25s ease,
+        filter 0.25s ease;
+    cursor: pointer;
+}
+
+.lims-role-card__btn:hover {
+    transform: scale(1.03);
+    filter: brightness(1.08) saturate(1.1);
+    color: #fff;
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.25) inset,
+        0 8px 28px rgba(var(--role-accent-rgb), 0.45),
+        0 0 0 1px rgba(var(--role-accent-rgb), 0.2);
+}
+
+.lims-role-card__btn:active {
+    transform: scale(0.98);
+}
+
+.lims-role-card__btn:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 3px;
+}
+
+.lims-role-card__btn--continue {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+    min-height: 3rem;
+    padding: 0.85rem 1.15rem;
+    font-size: 0.9375rem;
+    font-weight: 700;
+    text-decoration: none;
+    background: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--role-accent) 75%, #fff) 0%,
+        var(--role-accent) 55%,
+        color-mix(in srgb, var(--role-accent) 88%, #000) 100%);
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.35) inset,
+        0 6px 22px rgba(var(--role-accent-rgb), 0.55),
+        0 0 0 2px rgba(var(--role-accent-rgb), 0.35),
+        0 0 40px rgba(var(--role-accent-rgb), 0.25);
+}
+
+.lims-role-card__btn--continue:hover {
+    color: #fff;
+    text-decoration: none;
+    transform: scale(1.04);
+    filter: brightness(1.1);
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.4) inset,
+        0 10px 32px rgba(var(--role-accent-rgb), 0.6),
+        0 0 0 2px rgba(var(--role-accent-rgb), 0.45),
+        0 0 56px rgba(var(--role-accent-rgb), 0.35);
+}
+
+.lims-role-card__btn--continue .bi {
+    font-size: 1.05rem;
+}
+
+@keyframes lims-portal-fade-up {
+    from {
+        opacity: 0;
+        transform: translateY(28px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .lims-portal-hero__glow {
+        animation: none;
+    }
+
+    .lims-role-card {
+        animation: none;
+    }
+
+    .lims-role-card--granted:hover {
+        transform: none;
+    }
+
+    .lims-role-card--granted:hover .lims-role-card__icon-wrap {
+        transform: none;
+    }
+
+    .lims-role-card,
+    .lims-role-card__icon-wrap,
+    .lims-role-card__btn {
+        transition: none;
+    }
+}

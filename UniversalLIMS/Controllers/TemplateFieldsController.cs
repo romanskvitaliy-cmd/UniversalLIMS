@@ -443,8 +443,9 @@ public sealed class TemplateFieldsController : Controller
                 return $"{field.TemplateFieldId?.ToString("D") ?? "no-id"}:'{preview}'";
             }));
 
+        Console.WriteLine($"Preview received {request.Fields.Count} fields");
         _logger.LogInformation(
-            "Preview received {FieldCount} fields. First 3: {FirstThree}",
+            "Preview received {FieldCount} fields from UI. First 3: {FirstThree}",
             request.Fields.Count,
             firstThree);
 

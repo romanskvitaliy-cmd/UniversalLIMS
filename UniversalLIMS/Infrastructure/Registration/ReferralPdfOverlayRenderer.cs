@@ -1,9 +1,12 @@
 using System.Collections.Concurrent;
+using System.Globalization;
+using Microsoft.Extensions.Logging;
 using Syncfusion.Drawing;
 using Syncfusion.Pdf;
 using Syncfusion.Pdf.Graphics;
 using Syncfusion.Pdf.Parsing;
 using UniversalLIMS.Application.Registration;
+using UniversalLIMS.Infrastructure.Diagnostics;
 using UniversalLIMS.Domain.Templates;
 
 namespace UniversalLIMS.Infrastructure.Registration;
@@ -11,6 +14,15 @@ namespace UniversalLIMS.Infrastructure.Registration;
 public sealed class ReferralPdfOverlayRenderer
 {
     public const decimal ConstructorPreviewScale = PdfOverlayTextLayout.ConstructorPreviewScale;
+
+    private static readonly ConcurrentDictionary<string, PdfBrush> BrushCache = new(StringComparer.OrdinalIgnoreCase);
+
+    private readonly ILogger<ReferralPdfOverlayRenderer>? _logger;
+
+    public ReferralPdfOverlayRenderer(ILogger<ReferralPdfOverlayRenderer>? logger = null)
+    {
+        _logger = logger;
+    }
 
     private const float DefaultFontSize = 10f;
     private const float MinFontSize = 6f;
@@ -31,86 +43,334 @@ public sealed class ReferralPdfOverlayRenderer
         IReadOnlyList<ReferralOverlaySegment> segments,
         IReadOnlyDictionary<Guid, string?> valuesByDataFieldId,
         bool skipEmptyText = true,
-        IReadOnlyDictionary<(Guid TemplateFieldId, int SegmentSequence), string>? textByUiField = null)
+        IReadOnlyDictionary<string, string>? textByUiField = null,
+        IReadOnlyDictionary<Guid, string>? textByTemplateFieldId = null,
+        IReadOnlyDictionary<string, string>? textById = null)
     {
         ArgumentNullException.ThrowIfNull(originalPdfStream);
+
+        // Calibration preview: skipEmptyText=false → малюємо всі сегменти з payload (без IsVisible/permissions).
+        var debugDrawAllIncomingSegments = !skipEmptyText;
 
         var drawn = 0;
         var skippedEmpty = 0;
         var skippedPage = 0;
+        var segmentIndex = 0;
 
         using var loadedDocument = new PdfLoadedDocument(originalPdfStream);
         var pageCount = loadedDocument.Pages.Count;
 
+        _logger?.LogInformation(
+            "RenderWithStats start: segments={SegmentCount}, pdfPages={PageCount}, skipEmptyText={SkipEmpty}, debugDrawAll={DebugAll}",
+            segments.Count,
+            pageCount,
+            skipEmptyText,
+            debugDrawAllIncomingSegments);
+
+        var useSimpleTextById = textById is { Count: > 0 };
+
         foreach (var overlaySegment in segments)
         {
-            var value = ResolveOverlayText(overlaySegment, valuesByDataFieldId, textByUiField) ?? string.Empty;
-            if (skipEmptyText && string.IsNullOrWhiteSpace(value))
+            segmentIndex++;
+            var id = overlaySegment.TemplateFieldId?.ToString("D") ?? "no-id";
+            var key = id;
+
+            var value = string.Empty;
+            if (useSimpleTextById
+                && overlaySegment.TemplateFieldId is Guid templateFieldId
+                && textById!.TryGetValue(templateFieldId.ToString("D"), out var uiText))
             {
+                value = uiText;
+            }
+            else if (!useSimpleTextById)
+            {
+                value = ResolveOverlayText(
+                    overlaySegment,
+                    valuesByDataFieldId,
+                    textByUiField,
+                    textByTemplateFieldId) ?? string.Empty;
+            }
+
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                var textToDraw = overlaySegment.TextToDraw ?? string.Empty;
+                var segmentPayloadText = overlaySegment.Text ?? string.Empty;
+                value = !string.IsNullOrWhiteSpace(textToDraw)
+                    ? textToDraw.Trim()
+                    : segmentPayloadText.Trim();
+            }
+
+            var logText = value.Length <= 80 ? value : $"{value[..80]}…";
+            Console.WriteLine($"Drawing segment {key}: '{logText}'");
+            _logger?.LogInformation(
+                "Drawing segment {TemplateFieldId} with text: '{Text}'",
+                key,
+                logText);
+
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                if (!useSimpleTextById && skipEmptyText)
+                {
+                    LogSkipped(id, "empty-text (skipEmptyText=true)", segmentIndex, overlaySegment);
+                }
+
                 skippedEmpty++;
                 continue;
             }
 
             if (overlaySegment.PageNumber < 1 || overlaySegment.PageNumber > pageCount)
             {
+                LogSkipped(
+                    id,
+                    $"bad-page (page={overlaySegment.PageNumber}, pdfPages={pageCount})",
+                    segmentIndex,
+                    overlaySegment);
                 skippedPage++;
                 continue;
             }
 
             var page = loadedDocument.Pages[overlaySegment.PageNumber - 1];
             var pageSize = page.Size;
-            var bounds = FitBoundsToPage(ToPdfRectangle(overlaySegment), pageSize);
+            var rawBounds = ToPdfRectangle(overlaySegment);
+            var bounds = FitBoundsToPage(rawBounds, pageSize);
+
+            if (bounds.Width <= 0 || bounds.Height <= 0)
+            {
+                LogSkipped(
+                    id,
+                    $"zero-bounds (w={bounds.Width}, h={bounds.Height}, rawX={rawBounds.X}, rawY={rawBounds.Y})",
+                    segmentIndex,
+                    overlaySegment);
+                skippedEmpty++;
+                continue;
+            }
+
             var format = CreateStringFormat(overlaySegment);
             var font = ResolveFontToFitWidth(value, overlaySegment, bounds.Width, format);
 
-            DrawOverlayText(page, value, font, bounds, format);
+            _logger?.LogInformation(
+                "DRAWN Field {Id}: seq={Seq} page={Page} textLen={TextLen}",
+                id,
+                overlaySegment.SegmentSequence,
+                overlaySegment.PageNumber,
+                value.Length);
+
+            DrawOverlayText(page, value, font, bounds, format, overlaySegment);
             drawn++;
         }
+
+        _logger?.LogInformation(
+            "RenderWithStats end: drawn={Drawn}, skippedEmpty={SkippedEmpty}, skippedPage={SkippedPage}, total={Total}",
+            drawn,
+            skippedEmpty,
+            skippedPage,
+            segments.Count);
 
         using var output = new MemoryStream();
         loadedDocument.Save(output);
         return new PdfOverlayRenderStats(output.ToArray(), drawn, skippedEmpty, skippedPage, pageCount);
     }
 
-    private static void DrawOverlayText(
+    private void LogSkipped(string id, string reason, int segmentIndex, ReferralOverlaySegment segment)
+    {
+        _logger?.LogInformation("SKIPPED Field {Id}: {Reason}", id, reason);
+
+        // #region agent log
+        AgentDebugLog.Write("SKIP", "RenderWithStats", "SKIPPED", new
+        {
+            fieldId = id,
+            reason,
+            segmentIndex,
+            seq = segment.SegmentSequence,
+            page = segment.PageNumber,
+            textLen = (segment.Text ?? "").Length,
+            textToDrawLen = (segment.TextToDraw ?? "").Length,
+            x = segment.PositionX,
+            y = segment.PositionY,
+            w = segment.Width,
+            h = segment.Height
+        });
+        // #endregion
+    }
+
+    private void DrawOverlayText(
         PdfPageBase page,
+        string value,
+        PdfTrueTypeFont font,
+        RectangleF bounds,
+        PdfStringFormat format,
+        ReferralOverlaySegment segment)
+    {
+        var idLabel = segment.TemplateFieldId?.ToString("D") ?? "no-id";
+        _logger?.LogInformation(
+            "DRAWING: Field {Id} | Text: '{Text}' | X: {X}, Y: {Y}, Width: {W}, Height: {H}",
+            idLabel,
+            value,
+            bounds.X,
+            bounds.Y,
+            bounds.Width,
+            bounds.Height);
+
+        // #region agent log
+        AgentDebugLog.Write("DRAW", "DrawOverlayText", "DRAWING", new
+        {
+            fieldId = idLabel,
+            text = value.Length <= 60 ? value : $"{value[..60]}…",
+            bounds.X,
+            bounds.Y,
+            bounds.Width,
+            bounds.Height,
+            color = segment.TextColor
+        });
+        // #endregion
+
+        var brush = ResolveTextBrush(segment.TextColor);
+        var (drawX, drawY) = ResolveDrawPoint(value, font, bounds, format);
+        page.Graphics.DrawString(value, font, brush, drawX, drawY);
+    }
+
+    private static (float X, float Y) ResolveDrawPoint(
         string value,
         PdfTrueTypeFont font,
         RectangleF bounds,
         PdfStringFormat format)
     {
-        // Пряме позиціонування для Left+Top — збігається з live preview у конструкторі.
-        if (format.Alignment == PdfTextAlignment.Left && format.LineAlignment == PdfVerticalAlignment.Top)
+        var measureFormat = new PdfStringFormat
         {
-            page.Graphics.DrawString(value, font, PdfBrushes.Black, bounds.X, bounds.Y);
-            return;
+            WordWrap = PdfWordWrapType.None,
+            Alignment = PdfTextAlignment.Left,
+            LineAlignment = PdfVerticalAlignment.Top
+        };
+        var size = font.MeasureString(value, measureFormat);
+
+        var x = bounds.X;
+        if (format.Alignment == PdfTextAlignment.Center)
+        {
+            x = bounds.X + Math.Max(0f, (bounds.Width - size.Width) / 2f);
+        }
+        else if (format.Alignment == PdfTextAlignment.Right)
+        {
+            x = bounds.X + Math.Max(0f, bounds.Width - size.Width);
         }
 
-        page.Graphics.DrawString(value, font, PdfBrushes.Black, bounds, format);
+        var y = bounds.Y;
+        if (format.LineAlignment == PdfVerticalAlignment.Middle)
+        {
+            y = bounds.Y + Math.Max(0f, (bounds.Height - size.Height) / 2f);
+        }
+        else if (format.LineAlignment == PdfVerticalAlignment.Bottom)
+        {
+            y = bounds.Y + Math.Max(0f, bounds.Height - size.Height);
+        }
+
+        return (x, y);
+    }
+
+    private static PdfBrush ResolveTextBrush(string? textColor)
+    {
+        var key = string.IsNullOrWhiteSpace(textColor) ? "#111111" : textColor.Trim();
+        return BrushCache.GetOrAdd(key, static colorKey =>
+        {
+            if (TryParseHexColor(colorKey, out var color))
+            {
+                return new PdfSolidBrush(color);
+            }
+
+            return new PdfSolidBrush(Color.FromArgb(255, 17, 17, 17));
+        });
+    }
+
+    private static bool TryParseHexColor(string? value, out Color color)
+    {
+        color = Color.Empty;
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        var hex = value.Trim();
+        if (hex.StartsWith('#'))
+        {
+            hex = hex[1..];
+        }
+
+        if (hex.Length != 6
+            || !int.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var rgb))
+        {
+            return false;
+        }
+
+        color = Color.FromArgb(255, (rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF);
+        return true;
+    }
+
+    internal static string BuildUiTextLookupKey(Guid templateFieldId, int segmentSequence, decimal? positionX = null, decimal? positionY = null)
+    {
+        var sequence = segmentSequence > 0 ? segmentSequence : 1;
+        if (positionX is not null && positionY is not null)
+        {
+            var x = (int)Math.Round(positionX.Value, MidpointRounding.AwayFromZero);
+            var y = (int)Math.Round(positionY.Value, MidpointRounding.AwayFromZero);
+            return $"{templateFieldId:D}|{sequence}|{x}|{y}";
+        }
+
+        return $"{templateFieldId:D}|{sequence}";
     }
 
     private static string? ResolveOverlayText(
         ReferralOverlaySegment segment,
         IReadOnlyDictionary<Guid, string?> valuesByDataFieldId,
-        IReadOnlyDictionary<(Guid TemplateFieldId, int SegmentSequence), string>? textByUiField = null)
+        IReadOnlyDictionary<string, string>? textByUiField = null,
+        IReadOnlyDictionary<Guid, string>? textByTemplateFieldId = null)
     {
-        if (segment.TemplateFieldId is Guid templateFieldId && textByUiField is not null)
+        // WYSIWYG preview: текст із payload сегмента (кожен overlay-box) — пріоритет над словниками.
+        var segmentText = ResolveSegmentDrawableText(segment);
+        if (!string.IsNullOrWhiteSpace(segmentText))
         {
-            var sequence = segment.SegmentSequence > 0 ? segment.SegmentSequence : 1;
-            if (textByUiField.TryGetValue((templateFieldId, sequence), out var uiText))
-            {
-                return uiText;
-            }
-
-            if (sequence != 1 && textByUiField.TryGetValue((templateFieldId, 1), out uiText))
-            {
-                return uiText;
-            }
+            return segmentText;
         }
 
-        if (segment.Text is not null)
+        if (segment.TemplateFieldId is Guid templateFieldId)
         {
-            return segment.Text;
+            var sequence = segment.SegmentSequence > 0 ? segment.SegmentSequence : 1;
+
+            if (textByUiField is not null)
+            {
+                var positionKey = BuildUiTextLookupKey(
+                    templateFieldId,
+                    sequence,
+                    segment.PositionX,
+                    segment.PositionY);
+                if (textByUiField.TryGetValue(positionKey, out var uiText)
+                    && !string.IsNullOrWhiteSpace(uiText))
+                {
+                    return uiText;
+                }
+
+                var sequenceKey = BuildUiTextLookupKey(templateFieldId, sequence);
+                if (textByUiField.TryGetValue(sequenceKey, out uiText)
+                    && !string.IsNullOrWhiteSpace(uiText))
+                {
+                    return uiText;
+                }
+
+                if (sequence != 1)
+                {
+                    var primaryKey = BuildUiTextLookupKey(templateFieldId, 1);
+                    if (textByUiField.TryGetValue(primaryKey, out uiText)
+                        && !string.IsNullOrWhiteSpace(uiText))
+                    {
+                        return uiText;
+                    }
+                }
+            }
+
+            if (textByTemplateFieldId is not null
+                && textByTemplateFieldId.TryGetValue(templateFieldId, out var uiTextByField)
+                && !string.IsNullOrWhiteSpace(uiTextByField))
+            {
+                return uiTextByField;
+            }
         }
 
         if (segment.DataFieldId is null ||
@@ -122,6 +382,14 @@ public sealed class ReferralPdfOverlayRenderer
 
         return value.Trim();
     }
+
+    /// <summary>Пріоритет: Text, потім TextToDraw (калібрування / UI).</summary>
+    private static string ResolveSegmentDrawableText(ReferralOverlaySegment segment) =>
+        !string.IsNullOrWhiteSpace(segment.Text)
+            ? segment.Text.Trim()
+            : !string.IsNullOrWhiteSpace(segment.TextToDraw)
+                ? segment.TextToDraw.Trim()
+                : string.Empty;
 
     private static RectangleF ToPdfRectangle(ReferralOverlaySegment segment)
     {
@@ -170,7 +438,13 @@ public sealed class ReferralPdfOverlayRenderer
         while (true)
         {
             var font = GetUnicodeFont(currentFontSize);
-            var measuredWidth = font.MeasureString(text, format).Width;
+            var measureFormat = new PdfStringFormat
+            {
+                WordWrap = PdfWordWrapType.None,
+                Alignment = PdfTextAlignment.Left,
+                LineAlignment = PdfVerticalAlignment.Top
+            };
+            var measuredWidth = font.MeasureString(text, measureFormat).Width;
             if (measuredWidth <= maxWidth || currentFontSize <= MinFontSize)
             {
                 return font;
@@ -249,6 +523,9 @@ public sealed class ReferralOverlaySegment
     /// <summary>Готовий текст для сегмента (наприклад, один рядок з waterfall).</summary>
     public string? Text { get; init; }
 
+    /// <summary>Текст з UI (калібрування), якщо <see cref="Text"/> порожній.</summary>
+    public string? TextToDraw { get; init; }
+
     public int PageNumber { get; init; }
 
     public decimal PositionX { get; init; }
@@ -272,4 +549,7 @@ public sealed class ReferralOverlaySegment
     public decimal TextOffsetX { get; init; }
 
     public decimal TextOffsetY { get; init; }
+
+    /// <summary>Колір тексту (#RRGGBB) з калібрування.</summary>
+    public string? TextColor { get; init; }
 }

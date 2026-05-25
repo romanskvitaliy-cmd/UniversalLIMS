@@ -2614,6 +2614,23 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                     }
                 };
 
+                // #region agent log
+                const agentDebugLog = (hypothesisId, location, message, data = {}) => {
+                    fetch("http://127.0.0.1:7801/ingest/519bd9bd-c757-484b-b8e5-dc90fcac0740", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "40b8bf" },
+                        body: JSON.stringify({
+                            sessionId: "40b8bf",
+                            hypothesisId,
+                            location,
+                            message,
+                            data,
+                            timestamp: Date.now()
+                        })
+                    }).catch(() => {});
+                };
+                // #endregion
+
                 class FieldEngine {
                     static PREVIEW_SCALE = 1.35;
 
@@ -6452,7 +6469,10 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         const page = field.page ?? Number.parseInt(this.boxesByIndex.get(index)?.dataset.page || "1", 10);
                         const box = this.boxesByIndex.get(index);
                         if (box) {
-                            this.layoutCalibrationInlineEditor(box, field, box.querySelector(".calibration-inline-input"));
+                            this.layoutCalibrationInlineEditor(
+                                box,
+                                field,
+                                box.querySelector(".calibration-inline-input"));
                         }
                         this.syncCalibrationPanel();
                         if (index === this.activeIndex) {
@@ -6508,8 +6528,8 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         showOverlayToast("Режим калібрування вимкнено");
                     }
 
-                    /** Текст/offset у базових preview-координатах (як PdfOverlayTextLayout у C#); field.x/y — уже viewport. */
-                    getCalibrationTextBounds(field, state) {
+                    /** Текст/offset у базових preview-координатах (як PdfOverlayTextLayout у C#). */
+                    getCalibrationTextBounds(field, state, box = null) {
                         const layout = window.PdfOverlayTextLayout;
                         if (!layout || !field) {
                             return null;
@@ -6521,17 +6541,74 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         }
 
                         const calibrationState = state ?? this.getCalibrationState(field.index);
+                        let positionX = this.parsePixel(field.x ?? 0) / coordScale;
+                        let positionY = this.parsePixel(field.y ?? 0) / coordScale;
+                        let width = this.parsePixel(field.width ?? 220, 220) / coordScale;
+                        let height = this.parsePixel(field.height ?? 28, 28) / coordScale;
+
+                        // У калібруванні рамка в DOM може бути зміщена — беремо фактичний box, не застарілий field.x/y.
+                        if (box) {
+                            const page = Number.parseInt(box.dataset.page || String(field.page ?? 1), 10) || 1;
+                            const preview = this.getFieldInPreviewSpace(box, page);
+                            positionX = preview.x;
+                            positionY = preview.y;
+                            width = preview.width;
+                            height = preview.height;
+                        }
+
                         return layout.getPreviewBounds(
-                            this.parsePixel(field.x ?? 0) / coordScale,
-                            this.parsePixel(field.y ?? 0) / coordScale,
-                            this.parsePixel(field.width ?? 220, 220) / coordScale,
-                            this.parsePixel(field.height ?? 28, 28) / coordScale,
+                            positionX,
+                            positionY,
+                            width,
+                            height,
                             field.textOffsetX ?? calibrationState?.offsetX ?? 0,
                             field.textOffsetY ?? calibrationState?.offsetY ?? 0,
                             coordScale);
                     }
 
-                    getCalibrationInputRect(field) {
+                    /**
+                     * Координати для Preview PDF — збігаються з видимим текстом inline-editor (box + offset).
+                     * offset у payload = 0, бо вже враховано в x/y (C# PdfOverlayTextLayout додасть baseline).
+                     */
+                    getEffectiveCalibrationPreviewLayout(box, field, overlayIndex) {
+                        const layoutModule = window.PdfOverlayTextLayout;
+                        const boxLayout = this.getCalibrationPreviewLayoutFromBox(box, field, overlayIndex);
+                        if (!field || !layoutModule) {
+                            return { ...boxLayout, offsetX: 0, offsetY: 0 };
+                        }
+
+                        const state = overlayIndex !== null && overlayIndex >= 0
+                            ? this.getCalibrationState(overlayIndex)
+                            : null;
+                        const bounds = this.getCalibrationTextBounds(field, state, box);
+                        if (!bounds) {
+                            const ox = Number(this.parsePixel(field.textOffsetX ?? state?.offsetX ?? 0));
+                            const oy = Number(this.parsePixel(field.textOffsetY ?? state?.offsetY ?? 0));
+                            return {
+                                page: boxLayout.page,
+                                x: boxLayout.x + ox,
+                                y: boxLayout.y + oy,
+                                width: boxLayout.width,
+                                height: boxLayout.height,
+                                offsetX: 0,
+                                offsetY: 0
+                            };
+                        }
+
+                        const coordScale = this.getCoordinateScale();
+                        const baseline = layoutModule.BASELINE_OFFSET_PX ?? 3;
+                        return {
+                            page: boxLayout.page,
+                            x: Math.max(0, Math.round(bounds.left / coordScale)),
+                            y: Math.max(0, Math.round(bounds.top / coordScale - baseline)),
+                            width: Math.max(20, Math.round(bounds.width / coordScale)),
+                            height: Math.max(14, Math.round(bounds.height / coordScale)),
+                            offsetX: 0,
+                            offsetY: 0
+                        };
+                    }
+
+                    getCalibrationInputRect(field, box = null) {
                         const layout = window.PdfOverlayTextLayout;
                         if (!layout || !field) {
                             return null;
@@ -6539,9 +6616,14 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
 
                         const state = this.getCalibrationState(field.index);
                         const coordScale = this.getCoordinateScale();
-                        const boxX = this.parsePixel(field.x ?? 0);
-                        const boxY = this.parsePixel(field.y ?? 0);
-                        const bounds = this.getCalibrationTextBounds(field, state);
+                        const resolvedBox = box ?? this.boxesByIndex.get(field.index);
+                        const boxX = resolvedBox
+                            ? this.normalizePixel(resolvedBox.style.left)
+                            : this.parsePixel(field.x ?? 0);
+                        const boxY = resolvedBox
+                            ? this.normalizePixel(resolvedBox.style.top)
+                            : this.parsePixel(field.y ?? 0);
+                        const bounds = this.getCalibrationTextBounds(field, state, resolvedBox);
                         if (!bounds) {
                             return null;
                         }
@@ -6556,7 +6638,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                     }
 
                     layoutCalibrationInlineEditor(box, field, input) {
-                        const rect = this.getCalibrationInputRect(field);
+                        const rect = this.getCalibrationInputRect(field, box);
                         if (!rect || !input) {
                             return;
                         }
@@ -6907,7 +6989,10 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                     }
 
                     resolveTemplateFieldIdFromBox(box, field = null) {
+                        // DOM box attributes — надійніше за кеш field.fieldId (sync/форма).
                         const candidates = [
+                            box?.dataset?.templateFieldId,
+                            box?.getAttribute?.("data-template-field-id"),
                             field?.fieldId,
                             box?.dataset?.fieldId,
                             box?.getAttribute?.("data-field-id")
@@ -6932,8 +7017,15 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             return "";
                         }
 
+                        const inline = box.querySelector(".calibration-inline-input");
+                        if (inline) {
+                            const inlineText = this.readEditableElementText(inline);
+                            if (inlineText) {
+                                return inlineText;
+                            }
+                        }
+
                         const editorSelectors = [
-                            ".calibration-inline-input",
                             "input.pdf-field-input",
                             "input.pdf-field",
                             "textarea.pdf-field-input",
@@ -7712,111 +7804,187 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             fontSize,
                             fontName: field?.fontName || null,
                             alignment: field?.horizontalAlignment ?? field?.textAlignment ?? "Left",
-                            verticalAlignment: field?.verticalAlignment ?? "Top"
+                            verticalAlignment: field?.verticalAlignment ?? "Top",
+                            textColor: field?.textColor ?? "#111111"
                         };
                     }
 
-                    /** v4.1.6: прямий збір тексту з overlay-редакторів (обов'язково console.table). */
-                    collectPreviewFieldsFromDom() {
-                        this.syncAllCalibrationInlineEditors();
-                        const fields = [];
-                        const seen = new Set();
+                    getPdfOverlayRoot() {
+                        return document.getElementById("pdfOverlayDesignerRoot")
+                            || document.getElementById("pdfPagesHost");
+                    }
 
-                        document.querySelectorAll(
-                            ".calibration-inline-input, input, textarea, [contenteditable=\"true\"]"
+                    /** v4.1.7: простий збір з overlay (не з таблиці полів внизу сторінки). */
+                    collectPreviewFieldsFromUi() {
+                        const byId = new Map();
+                        const scope = this.getPdfOverlayRoot() || document;
+
+                        scope.querySelectorAll(
+                            'input, textarea, [contenteditable="true"], .calibration-inline-input, .pdf-field-input'
                         ).forEach((el) => {
                             if (el.classList?.contains("js-field-text-offset-x")
                                 || el.classList?.contains("js-field-text-offset-y")) {
                                 return;
                             }
 
-                            const box = el.closest(".field-overlay-box");
-                            if (!box && !el.classList.contains("calibration-inline-input")) {
-                                return;
-                            }
-
-                            const id = el.dataset.templateFieldId
+                            const host = el.closest("[data-template-field-id], .field-overlay-box");
+                            const rawId = el.dataset.templateFieldId
                                 || el.getAttribute("data-template-field-id")
                                 || el.getAttribute("data-id")
-                                || box?.dataset.templateFieldId
-                                || box?.getAttribute("data-template-field-id")
-                                || box?.dataset.fieldId
-                                || box?.getAttribute("data-field-id");
-                            const templateFieldId = this.normalizeTemplateFieldId(id);
+                                || host?.dataset?.templateFieldId
+                                || host?.getAttribute("data-template-field-id")
+                                || host?.dataset?.fieldId
+                                || host?.getAttribute("data-field-id");
+                            const templateFieldId = this.normalizeTemplateFieldId(rawId);
                             if (!templateFieldId) {
                                 return;
                             }
 
-                            const overlayIndex = this.resolveOverlayIndexFromBox(box);
-                            const field = overlayIndex !== null ? this.fieldByIndex.get(overlayIndex) : null;
-                            if (box && field) {
-                                this.syncPreviewLayoutDataset(box, field, el, overlayIndex);
+                            const text = this.readEditableElementText(el)
+                                || String(el.value ?? el.innerText ?? el.textContent ?? "")
+                                    .replace(/\r/g, "")
+                                    .trim();
+                            const prefer = el.classList?.contains("calibration-inline-input")
+                                || el.classList?.contains("pdf-field-input");
+                            const existing = byId.get(templateFieldId);
+                            if (!existing
+                                || prefer
+                                || (text.length > (existing.text?.length ?? 0) && !existing.prefer)) {
+                                byId.set(templateFieldId, { templateFieldId, text, prefer: Boolean(prefer) });
+                            }
+                        });
+
+                        const fields = [...byId.values()].map((item) => ({
+                            templateFieldId: item.templateFieldId,
+                            text: item.text
+                        }));
+
+                        console.table(fields);
+                        console.log("Preview payload:", JSON.stringify(fields));
+                        return fields;
+                    }
+
+                    collectSimpleUiPreviewFields() {
+                        const fields = [];
+                        const textByFieldId = new Map();
+
+                        document.querySelectorAll(
+                            "input, textarea, [contenteditable=\"true\"], .calibration-inline-input, .pdf-field-input"
+                        ).forEach((el) => {
+                            if (el.classList?.contains("js-field-text-offset-x")
+                                || el.classList?.contains("js-field-text-offset-y")) {
+                                return;
+                            }
+
+                            const host = el.closest("[data-template-field-id], .field-overlay-box");
+                            const rawId = el.dataset.templateFieldId
+                                || el.getAttribute("data-template-field-id")
+                                || el.getAttribute("data-id")
+                                || host?.dataset?.templateFieldId
+                                || host?.getAttribute("data-template-field-id")
+                                || host?.dataset?.fieldId
+                                || host?.getAttribute("data-field-id");
+                            const templateFieldId = this.normalizeTemplateFieldId(rawId);
+                            if (!templateFieldId) {
+                                return;
                             }
 
                             const text = (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)
                                 ? (el.value || "")
                                 : (el.innerText || el.textContent || "");
-                            let page = Number.parseInt(el.dataset.page || box?.dataset?.page || "1", 10) || 1;
-                            let x = Number.parseFloat(el.dataset.x || "0") || 0;
-                            let y = Number.parseFloat(el.dataset.y || "0") || 0;
-                            let width = Number.parseFloat(el.dataset.width || "0") || 0;
-                            let height = Number.parseFloat(el.dataset.height || "0") || 0;
-                            const segmentSequence = Number.parseInt(
-                                el.dataset.segmentSequence || box?.dataset?.segmentSequence || "1",
-                                10) || 1;
-
-                            if (box && (x === 0 && y === 0 || width === 0 || height === 0)) {
-                                const layout = this.getCalibrationPreviewLayoutFromBox(box, field, overlayIndex);
-                                page = layout.page;
-                                x = layout.x;
-                                y = layout.y;
-                                width = layout.width;
-                                height = layout.height;
+                            const trimmed = String(text).replace(/\r/g, "").trim();
+                            const prefer = el.classList?.contains("calibration-inline-input")
+                                || el.classList?.contains("pdf-field-input");
+                            const existing = textByFieldId.get(templateFieldId);
+                            if (!existing
+                                || prefer
+                                || (trimmed.length > existing.text.length && !existing.prefer)) {
+                                textByFieldId.set(templateFieldId, { text: trimmed, prefer });
                             }
-
-                            const state = overlayIndex !== null ? this.getCalibrationState(overlayIndex) : null;
-                            const offsetX = Number.parseFloat(el.dataset.offsetX || String(state?.offsetX ?? 0)) || 0;
-                            const offsetY = Number.parseFloat(el.dataset.offsetY || String(state?.offsetY ?? 0)) || 0;
-                            const dedupeKey = `${templateFieldId}#${segmentSequence}`;
-                            if (seen.has(dedupeKey)) {
-                                return;
-                            }
-
-                            seen.add(dedupeKey);
-                            fields.push({
-                                templateFieldId,
-                                segmentSequence,
-                                text: String(text).replace(/\r/g, "").trim(),
-                                page,
-                                x,
-                                y,
-                                width,
-                                height,
-                                offsetX,
-                                offsetY,
-                                fontSize: field?.fontSize ?? null,
-                                fontName: field?.fontName || null,
-                                alignment: field?.horizontalAlignment ?? field?.textAlignment ?? "Left",
-                                verticalAlignment: field?.verticalAlignment ?? "Top"
-                            });
                         });
 
+                        textByFieldId.forEach((entry, templateFieldId) => {
+                            fields.push({ templateFieldId, text: entry.text });
+                        });
+
+                        // #region agent log
+                        const collectedIds = new Set(fields.map((item) => item.templateFieldId));
+                        const boxGap = [];
+                        this.boxesByIndex.forEach((box, overlayIndex) => {
+                            const field = this.fieldByIndex.get(overlayIndex);
+                            const id = this.resolveTemplateFieldIdFromBox(box, field);
+                            const domText = this.readOverlayDomTextFromBoxRaw(box) || "";
+                            const stateText = String(this.getCalibrationState(overlayIndex)?.text ?? "");
+                            const inPayload = id ? collectedIds.has(id) : false;
+                            const payloadText = inPayload
+                                ? String(fields.find((item) => item.templateFieldId === id)?.text ?? "")
+                                : "";
+                            if (stateText || domText) {
+                                boxGap.push({
+                                    tag: field?.tag,
+                                    templateFieldId: id,
+                                    domLen: domText.length,
+                                    stateLen: stateText.length,
+                                    inPayload,
+                                    payloadLen: payloadText.length
+                                });
+                            }
+                        });
+                        const missingWithText = boxGap.filter((item) =>
+                            item.templateFieldId
+                            && (item.stateLen > 0 || item.domLen > 0)
+                            && (!item.inPayload || item.payloadLen === 0));
+                        agentDebugLog("A", "collectSimpleUiPreviewFields", "boxes vs payload", {
+                            collectedCount: fields.length,
+                            boxWithTextCount: boxGap.length,
+                            missingWithText
+                        });
+                        // #endregion
+
                         console.table(fields);
+                        console.log("Preview payload:", fields);
                         return fields;
                     }
 
-                    /** Payload для Preview PDF — напряму з DOM. */
-                    collectAllCalibrationOverlayValues() {
-                        this.applyCalibrationPanelToActiveField();
+                    mergePreviewFieldsWithAllBoxes(simpleFields) {
+                        const byId = new Map();
+                        simpleFields.forEach((item) => {
+                            const id = this.normalizeTemplateFieldId(item.templateFieldId);
+                            if (id) {
+                                byId.set(id, { templateFieldId: id, text: String(item.text ?? "").trim() });
+                            }
+                        });
+
+                        this.boxesByIndex.forEach((box, overlayIndex) => {
+                            const field = this.fieldByIndex.get(overlayIndex);
+                            const id = this.resolveTemplateFieldIdFromBox(box, field);
+                            if (!id) {
+                                return;
+                            }
+
+                            const resolved = this.resolveOverlayTextForPreview(overlayIndex, box);
+                            const existing = byId.get(id);
+                            if (!existing || (!existing.text && resolved)) {
+                                byId.set(id, {
+                                    templateFieldId: id,
+                                    text: resolved || existing?.text || ""
+                                });
+                            } else if (resolved && resolved.length > (existing.text?.length ?? 0)) {
+                                byId.set(id, { templateFieldId: id, text: resolved });
+                            }
+                        });
+
+                        return [...byId.values()];
+                    }
+
+                    /** WYSIWYG: один запис на кожен overlay-box (координати з поточного DOM). */
+                    buildPreviewFieldsFromAllBoxes() {
+                        this.syncAllCalibrationInlineEditors();
                         this.gatherContentFromEditableFields();
-                        const fields = this.collectPreviewFieldsFromDom();
 
-                        if (fields.length > 0) {
-                            return fields;
-                        }
+                        const fields = [];
+                        const seen = new Set();
 
-                        console.warn("[Calibration] DOM fields empty — fallback from overlay boxes.");
-                        const fallback = [];
                         this.boxesByIndex.forEach((box, overlayIndex) => {
                             const field = this.fieldByIndex.get(overlayIndex);
                             const templateFieldId = this.resolveTemplateFieldIdFromBox(box, field);
@@ -7825,27 +7993,207 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             }
 
                             const text = this.resolveOverlayTextForPreview(overlayIndex, box);
-                            const layout = this.getCalibrationPreviewLayoutFromBox(box, field, overlayIndex);
-                            const state = this.getCalibrationState(overlayIndex);
-                            fallback.push({
+                            if (!text) {
+                                return;
+                            }
+
+                            const layout = this.getEffectiveCalibrationPreviewLayout(box, field, overlayIndex);
+                            const segmentSequence = Number.parseInt(
+                                box.dataset.segmentSequence || "1",
+                                10) || 1;
+                            const dedupeKey = `${templateFieldId}#${segmentSequence}#${Math.round(layout.x)}#${Math.round(layout.y)}`;
+                            if (seen.has(dedupeKey)) {
+                                return;
+                            }
+
+                            seen.add(dedupeKey);
+
+                            fields.push({
                                 templateFieldId,
-                                segmentSequence: Number.parseInt(box.dataset.segmentSequence || "1", 10) || 1,
+                                segmentSequence,
                                 text,
+                                textToDraw: text,
+                                value: text,
                                 page: layout.page,
                                 x: layout.x,
                                 y: layout.y,
                                 width: layout.width,
                                 height: layout.height,
-                                offsetX: Number(this.parsePixel(field?.textOffsetX ?? state?.offsetX ?? 0)),
-                                offsetY: Number(this.parsePixel(field?.textOffsetY ?? state?.offsetY ?? 0)),
+                                offsetX: layout.offsetX,
+                                offsetY: layout.offsetY,
                                 fontSize: field?.fontSize ?? null,
                                 fontName: field?.fontName || null,
                                 alignment: field?.horizontalAlignment ?? field?.textAlignment ?? "Left",
-                                verticalAlignment: field?.verticalAlignment ?? "Top"
+                                verticalAlignment: field?.verticalAlignment ?? "Top",
+                                textColor: field?.textColor ?? "#111111"
                             });
                         });
-                        console.table(fallback);
-                        return fallback;
+
+                        // #region agent log
+                        agentDebugLog("F", "buildPreviewFieldsFromAllBoxes", "payload from boxes", {
+                            boxCount: this.boxesByIndex.size,
+                            fieldCount: fields.length,
+                            sample: fields.slice(0, 5).map((item) => ({
+                                id: item.templateFieldId,
+                                text: String(item.text).slice(0, 16),
+                                x: item.x,
+                                y: item.y
+                            }))
+                        });
+                        // #endregion
+
+                        console.table(fields);
+                        console.log("Preview payload (boxes):", fields);
+                        return fields;
+                    }
+
+                    buildPreviewFieldEntry(templateFieldId, text, box, field, overlayIndex) {
+                        const layout = this.getEffectiveCalibrationPreviewLayout(box, field, overlayIndex);
+                        const segmentSequence = Number.parseInt(
+                            box?.dataset?.segmentSequence || "1",
+                            10) || 1;
+
+                        return {
+                            templateFieldId,
+                            segmentSequence,
+                            text,
+                            textToDraw: text,
+                            value: text,
+                            page: layout.page,
+                            x: layout.x,
+                            y: layout.y,
+                            width: layout.width,
+                            height: layout.height,
+                            offsetX: layout.offsetX,
+                            offsetY: layout.offsetY,
+                            fontSize: field?.fontSize ?? null,
+                            fontName: field?.fontName || null,
+                            alignment: field?.horizontalAlignment ?? field?.textAlignment ?? "Left",
+                            verticalAlignment: field?.verticalAlignment ?? "Top",
+                            textColor: field?.textColor ?? "#111111"
+                        };
+                    }
+
+                    mergePreviewFieldEntry(byId, entry) {
+                        const templateFieldId = this.normalizeTemplateFieldId(entry?.templateFieldId);
+                        if (!templateFieldId) {
+                            return;
+                        }
+
+                        const text = String(entry.text ?? "").trim();
+                        const existing = byId.get(templateFieldId);
+                        if (!existing) {
+                            byId.set(templateFieldId, { ...entry, templateFieldId, text });
+                            return;
+                        }
+
+                        const mergedText = text.length >= (existing.text?.length ?? 0) ? text : existing.text;
+                        byId.set(templateFieldId, {
+                            ...existing,
+                            ...entry,
+                            templateFieldId,
+                            text: mergedText,
+                            textToDraw: mergedText,
+                            value: mergedText
+                        });
+                    }
+
+                    enrichPreviewFieldsWithLayout(simpleFields) {
+                        const byId = new Map();
+
+                        // 1) Усі overlay-box на PDF — головне джерело тексту й координат.
+                        this.boxesByIndex.forEach((box, overlayIndex) => {
+                            const field = this.fieldByIndex.get(overlayIndex);
+                            const templateFieldId = this.resolveTemplateFieldIdFromBox(box, field);
+                            if (!templateFieldId) {
+                                return;
+                            }
+
+                            const input = this.getCalibrationEditableElement(box);
+                            if (input && field) {
+                                this.syncPreviewLayoutDataset(box, field, input, overlayIndex);
+                            }
+
+                            const text = this.resolveOverlayTextForPreview(overlayIndex, box);
+                            this.mergePreviewFieldEntry(
+                                byId,
+                                this.buildPreviewFieldEntry(templateFieldId, text, box, field, overlayIndex));
+                        });
+
+                        // 2) Доповнення з DOM (лише в межах PDF overlay).
+                        simpleFields.forEach((item) => {
+                            const templateFieldId = this.normalizeTemplateFieldId(item.templateFieldId);
+                            if (!templateFieldId) {
+                                return;
+                            }
+
+                            const text = String(item.text ?? "").trim();
+                            const located = byId.get(templateFieldId);
+                            if (located) {
+                                this.mergePreviewFieldEntry(byId, { ...located, text });
+                                return;
+                            }
+
+                            this.mergePreviewFieldEntry(byId, {
+                                templateFieldId,
+                                text,
+                                page: 1,
+                                x: 0,
+                                y: 0,
+                                width: 0,
+                                height: 0,
+                                offsetX: 0,
+                                offsetY: 0
+                            });
+                        });
+
+                        return [...byId.values()];
+                    }
+
+                    collectPreviewFieldsFromDom() {
+                        this.syncAllCalibrationInlineEditors();
+                        return this.enrichPreviewFieldsWithLayout(this.collectSimpleUiPreviewFields());
+                    }
+
+                    /** Payload для Preview PDF — один запис на overlay-box (текст + layout з DOM). */
+                    collectAllCalibrationOverlayValues() {
+                        this.applyCalibrationPanelToActiveField();
+                        this.syncAllCalibrationInlineEditors();
+                        this.gatherContentFromEditableFields();
+                        const fields = this.buildPreviewFieldsFromAllBoxes();
+                        const withText = fields.filter((item) => String(item.text ?? "").trim().length > 0);
+                        const missingIds = [];
+                        this.boxesByIndex.forEach((box, overlayIndex) => {
+                            const field = this.fieldByIndex.get(overlayIndex);
+                            const id = this.resolveTemplateFieldIdFromBox(box, field);
+                            const text = this.resolveOverlayTextForPreview(overlayIndex, box);
+                            if (!text) {
+                                return;
+                            }
+
+                            if (!id) {
+                                missingIds.push({
+                                    tag: field?.tag,
+                                    templateFieldId: null,
+                                    text: text.slice(0, 24),
+                                    reason: "no-template-field-id"
+                                });
+                                return;
+                            }
+
+                            const inPayload = fields.some((item) =>
+                                item.templateFieldId === id
+                                && String(item.text ?? "").trim().length > 0);
+                            if (!inPayload) {
+                                missingIds.push({ tag: field?.tag, templateFieldId: id, text: text.slice(0, 24) });
+                            }
+                        });
+                        if (missingIds.length > 0) {
+                            console.warn("[Calibration] Boxes with text but missing from payload:", missingIds);
+                        }
+                        console.info(
+                            `[Calibration] Preview fields: total=${fields.length}, withText=${withText.length}, boxes=${this.boxesByIndex.size}`);
+                        return fields;
                     }
 
                     buildPreviewCalibrationData() {
@@ -7898,9 +8246,15 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                     }
 
                     async openCalibrationPreviewPdf() {
-                        this.syncAllCalibrationInlineEditors();
-                        this.gatherContentFromEditableFields();
-                        const previewData = this.buildPreviewCalibrationData();
+                        const fields = this.collectAllCalibrationOverlayValues();
+                        console.table(fields);
+                        console.log("Preview payload:", JSON.stringify(fields));
+
+                        const previewData = {
+                            templateVersionId: String(window.__templateVersionId ?? "").trim(),
+                            isCalibrationPreview: true,
+                            fields
+                        };
                         const versionId = previewData.templateVersionId;
                         if (!versionId) {
                             return;
@@ -7916,15 +8270,13 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
 
                         const withText = previewData.fields.filter((field) =>
                             String(field.text ?? "").trim().length > 0).length;
-                        console.info("[Calibration] Preview PDF payload:", previewData);
-                        console.table(previewData.fields.map((field) => ({
-                            templateFieldId: field.templateFieldId,
-                            segmentSequence: field.segmentSequence,
-                            text: String(field.text ?? "").slice(0, 80),
-                            page: field.page,
-                            x: field.x,
-                            y: field.y
-                        })));
+                        const missingIds = previewData.fields.filter((field) =>
+                            !String(field.templateFieldId ?? "").trim()).length;
+                        if (missingIds > 0) {
+                            console.warn(
+                                `[Calibration] Preview PDF: ${missingIds} field(s) without templateFieldId — PDF може бути порожнім.`);
+                        }
+                        console.info("[Calibration] Preview PDF: sending", previewData.fields.length, "field(s)");
                         showOverlayToast(
                             `Генеруємо PDF: ${previewData.fields.length} пол(я/ів), з текстом: ${withText}. Якщо в PDF порожньо — перевірте F12 (console.table).`);
 

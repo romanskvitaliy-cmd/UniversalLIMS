@@ -1,0 +1,24 @@
+@using Microsoft.AspNetCore.Identity
+@using UniversalLIMS.Domain.Identity
+@inject SignInManager<ApplicationUser> SignInManager
+@inject UserManager<ApplicationUser> UserManager
+
+<ul class="navbar-nav lims-workspace-user-nav">
+@if (SignInManager.IsSignedIn(User))
+{
+    <li class="nav-item">
+        <span class="lims-workspace-user-nav__email" title="@User.Identity?.Name">@User.Identity?.Name</span>
+    </li>
+    <li class="nav-item">
+        <form class="d-inline" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@Url.Action("Index", "Home", new { area = "" })">
+            <button type="submit" class="lims-workspace-user-nav__logout">Вийти</button>
+        </form>
+    </li>
+}
+else
+{
+    <li class="nav-item">
+        <a class="lims-workspace-user-nav__link" asp-area="Identity" asp-page="/Account/Login">Увійти</a>
+    </li>
+}
+</ul>

@@ -14,6 +14,26 @@ public sealed class PreviewFieldDto
     [JsonPropertyName("text")]
     public string Text { get; set; } = string.Empty;
 
+    [JsonPropertyName("value")]
+    public string? Value { get; set; }
+
+    [JsonPropertyName("textToDraw")]
+    public string? TextToDraw { get; set; }
+
+    /// <summary>Текст з UI: text, value або textToDraw (що заповнено).</summary>
+    public string ResolveDrawableText()
+    {
+        foreach (var candidate in new[] { Text, Value, TextToDraw })
+        {
+            if (!string.IsNullOrWhiteSpace(candidate))
+            {
+                return candidate.Trim();
+            }
+        }
+
+        return string.Empty;
+    }
+
     [JsonPropertyName("page")]
     public int Page { get; set; }
 
@@ -46,4 +66,7 @@ public sealed class PreviewFieldDto
 
     [JsonPropertyName("verticalAlignment")]
     public string? VerticalAlignment { get; set; }
+
+    [JsonPropertyName("textColor")]
+    public string? TextColor { get; set; }
 }

@@ -1,14 +1,18 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using UniversalLIMS.Application.Security;
 using UniversalLIMS.Domain.Identity;
 using UniversalLIMS.Domain.Templates;
+using UniversalLIMS.Infrastructure.Filters;
 using UniversalLIMS.Infrastructure.Persistence;
 using UniversalLIMS.ViewModels.Diagnostics;
 
 namespace UniversalLIMS.Controllers;
 
+[Authorize]
+[RequireActiveLimsRole]
 public sealed class DiagnosticsController : Controller
 {
     private const string DiagnosticDataFieldPrefix = "Diagnostics.Foundation.";

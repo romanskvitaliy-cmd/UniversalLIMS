@@ -10,6 +10,7 @@ using UniversalLIMS.Infrastructure.Persistence;
 using UniversalLIMS.Infrastructure.Persistence.Interceptors;
 using UniversalLIMS.Infrastructure.Persistence.Seed;
 using UniversalLIMS.Infrastructure.Registration;
+using UniversalLIMS.Infrastructure.Security;
 using UniversalLIMS.Infrastructure.Services;
 using UniversalLIMS.Infrastructure.Templates;
 
@@ -45,12 +46,25 @@ namespace UniversalLIMS
                         serviceProvider.GetRequiredService<AuditSaveChangesInterceptor>()));
             builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
+            builder.Services.AddOptions<LimsPortalOptions>()
+                .Bind(builder.Configuration.GetSection(LimsPortalOptions.SectionName));
+
             builder.Services.AddDefaultIdentity<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = true)
                 .AddRoles<IdentityRole>()
                 .AddEntityFrameworkStores<ApplicationDbContext>();
+            LimsIdentityCookieConfigurator.ConfigureLimsIdentityCookies(builder.Services);
             builder.Services.AddHttpContextAccessor();
+            builder.Services.AddDistributedMemoryCache();
+            builder.Services.AddSession(options =>
+            {
+                options.IdleTimeout = TimeSpan.FromHours(8);
+                options.Cookie.HttpOnly = true;
+                options.Cookie.IsEssential = true;
+            });
             builder.Services.AddScoped<IUserClaimsPrincipalFactory<ApplicationUser>, ApplicationUserClaimsPrincipalFactory>();
             builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+            builder.Services.AddScoped<IActiveLimsRoleService, ActiveLimsRoleService>();
+            builder.Services.AddScoped<IPortalThemeService, PortalThemeService>();
             builder.Services.AddScoped<ISystemOperationContext, SystemOperationContext>();
             builder.Services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
             builder.Services.AddScoped<DataSeeder>();
@@ -115,6 +129,8 @@ namespace UniversalLIMS
             app.UseStaticFiles();
 
             app.UseRouting();
+
+            app.UseSession();
 
             app.UseAuthentication();
             app.UseAuthorization();

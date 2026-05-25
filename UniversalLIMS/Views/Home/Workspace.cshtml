@@ -1,0 +1,46 @@
+@model WorkspaceViewModel
+@{
+    Layout = "_LayoutWorkspace";
+    ViewData["Title"] = $"Кабінет — {Model.RoleDisplayName}";
+}
+
+<div class="lims-workspace-welcome" style="--workspace-accent: @Model.AccentColor">
+    <div class="lims-workspace-welcome__icon" aria-hidden="true">
+        <i class="bi @Model.IconClass"></i>
+    </div>
+    <h1>Вітаємо, @Model.UserDisplayName</h1>
+    <p>
+        Ви працюєте як <strong>@Model.RoleDisplayName</strong>.
+        Оберіть розділ нижче або скористайтеся меню зверху.
+    </p>
+</div>
+
+<h2 class="lims-section-title">Швидкий доступ</h2>
+
+<div class="lims-workspace-quicklinks">
+    @foreach (var link in Model.QuickLinks)
+    {
+        if (link.IsAvailable && !string.IsNullOrEmpty(link.Url))
+        {
+            <a class="lims-workspace-quicklink" href="@link.Url" style="--workspace-accent: @Model.AccentColor">
+                <div class="lims-workspace-quicklink__icon" aria-hidden="true">
+                    <i class="bi @link.IconClass"></i>
+                </div>
+                <p class="lims-workspace-quicklink__title">@link.Title</p>
+                <p class="lims-workspace-quicklink__desc">@link.Description</p>
+            </a>
+        }
+        else
+        {
+            <div class="lims-workspace-quicklink lims-workspace-quicklink--disabled"
+                 style="--workspace-accent: @Model.AccentColor">
+                <div class="lims-workspace-quicklink__icon" aria-hidden="true">
+                    <i class="bi @link.IconClass"></i>
+                </div>
+                <p class="lims-workspace-quicklink__title">@link.Title</p>
+                <p class="lims-workspace-quicklink__desc">@link.Description</p>
+                <span class="lims-workspace-quicklink__soon">Незабаром</span>
+            </div>
+        }
+    }
+</div>

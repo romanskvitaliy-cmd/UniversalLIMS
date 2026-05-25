@@ -1,0 +1,32 @@
+@using Microsoft.AspNetCore.Identity
+@using UniversalLIMS.Application.Abstractions
+@using UniversalLIMS.Domain.Identity
+@inject SignInManager<ApplicationUser> SignInManager
+@inject ICurrentUserService CurrentUser
+
+@if (SignInManager.IsSignedIn(User))
+{
+    <div class="dropdown lims-portal-dropdown">
+        <button class="btn lims-portal-user-btn dropdown-toggle"
+                type="button"
+                data-bs-toggle="dropdown"
+                aria-expanded="false">
+            <i class="bi bi-person-circle" aria-hidden="true"></i>
+            <span>@(CurrentUser.UserFullName ?? User.Identity?.Name)</span>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+            <li>
+                <span class="dropdown-item-text text-muted small">Обліковий запис</span>
+            </li>
+            <li>
+                <a class="dropdown-item" asp-area="Identity" asp-page="/Account/Manage/Index">Профіль</a>
+            </li>
+            <li><hr class="dropdown-divider" /></li>
+            <li>
+                <form asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@Url.Action("Index", "Home")" method="post">
+                    <button type="submit" class="dropdown-item">Вихід</button>
+                </form>
+            </li>
+        </ul>
+    </div>
+}

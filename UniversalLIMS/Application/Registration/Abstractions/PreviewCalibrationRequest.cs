@@ -67,6 +67,9 @@ public sealed class PreviewCalibrationFieldRequest
     [JsonPropertyName("verticalAlignment")]
     public string? VerticalAlignment { get; set; }
 
+    [JsonPropertyName("textColor")]
+    public string? TextColor { get; set; }
+
     /// <summary>Текст для малювання: лише з UI (value / text / textToDraw), не з БД.</summary>
     public string ResolveDrawableText()
     {
