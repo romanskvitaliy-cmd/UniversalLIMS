@@ -167,12 +167,10 @@ public sealed class OrdersController : Controller
                 BuildOrderCreateSuccessMessage(result) +
                 (groups.Count > 0 ? $" Об’єднано груп полів: {groups.Count}." : string.Empty);
 
-            if (input.OpenPdfAfterCreate && result.Documents.Count == 1)
+            var pdfFillRedirect = TryBuildPostCreatePdfFillRedirect(result, input.OpenPdfAfterCreate);
+            if (pdfFillRedirect is not null)
             {
-                return RedirectToAction(
-                    "Fill",
-                    "PdfWorkspace",
-                    new { templateVersionId = result.Documents[0].TemplateVersionId, orderId = result.OrderId });
+                return pdfFillRedirect;
             }
 
             return RedirectToAction(nameof(Details), new { id = result.OrderId });
@@ -211,12 +209,10 @@ public sealed class OrdersController : Controller
 
             TempData["OrderCreateSuccess"] = BuildOrderCreateSuccessMessage(result);
 
-            if (input.OpenPdfAfterCreate && result.Documents.Count == 1)
+            var pdfFillRedirect = TryBuildPostCreatePdfFillRedirect(result, input.OpenPdfAfterCreate);
+            if (pdfFillRedirect is not null)
             {
-                return RedirectToAction(
-                    "Fill",
-                    "PdfWorkspace",
-                    new { templateVersionId = result.Documents[0].TemplateVersionId, orderId = result.OrderId });
+                return pdfFillRedirect;
             }
 
             return RedirectToAction(nameof(Details), new { id = result.OrderId });
@@ -345,6 +341,27 @@ public sealed class OrdersController : Controller
         return result.Samples.Count <= 1
             ? $"Створено замовлення {referralNumber}, проба {result.SampleNumber}, документів: {result.Documents.Count}."
             : $"Створено замовлення {referralNumber}, проб: {result.Samples.Count}, документів: {result.Documents.Count}.";
+    }
+
+    private static RedirectToActionResult? TryBuildPostCreatePdfFillRedirect(
+        CreateOrderResult result,
+        bool openPdfAfterCreate)
+    {
+        var route = OrderPostCreateNavigation.TryGetSingleDocumentPdfFillRoute(result, openPdfAfterCreate);
+        if (route is null)
+        {
+            return null;
+        }
+
+        return new RedirectToActionResult(
+            "Fill",
+            "PdfWorkspace",
+            new
+            {
+                templateVersionId = route.TemplateVersionId,
+                orderId = route.OrderId,
+                orderDocumentId = route.OrderDocumentId
+            });
     }
 
     private void ValidateDocumentSelection(OrderCreateInputModel input, OrderCreateFormDto form)

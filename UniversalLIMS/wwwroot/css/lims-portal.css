@@ -994,6 +994,21 @@
     font-size: 1.05rem;
 }
 
+.lims-role-card__btn--switch {
+    background: transparent;
+    border: 1px solid color-mix(in srgb, var(--role-accent) 55%, transparent);
+    color: color-mix(in srgb, var(--role-accent) 90%, #fff);
+    box-shadow: none;
+}
+
+.lims-role-card__btn--switch:hover {
+    background: color-mix(in srgb, var(--role-accent) 18%, transparent);
+    color: #fff;
+    border-color: var(--role-accent);
+    transform: scale(1.02);
+    filter: none;
+}
+
 @keyframes lims-portal-fade-up {
     from {
         opacity: 0;

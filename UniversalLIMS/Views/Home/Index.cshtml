@@ -94,6 +94,16 @@
                                 Продовжити роботу
                             </a>
                         }
+                        else if (card.IsGranted && Model.HasActiveRole && !card.IsActiveRole)
+                        {
+                            <form asp-action="SelectRole" method="post" class="mt-auto">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="role" value="@card.RoleCode" />
+                                <button type="submit" class="lims-role-card__btn lims-role-card__btn--switch">
+                                    Перейти як @card.DisplayName
+                                </button>
+                            </form>
+                        }
                         else if (card.IsGranted && !Model.HasActiveRole)
                         {
                             <form asp-action="SelectRole" method="post" class="mt-auto">

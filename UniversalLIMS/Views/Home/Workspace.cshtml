@@ -7,6 +7,17 @@
     var isAdministrator = Model.RoleCode == LimsRoles.SystemAdministrator;
 }
 
+@if (User.IsInRole(LimsRoles.SystemAdministrator) && Model.RoleCode != LimsRoles.SystemAdministrator)
+{
+    <div class="alert alert-info mb-3">
+        У вашому обліковому записі є права <strong>адміністратора</strong>, але зараз активна робоча роль
+        <strong>@Model.RoleDisplayName</strong>.
+        Для огляду всіх лабораторій і налаштувань системи
+        <a asp-controller="Home" asp-action="ClearRole" class="alert-link">оберіть роль «Адміністратор»</a>
+        на порталі (або «Перейти як Адміністратор» на картці ролі).
+    </div>
+}
+
 <div class="lims-workspace-welcome" style="--workspace-accent: @Model.AccentColor">
     <div class="lims-workspace-welcome__icon" aria-hidden="true">
         <i class="bi @Model.IconClass"></i>
