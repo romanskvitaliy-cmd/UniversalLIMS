@@ -164,7 +164,7 @@ public sealed class OrdersController : Controller
             }
 
             TempData["OrderCreateSuccess"] =
-                $"Створено замовлення {result.ReferralNumber}, проба {result.SampleNumber}, документів: {result.Documents.Count}." +
+                BuildOrderCreateSuccessMessage(result) +
                 (groups.Count > 0 ? $" Об’єднано груп полів: {groups.Count}." : string.Empty);
 
             if (input.OpenPdfAfterCreate && result.Documents.Count == 1)
@@ -209,8 +209,7 @@ public sealed class OrdersController : Controller
         {
             var result = await _orderRegistration.CreateOrderAsync(MapToRequest(input, form), cancellationToken);
 
-            TempData["OrderCreateSuccess"] =
-                $"Створено замовлення {result.ReferralNumber}, проба {result.SampleNumber}, документів: {result.Documents.Count}.";
+            TempData["OrderCreateSuccess"] = BuildOrderCreateSuccessMessage(result);
 
             if (input.OpenPdfAfterCreate && result.Documents.Count == 1)
             {
@@ -335,6 +334,17 @@ public sealed class OrdersController : Controller
         {
             ModelState.AddModelError(nameof(input.SelectedCustomerId), "Оберіть замовника з результатів пошуку.");
         }
+    }
+
+    private static string BuildOrderCreateSuccessMessage(CreateOrderResult result)
+    {
+        var referralNumber = string.IsNullOrWhiteSpace(result.ReferralNumber)
+            ? result.OrderId.ToString("N")[..8]
+            : result.ReferralNumber;
+
+        return result.Samples.Count <= 1
+            ? $"Створено замовлення {referralNumber}, проба {result.SampleNumber}, документів: {result.Documents.Count}."
+            : $"Створено замовлення {referralNumber}, проб: {result.Samples.Count}, документів: {result.Documents.Count}.";
     }
 
     private void ValidateDocumentSelection(OrderCreateInputModel input, OrderCreateFormDto form)

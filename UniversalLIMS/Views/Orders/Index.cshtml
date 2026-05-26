@@ -9,7 +9,7 @@
 <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
     <div>
         <h1 class="h3 mb-1">Реєстр замовлень</h1>
-        <p class="text-muted mb-0">Справи реєстратури: кілька PDF-документів, статус процесу, маршрут у філії.</p>
+        <p class="text-muted mb-0">Справи реєстратури: проби, PDF-документи, статус процесу, маршрут у філії.</p>
     </div>
     <a class="btn btn-sm btn-primary" asp-action="Create">
         <i class="bi bi-plus-lg me-1"></i>Прийняти пробу
@@ -86,6 +86,7 @@ else
                     <th>Замовник</th>
                     <th>Дата</th>
                     <th>Статус</th>
+                    <th class="text-center">Проби</th>
                     <th class="text-center">Док.</th>
                     <th>В процесі</th>
                     <th>Філії</th>
@@ -100,6 +101,7 @@ else
                         <td>@order.CustomerFullName</td>
                         <td class="text-nowrap">@order.OrderDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
                         <td><span class="badge lims-status-badge @OrderStatusDisplay.BadgeClass(order.Status)">@OrderStatusDisplay.ToUk(order.Status)</span></td>
+                        <td class="text-center">@order.SampleCount</td>
                         <td class="text-center">@order.DocumentCount</td>
                         <td><span class="small">@order.WorkflowSummaryUk</span></td>
                         <td class="small">@order.TargetBranchName</td>
