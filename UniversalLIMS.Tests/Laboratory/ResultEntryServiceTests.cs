@@ -131,6 +131,108 @@ public sealed class ResultEntryServiceTests
     }
 
     [Fact]
+    public async Task SaveResultValuesAsync_MarkComplete_DoesNotUpdateOtherSampleDocumentsInSameOrder()
+    {
+        var branchId = Guid.NewGuid();
+        await using var context = CreateContext();
+        await SeedBranchAsync(context, branchId);
+        var investigationTypeId = await SeedInvestigationTypeAsync(context);
+        var customer = await SeedCustomerAsync(context, "Клієнт multi-sample");
+        var equipmentId = await SeedEquipmentAsync(context, branchId);
+        var dataFieldId = await SeedResultDataFieldAsync(context, "Result.MultiSample", "Показник");
+        var orderId = Guid.NewGuid();
+        var sampleAId = Guid.NewGuid();
+        var sampleBId = Guid.NewGuid();
+        var documentAId = Guid.NewGuid();
+        var documentBId = Guid.NewGuid();
+
+        context.Orders.Add(new Order
+        {
+            Id = orderId,
+            CustomerId = customer.Id,
+            BranchId = branchId,
+            Status = OrderStatus.Registered,
+            ReferralNumber = "REF-MULTI"
+        });
+
+        context.Samples.AddRange(
+            new Sample
+            {
+                Id = sampleAId,
+                OrderId = orderId,
+                InvestigationTypeId = investigationTypeId,
+                Number = "SMP-MULTI-01",
+                RegisteredAt = DateTime.UtcNow,
+                Status = SampleStatus.Routed
+            },
+            new Sample
+            {
+                Id = sampleBId,
+                OrderId = orderId,
+                InvestigationTypeId = investigationTypeId,
+                Number = "SMP-MULTI-02",
+                RegisteredAt = DateTime.UtcNow,
+                Status = SampleStatus.Routed
+            });
+
+        context.OrderDocuments.AddRange(
+            new OrderDocument
+            {
+                Id = documentAId,
+                OrderId = orderId,
+                SampleId = sampleAId,
+                TemplateId = Guid.NewGuid(),
+                TemplateVersionId = Guid.NewGuid(),
+                TargetBranchId = branchId,
+                Status = OrderDocumentStatus.SentToLab,
+                SentToLabAtUtc = DateTime.UtcNow
+            },
+            new OrderDocument
+            {
+                Id = documentBId,
+                OrderId = orderId,
+                SampleId = sampleBId,
+                TemplateId = Guid.NewGuid(),
+                TemplateVersionId = Guid.NewGuid(),
+                TargetBranchId = branchId,
+                Status = OrderDocumentStatus.SentToLab,
+                SentToLabAtUtc = DateTime.UtcNow
+            });
+
+        await context.SaveChangesAsync();
+
+        var service = CreateService(context, branchId, LimsRoles.LaboratoryTechnician);
+        var save = await service.SaveResultValuesAsync(
+            sampleAId,
+            new SaveResultEntryRequest
+            {
+                MarkResultsComplete = true,
+                Values =
+                [
+                    new SaveResultEntryFieldRequest
+                    {
+                        DataFieldId = dataFieldId,
+                        Value = "42",
+                        EquipmentId = equipmentId
+                    }
+                ]
+            });
+
+        Assert.True(save.Success);
+
+        var sampleA = await context.Samples.FindAsync(sampleAId);
+        var sampleB = await context.Samples.FindAsync(sampleBId);
+        var documentA = await context.OrderDocuments.FindAsync(documentAId);
+        var documentB = await context.OrderDocuments.FindAsync(documentBId);
+
+        Assert.Equal(SampleStatus.ResultsEntered, sampleA!.Status);
+        Assert.Equal(OrderDocumentStatus.ResultsEntered, documentA!.Status);
+        Assert.Equal(SampleStatus.Routed, sampleB!.Status);
+        Assert.Equal(OrderDocumentStatus.SentToLab, documentB!.Status);
+        Assert.DoesNotContain(context.SampleResultValues, value => value.SampleId == sampleBId);
+    }
+
+    [Fact]
     public async Task SaveResultValuesAsync_AnnulsPreviousRow_WhenValueChanges()
     {
         var branchId = Guid.NewGuid();
