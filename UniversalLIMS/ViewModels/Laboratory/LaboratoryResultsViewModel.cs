@@ -11,4 +11,6 @@ public sealed class LaboratoryResultsViewModel
     public string? StatusMessage { get; set; }
 
     public string? StatusType { get; set; }
+
+    public bool HasPdfFillTargets { get; set; }
 }

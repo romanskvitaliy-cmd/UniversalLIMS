@@ -1,4 +1,5 @@
 @model TemplateDetailsViewModel
+@using UniversalLIMS.Application.Templates
 
 @{
     ViewData["Title"] = Model.NameUk;
@@ -27,8 +28,8 @@
             <th>Файл</th>
             <th>Статус</th>
             <th>Поля</th>
-            <th>Завантажено UTC</th>
-            <th>Опубліковано UTC</th>
+            <th>Перша публікація UTC</th>
+            <th>Повторна активація UTC</th>
             <th></th>
         </tr>
     </thead>
@@ -38,10 +39,18 @@
             <tr>
                 <td>v@(version.VersionNumber)</td>
                 <td>@version.OriginalFileName</td>
-                <td>@version.Status</td>
+                <td>
+                    <span class="badge lims-status-badge @TemplateVersionStatusDisplay.BadgeClass(version.Status)">
+                        @TemplateVersionStatusDisplay.ToUk(version.Status)
+                    </span>
+                    @if (version.IsCurrentPublished)
+                    {
+                        <span class="badge @TemplateVersionStatusDisplay.ActiveBadgeClass ms-1">Активний</span>
+                    }
+                </td>
                 <td>@version.FieldCount</td>
-                <td>@version.UploadedAtUtc</td>
-                <td>@(version.PublishedAtUtc?.ToString() ?? "—")</td>
+                <td>@(version.FirstPublishedAtUtc?.ToString("g") ?? "—")</td>
+                <td>@(version.RepublishedAtUtc?.ToString("g") ?? "—")</td>
                 <td class="text-end">
                     <a class="btn btn-sm btn-outline-primary" asp-controller="TemplateVersions" asp-action="Details" asp-route-id="@version.Id">Відкрити</a>
                 </td>

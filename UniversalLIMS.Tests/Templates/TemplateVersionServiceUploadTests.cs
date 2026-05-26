@@ -172,6 +172,11 @@ public sealed class TemplateVersionServiceUploadTests
             Guid templateVersionId,
             CancellationToken cancellationToken = default) =>
             Task.FromResult(new PublicationValidationResult());
+
+        public Task<PublicationValidationResult> ValidateRepublishAsync(
+            Guid templateVersionId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(new PublicationValidationResult());
     }
 
     private sealed class TestCurrentUserService : ICurrentUserService

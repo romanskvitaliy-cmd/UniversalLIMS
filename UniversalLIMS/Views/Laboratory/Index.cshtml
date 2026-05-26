@@ -91,10 +91,14 @@ else
                         <td class="text-nowrap">@sample.RegisteredAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
                         <td><span class="badge lims-status-badge @SampleStatusDisplay.BadgeClass(sample.Status)">@SampleStatusDisplay.ToUk(sample.Status)</span></td>
                         <td class="text-end text-nowrap">
+                            <a class="btn btn-sm btn-outline-secondary me-1"
+                               asp-action="ResultEntry"
+                               asp-route-sampleId="@sample.SampleId"
+                               title="Показники Result у таблиці">Показники</a>
                             <a class="btn btn-sm btn-outline-primary"
                                asp-action="Results"
                                asp-route-sampleId="@sample.SampleId"
-                               title="Заповнення на PDF-бланку (поля за правами ролі)">Заповнити PDF</a>
+                               title="Заповнення на PDF-бланку (поля за правами ролі)">PDF</a>
                         </td>
                     </tr>
                 }

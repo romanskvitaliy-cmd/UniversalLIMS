@@ -289,6 +289,45 @@ public sealed class TemplateVersionService : ITemplateVersionService
             .Include(templateVersion => templateVersion.Template)
             .FirstAsync(templateVersion => templateVersion.Id == templateVersionId, cancellationToken);
 
+        await PromoteToCurrentPublishedAsync(version, publicationNotesUk, isRepublish: false, cancellationToken);
+
+        await _context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return new PublicationValidationResult();
+    }
+
+    public async Task<PublicationValidationResult> RepublishAsync(
+        Guid templateVersionId,
+        string? publicationNotesUk,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = await _publicationValidator.ValidateRepublishAsync(templateVersionId, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            return validationResult;
+        }
+
+        await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+
+        var version = await _context.TemplateVersions
+            .Include(templateVersion => templateVersion.Template)
+            .FirstAsync(templateVersion => templateVersion.Id == templateVersionId, cancellationToken);
+
+        await PromoteToCurrentPublishedAsync(version, publicationNotesUk, isRepublish: true, cancellationToken);
+
+        await _context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return new PublicationValidationResult();
+    }
+
+    private async Task PromoteToCurrentPublishedAsync(
+        TemplateVersion version,
+        string? publicationNotesUk,
+        bool isRepublish,
+        CancellationToken cancellationToken)
+    {
         var previousPublishedVersions = await _context.TemplateVersions
             .Where(templateVersion =>
                 templateVersion.TemplateId == version.TemplateId &&
@@ -301,10 +340,28 @@ public sealed class TemplateVersionService : ITemplateVersionService
             previousVersion.Status = TemplateVersionStatus.Superseded;
         }
 
+        var now = _dateTimeProvider.UtcNow;
+
         version.Status = TemplateVersionStatus.Published;
-        version.PublishedAtUtc = _dateTimeProvider.UtcNow;
         version.PublishedByUserId = _currentUserService.UserId;
-        version.PublicationNotesUk = publicationNotesUk;
+
+        if (!string.IsNullOrWhiteSpace(publicationNotesUk))
+        {
+            version.PublicationNotesUk = publicationNotesUk.Trim();
+        }
+
+        if (isRepublish)
+        {
+            version.FirstPublishedAtUtc ??= version.PublishedAtUtc ?? now;
+            version.RepublishedAtUtc = now;
+            version.PublishedAtUtc = now;
+        }
+        else
+        {
+            version.FirstPublishedAtUtc = now;
+            version.RepublishedAtUtc = null;
+            version.PublishedAtUtc = now;
+        }
 
         version.Template.Status = TemplateStatus.Active;
         version.Template.CurrentPublishedVersionId = version.Id;
@@ -313,11 +370,6 @@ public sealed class TemplateVersionService : ITemplateVersionService
             _context,
             version.TemplateId,
             cancellationToken);
-
-        await _context.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
-
-        return new PublicationValidationResult();
     }
 
     /// <summary>

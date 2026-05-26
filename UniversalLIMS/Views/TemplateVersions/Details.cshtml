@@ -1,4 +1,5 @@
 @model TemplateVersionDetailsViewModel
+@using UniversalLIMS.Application.Templates
 
 @{
     ViewData["Title"] = $"{Model.TemplateNameUk} v{Model.VersionNumber}";
@@ -9,7 +10,16 @@
 <div class="d-flex justify-content-between align-items-start mb-3">
     <div>
         <h1 class="h3 mb-1">@Model.TemplateNameUk · v@(Model.VersionNumber)</h1>
-        <div class="text-muted">@Model.Status · @Model.OriginalFileName</div>
+        <div class="text-muted">
+            <span class="badge lims-status-badge @TemplateVersionStatusDisplay.BadgeClass(Model.Status)">
+                @TemplateVersionStatusDisplay.ToUk(Model.Status)
+            </span>
+            @if (Model.IsCurrentPublished)
+            {
+                <span class="badge @TemplateVersionStatusDisplay.ActiveBadgeClass ms-1">Активний</span>
+            }
+            · @Model.OriginalFileName
+        </div>
     </div>
     <div class="btn-group">
         @if (!string.IsNullOrEmpty(Model.OpenInWordUri))
@@ -66,7 +76,11 @@
     <dd class="col-sm-9"><code>@Model.Sha256Hash</code></dd>
     <dt class="col-sm-3">Завантажено UTC</dt>
     <dd class="col-sm-9">@Model.UploadedAtUtc</dd>
-    <dt class="col-sm-3">Опубліковано UTC</dt>
+    <dt class="col-sm-3">Перша публікація UTC</dt>
+    <dd class="col-sm-9">@(Model.FirstPublishedAtUtc?.ToString() ?? "—")</dd>
+    <dt class="col-sm-3">Повторна активація UTC</dt>
+    <dd class="col-sm-9">@(Model.RepublishedAtUtc?.ToString() ?? "—")</dd>
+    <dt class="col-sm-3">Остання активація UTC</dt>
     <dd class="col-sm-9">@(Model.PublishedAtUtc?.ToString() ?? "—")</dd>
 </dl>
 
@@ -104,6 +118,22 @@
         <form asp-action="Publish" asp-route-id="@Model.Id" method="post" class="d-flex gap-2">
             <input name="publicationNotesUk" class="form-control" placeholder="Примітка до публікації" />
             <button type="submit" class="btn btn-success">Опублікувати</button>
+        </form>
+    </div>
+}
+
+@if (Model.CanRepublish)
+{
+    <div class="alert alert-light border mb-3">
+        <div class="fw-semibold mb-2">Зробити поточною знову</div>
+        <p class="small text-muted mb-2">
+            Версія була опублікована раніше. Поточна опублікована версія шаблону перейде в «Замінено»;
+            нова робота (за замовчуванням) піде на v@(Model.VersionNumber). Перша дата публікації не зміниться.
+        </p>
+        <form asp-action="Republish" asp-route-id="@Model.Id" method="post" class="d-flex flex-wrap gap-2">
+            @Html.AntiForgeryToken()
+            <input name="publicationNotesUk" class="form-control" style="min-width: 280px;" placeholder="Причина повторної активації (необов'язково)" />
+            <button type="submit" class="btn btn-warning">Зробити поточною</button>
         </form>
     </div>
 }

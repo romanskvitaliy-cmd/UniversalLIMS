@@ -21,7 +21,15 @@
             }
         </p>
     </div>
-    <a class="btn btn-outline-secondary btn-sm" asp-action="Index">← Журнал проб</a>
+    <div class="d-flex flex-wrap gap-2">
+        @if (Model.HasPdfFillTargets)
+        {
+            <a class="btn btn-outline-primary btn-sm"
+               asp-action="Results"
+               asp-route-sampleId="@Model.Form.SampleId">Заповнити PDF</a>
+        }
+        <a class="btn btn-outline-secondary btn-sm" asp-action="Index">← Журнал проб</a>
+    </div>
 </div>
 
 @if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
@@ -29,7 +37,16 @@
     <div class="alert alert-@(Model.StatusType ?? "info")">@Model.StatusMessage</div>
 }
 
-<form method="post" asp-action="Results" asp-route-sampleId="@Model.Form.SampleId">
+@if (!Model.Form.Fields.Any())
+{
+    <div class="alert alert-info">
+        Немає активних показників <code>Result</code> у довіднику DataField. Зверніться до адміністратора або використайте заповнення PDF.
+    </div>
+}
+
+@if (Model.Form.Fields.Any())
+{
+<form method="post" asp-action="ResultEntry" asp-route-sampleId="@Model.Form.SampleId">
     @Html.AntiForgeryToken()
     <input type="hidden" asp-for="Input.MarkResultsComplete" id="markResultsComplete" />
 
@@ -130,3 +147,4 @@
         <span class="small text-muted">Корекція: старе значення анулюється (ISO), створюється новий запис.</span>
     </div>
 </form>
+}

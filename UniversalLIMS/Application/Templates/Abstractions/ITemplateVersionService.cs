@@ -24,6 +24,12 @@ public interface ITemplateVersionService
         string? publicationNotesUk,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Знову зробити поточною опублікованою версію, що була замінена (Superseded).</summary>
+    Task<PublicationValidationResult> RepublishAsync(
+        Guid templateVersionId,
+        string? publicationNotesUk,
+        CancellationToken cancellationToken = default);
+
     Task AnnulAsync(
         Guid templateVersionId,
         string annulmentReason,

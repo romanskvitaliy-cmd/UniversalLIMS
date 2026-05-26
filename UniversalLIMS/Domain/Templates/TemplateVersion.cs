@@ -32,7 +32,14 @@ public class TemplateVersion : BaseEntity, ISoftAnnulled
 
     public string? UploadedByUserId { get; set; }
 
+    /// <summary>Остання активація (перша публікація або republish).</summary>
     public DateTime? PublishedAtUtc { get; set; }
+
+    /// <summary>Перша публікація версії; не перезаписується при republish.</summary>
+    public DateTime? FirstPublishedAtUtc { get; set; }
+
+    /// <summary>Останнє повторне включення після Superseded (null після першої публікації).</summary>
+    public DateTime? RepublishedAtUtc { get; set; }
 
     public string? PublishedByUserId { get; set; }
 

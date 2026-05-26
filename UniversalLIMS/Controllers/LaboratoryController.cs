@@ -16,15 +16,18 @@ public sealed class LaboratoryController : Controller
 {
     private readonly ILaboratoryJournalService _journal;
     private readonly ILaboratoryPdfFillService _pdfFill;
+    private readonly IResultEntryService _resultEntry;
     private readonly ApplicationDbContext _context;
 
     public LaboratoryController(
         ILaboratoryJournalService journal,
         ILaboratoryPdfFillService pdfFill,
+        IResultEntryService resultEntry,
         ApplicationDbContext context)
     {
         _journal = journal;
         _pdfFill = pdfFill;
+        _resultEntry = resultEntry;
         _context = context;
     }
 
@@ -42,7 +45,56 @@ public sealed class LaboratoryController : Controller
         });
     }
 
-    /// <summary>Відкриває PDF Workspace замість табличного внесення результатів.</summary>
+    /// <summary>Табличне внесення показників (DataFieldScope.Result).</summary>
+    [HttpGet]
+    public async Task<IActionResult> ResultEntry(Guid sampleId, CancellationToken cancellationToken)
+    {
+        var form = await _resultEntry.GetResultEntryFormAsync(sampleId, cancellationToken);
+        if (form is null)
+        {
+            return NotFound();
+        }
+
+        var pdfTargets = await _pdfFill.GetFillTargetsAsync(sampleId, cancellationToken);
+
+        return View(
+            "Results",
+            new LaboratoryResultsViewModel
+            {
+                Form = form,
+                HasPdfFillTargets = pdfTargets.Count > 0
+            });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ResultEntry(
+        Guid sampleId,
+        LaboratoryResultsViewModel model,
+        CancellationToken cancellationToken)
+    {
+        var save = await _resultEntry.SaveResultValuesAsync(sampleId, model.Input, cancellationToken);
+        var form = await _resultEntry.GetResultEntryFormAsync(sampleId, cancellationToken);
+        if (form is null)
+        {
+            return NotFound();
+        }
+
+        var pdfTargets = await _pdfFill.GetFillTargetsAsync(sampleId, cancellationToken);
+
+        return View(
+            "Results",
+            new LaboratoryResultsViewModel
+            {
+                Form = form,
+                Input = model.Input,
+                HasPdfFillTargets = pdfTargets.Count > 0,
+                StatusMessage = save.Message,
+                StatusType = save.Success ? "success" : "danger"
+            });
+    }
+
+    /// <summary>Відкриває PDF Workspace для заповнення полів на бланку.</summary>
     [HttpGet]
     public async Task<IActionResult> Results(Guid sampleId, CancellationToken cancellationToken)
     {

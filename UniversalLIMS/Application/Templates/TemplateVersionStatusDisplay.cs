@@ -25,4 +25,6 @@ public static class TemplateVersionStatusDisplay
             TemplateVersionStatus.Annulled => "lims-status-badge--neutral",
             _ => "lims-status-badge--neutral"
         };
+
+    public static string ActiveBadgeClass => "lims-status-badge--registered";
 }

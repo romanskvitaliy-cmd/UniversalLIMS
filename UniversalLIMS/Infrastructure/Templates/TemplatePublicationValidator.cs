@@ -21,9 +21,29 @@ public sealed class TemplatePublicationValidator : ITemplatePublicationValidator
         _documentStorage = documentStorage;
     }
 
-    public async Task<PublicationValidationResult> ValidateAsync(
+    public Task<PublicationValidationResult> ValidateAsync(
         Guid templateVersionId,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        ValidateForStatusesAsync(
+            templateVersionId,
+            [TemplateVersionStatus.Draft, TemplateVersionStatus.ReadyForPublication],
+            "Публікувати можна тільки чернетку або версію, готову до публікації.",
+            cancellationToken);
+
+    public Task<PublicationValidationResult> ValidateRepublishAsync(
+        Guid templateVersionId,
+        CancellationToken cancellationToken = default) =>
+        ValidateForStatusesAsync(
+            templateVersionId,
+            [TemplateVersionStatus.Superseded],
+            "Повторно зробити поточною можна лише версію зі статусом «Замінено».",
+            cancellationToken);
+
+    private async Task<PublicationValidationResult> ValidateForStatusesAsync(
+        Guid templateVersionId,
+        IReadOnlyCollection<TemplateVersionStatus> allowedStatuses,
+        string invalidStatusMessage,
+        CancellationToken cancellationToken)
     {
         var errors = new List<string>();
         var version = await _context.TemplateVersions
@@ -43,9 +63,9 @@ public sealed class TemplatePublicationValidator : ITemplatePublicationValidator
             };
         }
 
-        if (version.Status is not TemplateVersionStatus.Draft and not TemplateVersionStatus.ReadyForPublication)
+        if (!allowedStatuses.Contains(version.Status))
         {
-            errors.Add("Публікувати можна тільки чернетку або версію, готову до публікації.");
+            errors.Add(invalidStatusMessage);
         }
 
         if (!await _documentStorage.ExistsAsync(version.StorageKey, cancellationToken))

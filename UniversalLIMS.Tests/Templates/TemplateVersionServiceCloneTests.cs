@@ -470,5 +470,10 @@ public sealed class TemplateVersionServiceCloneTests
             Guid templateVersionId,
             CancellationToken cancellationToken = default) =>
             Task.FromResult(new PublicationValidationResult());
+
+        public Task<PublicationValidationResult> ValidateRepublishAsync(
+            Guid templateVersionId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(new PublicationValidationResult());
     }
 }

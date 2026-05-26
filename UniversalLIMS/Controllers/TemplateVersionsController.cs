@@ -304,6 +304,27 @@ public sealed class TemplateVersionsController : Controller
         var result = await _templateVersionService.PublishAsync(id, publicationNotesUk, cancellationToken);
         if (result.IsValid)
         {
+            TempData["TemplateSuccess"] = "Версію опубліковано.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        var model = await BuildDetailsViewModelAsync(id, result.Errors, cancellationToken);
+        if (model is null)
+        {
+            return NotFound();
+        }
+
+        return View(nameof(Details), model);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Republish(Guid id, string? publicationNotesUk, CancellationToken cancellationToken)
+    {
+        var result = await _templateVersionService.RepublishAsync(id, publicationNotesUk, cancellationToken);
+        if (result.IsValid)
+        {
+            TempData["TemplateSuccess"] = "Версію знову зроблено поточною для нових справ.";
             return RedirectToAction(nameof(Details), new { id });
         }
 
@@ -371,6 +392,11 @@ public sealed class TemplateVersionsController : Controller
             Sha256Hash = version.Sha256Hash,
             UploadedAtUtc = version.UploadedAtUtc,
             PublishedAtUtc = version.PublishedAtUtc,
+            FirstPublishedAtUtc = version.FirstPublishedAtUtc ?? version.PublishedAtUtc,
+            RepublishedAtUtc = version.RepublishedAtUtc,
+            IsCurrentPublished = version.Template.CurrentPublishedVersionId == version.Id
+                && version.Status == TemplateVersionStatus.Published,
+            CanRepublish = version.Status == TemplateVersionStatus.Superseded,
             PublicationNotesUk = version.PublicationNotesUk,
             ValidationErrors = validationErrors,
             Fields = fields,

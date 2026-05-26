@@ -67,6 +67,12 @@ public sealed class TemplateVersionListItemViewModel
     public DateTime UploadedAtUtc { get; set; }
 
     public DateTime? PublishedAtUtc { get; set; }
+
+    public DateTime? FirstPublishedAtUtc { get; set; }
+
+    public DateTime? RepublishedAtUtc { get; set; }
+
+    public bool IsCurrentPublished { get; set; }
 }
 
 public sealed class TemplateVersionUploadViewModel
@@ -119,6 +125,14 @@ public sealed class TemplateVersionDetailsViewModel
     public DateTime UploadedAtUtc { get; set; }
 
     public DateTime? PublishedAtUtc { get; set; }
+
+    public DateTime? FirstPublishedAtUtc { get; set; }
+
+    public DateTime? RepublishedAtUtc { get; set; }
+
+    public bool IsCurrentPublished { get; set; }
+
+    public bool CanRepublish { get; set; }
 
     public string? PublicationNotesUk { get; set; }
 

@@ -47,6 +47,12 @@ public sealed class TemplateVersionConfiguration : IEntityTypeConfiguration<Temp
         builder.Property(version => version.PublishedAtUtc)
             .HasColumnType("datetime2");
 
+        builder.Property(version => version.FirstPublishedAtUtc)
+            .HasColumnType("datetime2");
+
+        builder.Property(version => version.RepublishedAtUtc)
+            .HasColumnType("datetime2");
+
         builder.Property(version => version.CreatedAtUtc)
             .HasColumnType("datetime2");
 

@@ -172,7 +172,11 @@ public sealed class TemplatesController : Controller
                     OriginalFileName = version.OriginalFileName,
                     FieldCount = fieldCounts.GetValueOrDefault(version.Id),
                     UploadedAtUtc = version.UploadedAtUtc,
-                    PublishedAtUtc = version.PublishedAtUtc
+                    PublishedAtUtc = version.PublishedAtUtc,
+                    FirstPublishedAtUtc = version.FirstPublishedAtUtc ?? version.PublishedAtUtc,
+                    RepublishedAtUtc = version.RepublishedAtUtc,
+                    IsCurrentPublished = template.CurrentPublishedVersionId == version.Id
+                        && version.Status == TemplateVersionStatus.Published
                 })
                 .ToList()
         };
