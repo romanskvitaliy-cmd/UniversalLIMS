@@ -148,6 +148,83 @@ public sealed class OrderFieldLinkServiceTests
         Assert.Contains(detail.Groups[0].Members, member => member.Tag == "Food_SamplingDate");
     }
 
+    [Fact]
+    public async Task AdaptFieldLinkGroupsFromOrderAsync_MatchesFieldsByTagOnNewTemplateVersions()
+    {
+        await using var context = CreateContext();
+        var orderId = Guid.NewGuid();
+        var sourceVersionA = Guid.NewGuid();
+        var sourceVersionB = Guid.NewGuid();
+        var targetVersionA = Guid.NewGuid();
+        var targetVersionB = Guid.NewGuid();
+        var sourceFieldA = Guid.NewGuid();
+        var sourceFieldB = Guid.NewGuid();
+        var targetFieldA = Guid.NewGuid();
+        var targetFieldB = Guid.NewGuid();
+        var dataFieldA = Guid.NewGuid();
+        var dataFieldB = Guid.NewGuid();
+
+        SeedMinimalOrder(context, orderId);
+
+        context.DataFields.AddRange(
+            new DataField
+            {
+                Id = dataFieldA,
+                Key = "f327_SamplingDate",
+                DisplayNameUk = "Дата",
+                FieldType = DataFieldType.Date,
+                Scope = DataFieldScope.Sample,
+                IsActive = true
+            },
+            new DataField
+            {
+                Id = dataFieldB,
+                Key = "Food_SamplingDate",
+                DisplayNameUk = "Дата",
+                FieldType = DataFieldType.Date,
+                Scope = DataFieldScope.Sample,
+                IsActive = true
+            });
+
+        SeedVersionWithField(context, sourceVersionA, "T-A", sourceFieldA, "f327_SamplingDate", dataFieldA);
+        SeedVersionWithField(context, sourceVersionB, "T-B", sourceFieldB, "Food_SamplingDate", dataFieldB);
+        SeedVersionWithField(context, targetVersionA, "T-A2", targetFieldA, "f327_SamplingDate", dataFieldA);
+        SeedVersionWithField(context, targetVersionB, "T-B2", targetFieldB, "Food_SamplingDate", dataFieldB);
+        await context.SaveChangesAsync();
+
+        var service = new OrderFieldLinkService(context, new AllowAllTemplateFieldPermissionService(context));
+
+        var groups = new List<OrderFieldLinkGroupInput>
+        {
+            new()
+            {
+                Label = "Дата відбору",
+                Members =
+                [
+                    new OrderFieldLinkMemberInput { TemplateVersionId = sourceVersionA, TemplateFieldId = sourceFieldA },
+                    new OrderFieldLinkMemberInput { TemplateVersionId = sourceVersionB, TemplateFieldId = sourceFieldB }
+                ]
+            }
+        };
+
+        await service.SaveFieldLinkGroupsAsync(orderId, groups);
+        await service.ApplySharedFieldValuesAsync(
+            orderId,
+            groups,
+            [new OrderSharedFieldValueInput { GroupIndex = 0, Value = "2026-05-26" }]);
+
+        var adapted = await service.AdaptFieldLinkGroupsFromOrderAsync(
+            orderId,
+            [targetVersionA, targetVersionB]);
+
+        Assert.Single(adapted.Groups);
+        Assert.Equal(2, adapted.Groups[0].Members.Count);
+        Assert.Contains(adapted.Groups[0].Members, member => member.TemplateFieldId == targetFieldA);
+        Assert.Contains(adapted.Groups[0].Members, member => member.TemplateFieldId == targetFieldB);
+        Assert.Single(adapted.SharedValues);
+        Assert.Equal("2026-05-26", adapted.SharedValues[0].Value);
+    }
+
     private static void SeedMinimalOrder(ApplicationDbContext context, Guid orderId)
     {
         var branchId = Guid.NewGuid();

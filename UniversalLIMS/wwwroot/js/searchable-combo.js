@@ -35,6 +35,7 @@
         let activeIndex = -1;
         let filtered = items;
         let currentValue = config?.value ?? null;
+        let isMenuPortaled = false;
 
         const getItemId = (item) => item?.id ?? item?.Id ?? item?.key ?? item?.Key ?? null;
         const getItemKey = (item) => item?.key ?? item?.Key ?? "";
@@ -56,6 +57,31 @@
             if (value === null || value === undefined || value === "") return null;
             const key = String(value);
             return items.find((item) => String(getItemId(item)) === key) ?? null;
+        };
+
+        const isEventInside = (target) => {
+            if (!(target instanceof Node)) {
+                return false;
+            }
+            return container.contains(target) || menu.contains(target);
+        };
+
+        const attachMenuToPortal = () => {
+            if (!useFixedMenu || isMenuPortaled) {
+                return;
+            }
+            document.body.appendChild(menu);
+            menu.classList.add("searchable-combo-menu--portaled");
+            isMenuPortaled = true;
+        };
+
+        const detachMenuFromPortal = () => {
+            if (!isMenuPortaled) {
+                return;
+            }
+            container.appendChild(menu);
+            menu.classList.remove("searchable-combo-menu--portaled");
+            isMenuPortaled = false;
         };
 
         const renderLabel = () => {
@@ -149,6 +175,7 @@
                 return;
             }
             isOpen = true;
+            attachMenuToPortal();
             menu.hidden = false;
             trigger.setAttribute("aria-expanded", "true");
             container.classList.add("is-open");
@@ -168,6 +195,7 @@
             container.classList.remove("is-open");
             activeIndex = -1;
             resetMenuPosition();
+            detachMenuFromPortal();
         };
 
         const notifyPreview = (item) => {
@@ -236,7 +264,10 @@
         });
 
         document.addEventListener("mousedown", (event) => {
-            if (!container.contains(event.target)) closeMenu();
+            if (!isOpen || isEventInside(event.target)) {
+                return;
+            }
+            closeMenu();
         });
 
         const api = {

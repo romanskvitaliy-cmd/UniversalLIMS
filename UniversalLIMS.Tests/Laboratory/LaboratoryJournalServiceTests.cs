@@ -90,6 +90,94 @@ public sealed class LaboratoryJournalServiceTests
     }
 
     [Fact]
+    public async Task GetSamplesAsync_ExcludesAnnulledSamples()
+    {
+        var branchId = Guid.NewGuid();
+        await using var context = CreateContext();
+        await SeedBranchesAsync(context, branchId);
+        var investigationTypeId = await SeedInvestigationTypeAsync(context);
+        var customer = await SeedCustomerAsync(context, "Тест");
+        await SeedSampleAsync(context, customer.Id, branchId, investigationTypeId, "SMP-ACTIVE");
+
+        var annulledOrderId = await SeedOrderWithSampleAsync(
+            context,
+            customer.Id,
+            branchId,
+            investigationTypeId,
+            "REF-ANN",
+            "SMP-ANNULLED-SAMPLE");
+        var annulledSample = await context.Samples.SingleAsync(sample => sample.OrderId == annulledOrderId);
+        annulledSample.IsAnnulled = true;
+        await context.SaveChangesAsync();
+
+        var service = CreateService(context, branchId);
+
+        var result = await service.GetSamplesAsync(new SampleJournalFilter { PageSize = 50 });
+
+        Assert.Single(result.Items);
+        Assert.Equal("SMP-ACTIVE", result.Items[0].SampleNumber);
+    }
+
+    [Fact]
+    public async Task GetSamplesAsync_FiltersByRegisteredDateRange()
+    {
+        var branchId = Guid.NewGuid();
+        await using var context = CreateContext();
+        await SeedBranchesAsync(context, branchId);
+        var investigationTypeId = await SeedInvestigationTypeAsync(context);
+        var customer = await SeedCustomerAsync(context, "Тест");
+
+        var orderEarly = new Order
+        {
+            CustomerId = customer.Id,
+            BranchId = branchId,
+            ReferralNumber = "REF-EARLY",
+            Status = OrderStatus.Registered
+        };
+        context.Orders.Add(orderEarly);
+        await context.SaveChangesAsync();
+        context.Samples.Add(new Sample
+        {
+            OrderId = orderEarly.Id,
+            InvestigationTypeId = investigationTypeId,
+            Number = "SMP-EARLY",
+            RegisteredAt = new DateTime(2026, 5, 10, 12, 0, 0, DateTimeKind.Utc),
+            Status = SampleStatus.Registered
+        });
+
+        var orderLate = new Order
+        {
+            CustomerId = customer.Id,
+            BranchId = branchId,
+            ReferralNumber = "REF-LATE",
+            Status = OrderStatus.Registered
+        };
+        context.Orders.Add(orderLate);
+        await context.SaveChangesAsync();
+        context.Samples.Add(new Sample
+        {
+            OrderId = orderLate.Id,
+            InvestigationTypeId = investigationTypeId,
+            Number = "SMP-LATE",
+            RegisteredAt = new DateTime(2026, 5, 25, 12, 0, 0, DateTimeKind.Utc),
+            Status = SampleStatus.Registered
+        });
+        await context.SaveChangesAsync();
+
+        var service = CreateService(context, branchId);
+
+        var result = await service.GetSamplesAsync(new SampleJournalFilter
+        {
+            DateFrom = new DateTime(2026, 5, 20),
+            DateTo = new DateTime(2026, 5, 31),
+            PageSize = 50
+        });
+
+        Assert.Single(result.Items);
+        Assert.Equal("SMP-LATE", result.Items[0].SampleNumber);
+    }
+
+    [Fact]
     public async Task GetSamplesAsync_FiltersBySampleNumberAndStatus()
     {
         var branchId = Guid.NewGuid();

@@ -9,4 +9,7 @@ public sealed class WorkspaceViewModel
     public required string UserDisplayName { get; init; }
     public required IReadOnlyList<WorkspaceNavItem> NavItems { get; init; }
     public required IReadOnlyList<WorkspaceQuickLinkVm> QuickLinks { get; init; }
+
+    /// <summary>Development: розширений доступ до модулів для демонстрації замовнику.</summary>
+    public bool IsDemoMode { get; init; }
 }

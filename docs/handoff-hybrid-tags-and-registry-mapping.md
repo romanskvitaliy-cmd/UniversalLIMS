@@ -72,8 +72,8 @@ PDF/UI:  TemplateFieldId + TemplateVersionId
 | **0** | ✅ Зроблено | Каталог, Map, Fill, seed | див. вище |
 | **1** | ✅ | `OrderFieldLinkGroup` / `Member`, `MapOrderFields`, `IOrderFieldLinkService` | `feat(registration): order field link groups + mapping step` |
 | **2** | ✅ (базово) | Textarea спільних значень на Map → `ApplySharedFieldValuesAsync` | включено в етап 1 |
-| **3** | ✅ (частково) | Збережені групи на `Orders/Details` (`GetFieldLinkGroupsForOrderAsync`) | окремий коміт |
-| **3+** | ⏳ | «Скопіювати мапінг»; `TemplateVersionId` у бібліотеці текстів; drag&drop; профіль мапінгу | окремі PR |
+| **3** | ✅ (частково) | Збережені групи на `Orders/Details`; «Скопіювати мапінг» на `MapOrderFields` (за тегами) | окремі коміти |
+| **3+** | ⏳ | `TemplateVersionId` у бібліотеці текстів; drag&drop; профіль мапінгу | окремі PR |
 
 **Паралельно (контент, не блокує код):** замовник + Grok додають `docs/data/protocol-tags-{code}.json` по 1–2 шаблонах → розширити `ProtocolTagCatalog.cs` + optgroup у Map порціями 30–70 тегів.
 

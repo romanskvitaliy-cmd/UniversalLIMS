@@ -9,4 +9,6 @@ public sealed class OrderMapFieldsViewModel
     public required OrderCreateInputModel CreateInput { get; init; }
 
     public required OrderFieldMappingPrepareDto Mapping { get; init; }
+
+    public IReadOnlyList<OrderFieldMappingSourceOrderDto> CopySourceOrders { get; init; } = [];
 }

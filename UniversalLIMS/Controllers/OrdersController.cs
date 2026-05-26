@@ -80,17 +80,38 @@ public sealed class OrdersController : Controller
                 input.SelectedTemplateVersionIds,
                 cancellationToken);
 
-            return View("MapOrderFields", new OrderMapFieldsViewModel
-            {
-                Form = form,
-                CreateInput = input,
-                Mapping = mapping
-            });
+            return View("MapOrderFields", await BuildMapOrderFieldsViewModelAsync(form, input, mapping, cancellationToken));
         }
         catch (InvalidOperationException ex)
         {
             ModelState.AddModelError(string.Empty, ex.Message);
             return View("Create", new OrderCreateViewModel { Form = form, Input = input });
+        }
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> AdaptFieldMapping(
+        Guid sourceOrderId,
+        [FromQuery] List<Guid> templateVersionIds,
+        CancellationToken cancellationToken)
+    {
+        if (templateVersionIds.Count < 2)
+        {
+            return BadRequest(new { message = "Потрібно щонайменше два шаблони." });
+        }
+
+        try
+        {
+            var result = await _orderFieldLinks.AdaptFieldLinkGroupsFromOrderAsync(
+                sourceOrderId,
+                templateVersionIds,
+                cancellationToken);
+
+            return Json(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
         }
     }
 
@@ -119,12 +140,7 @@ public sealed class OrdersController : Controller
                     input.SelectedTemplateVersionIds,
                     cancellationToken);
 
-                return View("MapOrderFields", new OrderMapFieldsViewModel
-                {
-                    Form = form,
-                    CreateInput = input,
-                    Mapping = mapping
-                });
+                return View("MapOrderFields", await BuildMapOrderFieldsViewModelAsync(form, input, mapping, cancellationToken));
             }
             catch
             {
@@ -168,12 +184,7 @@ public sealed class OrdersController : Controller
                 input.SelectedTemplateVersionIds,
                 cancellationToken);
 
-            return View("MapOrderFields", new OrderMapFieldsViewModel
-            {
-                Form = form,
-                CreateInput = input,
-                Mapping = mapping
-            });
+            return View("MapOrderFields", await BuildMapOrderFieldsViewModelAsync(form, input, mapping, cancellationToken));
         }
     }
 
@@ -288,6 +299,23 @@ public sealed class OrdersController : Controller
         }
 
         return RedirectToAction(nameof(Details), new { id = input.OrderId });
+    }
+
+    private async Task<OrderMapFieldsViewModel> BuildMapOrderFieldsViewModelAsync(
+        OrderCreateFormDto form,
+        OrderCreateInputModel input,
+        OrderFieldMappingPrepareDto mapping,
+        CancellationToken cancellationToken)
+    {
+        var copySourceOrders = await _orderFieldLinks.GetFieldMappingSourceOrdersAsync(20, cancellationToken);
+
+        return new OrderMapFieldsViewModel
+        {
+            Form = form,
+            CreateInput = input,
+            Mapping = mapping,
+            CopySourceOrders = copySourceOrders
+        };
     }
 
     private void ValidateCustomerSelection(OrderCreateInputModel input)

@@ -158,7 +158,8 @@ public sealed class PdfWorkspaceController : Controller
                                 OrderId = result.OrderId,
                                 TemplateFieldId = templateFieldId,
                                 Body = addition.Body,
-                                ShortLabel = addition.ShortLabel
+                                ShortLabel = addition.ShortLabel,
+                                ScopeToTemplateVersion = addition.ScopeToTemplateVersion
                             },
                             cancellationToken);
 
@@ -514,7 +515,8 @@ public sealed class PdfWorkspaceController : Controller
             body = entry.Body,
             shortLabel = entry.ShortLabel,
             usageCount = entry.UsageCount,
-            rowVersionBase64 = entry.RowVersionBase64
+            rowVersionBase64 = entry.RowVersionBase64,
+            scopeToTemplateVersion = entry.ScopeToTemplateVersion
         };
 
     private static string SanitizeFileName(string name)

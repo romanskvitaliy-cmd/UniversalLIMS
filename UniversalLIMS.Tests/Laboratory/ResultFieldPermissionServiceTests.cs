@@ -58,6 +58,37 @@ public sealed class ResultFieldPermissionServiceTests
         Assert.True(canWrite);
     }
 
+    [Fact]
+    public async Task CanWriteAsync_LaboratoryTechnician_WithReadPermission_ReturnsFalse()
+    {
+        var branchId = Guid.NewGuid();
+        var sampleId = Guid.NewGuid();
+        var dataFieldId = Guid.NewGuid();
+        var fieldId = Guid.NewGuid();
+
+        await using var context = CreateContext();
+        await SeedSampleWithTemplateFieldAsync(
+            context,
+            branchId,
+            sampleId,
+            dataFieldId,
+            fieldId);
+
+        context.TemplateFieldPermissions.Add(new TemplateFieldPermission
+        {
+            TemplateFieldId = fieldId,
+            RoleName = LimsRoles.LaboratoryTechnician,
+            AccessLevel = FieldAccessLevel.Read
+        });
+
+        await context.SaveChangesAsync();
+
+        var service = CreateService(context, LimsRoles.LaboratoryTechnician);
+        var canWrite = await service.CanWriteAsync(sampleId, dataFieldId);
+
+        Assert.False(canWrite);
+    }
+
     private static async Task<Guid> SeedSampleWithTemplateFieldAsync(
         ApplicationDbContext context,
         Guid branchId,

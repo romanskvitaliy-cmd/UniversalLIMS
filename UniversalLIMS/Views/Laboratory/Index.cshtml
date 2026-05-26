@@ -6,6 +6,14 @@
     ViewData["Title"] = "Лабораторний журнал";
 }
 
+@if (ViewData["DemoMode"] as bool? == true)
+{
+    <div class="alert alert-info py-2 px-3 small mb-3">
+        Режим демонстрації: показано проби вашої філії. Для внесення результатів увійдіть як <strong>Лаборант</strong>
+        або відкрийте пробу → <strong>PDF</strong>.
+    </div>
+}
+
 <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
     <div>
         <h1 class="h3 mb-1">Лабораторний журнал проб</h1>
@@ -91,14 +99,14 @@ else
                         <td class="text-nowrap">@sample.RegisteredAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
                         <td><span class="badge lims-status-badge @SampleStatusDisplay.BadgeClass(sample.Status)">@SampleStatusDisplay.ToUk(sample.Status)</span></td>
                         <td class="text-end text-nowrap">
-                            <a class="btn btn-sm btn-outline-secondary me-1"
+                            <a class="btn btn-sm btn-primary"
                                asp-action="ResultEntry"
                                asp-route-sampleId="@sample.SampleId"
-                               title="Показники Result у таблиці">Показники</a>
+                               title="Табличне внесення результатів">Показники</a>
                             <a class="btn btn-sm btn-outline-primary"
                                asp-action="Results"
                                asp-route-sampleId="@sample.SampleId"
-                               title="Заповнення на PDF-бланку (поля за правами ролі)">PDF</a>
+                               title="Заповнення PDF за правами ролі">PDF</a>
                         </td>
                     </tr>
                 }

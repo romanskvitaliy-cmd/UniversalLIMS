@@ -231,12 +231,30 @@ public sealed class ResultEntryService : IResultEntryService
         return new SaveResultEntryResult
         {
             Success = true,
-            Message = saved > 0
-                ? $"Збережено змін: {saved}."
-                : "Змін для збереження не було.",
+            Message = BuildSaveMessage(saved, skipped),
             SavedCount = saved,
             SkippedCount = skipped
         };
+    }
+
+    private static string BuildSaveMessage(int saved, int skipped)
+    {
+        if (saved > 0 && skipped > 0)
+        {
+            return $"Збережено змін: {saved}. Пропущено без прав або без змін: {skipped}.";
+        }
+
+        if (saved > 0)
+        {
+            return $"Збережено змін: {saved}.";
+        }
+
+        if (skipped > 0)
+        {
+            return $"Змін не збережено. Пропущено без прав або без змін: {skipped}.";
+        }
+
+        return "Змін для збереження не було.";
     }
 
     private async Task<Sample?> LoadSampleForBranchAsync(Guid sampleId, CancellationToken cancellationToken)

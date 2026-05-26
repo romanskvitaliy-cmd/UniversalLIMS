@@ -20,4 +20,13 @@ public interface IOrderFieldLinkService
     Task<OrderFieldLinkGroupsDetailDto> GetFieldLinkGroupsForOrderAsync(
         Guid orderId,
         CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<OrderFieldMappingSourceOrderDto>> GetFieldMappingSourceOrdersAsync(
+        int take = 20,
+        CancellationToken cancellationToken = default);
+
+    Task<OrderFieldMappingAdaptResultDto> AdaptFieldLinkGroupsFromOrderAsync(
+        Guid sourceOrderId,
+        IReadOnlyList<Guid> targetTemplateVersionIds,
+        CancellationToken cancellationToken = default);
 }

@@ -53,6 +53,36 @@
             </div>
         </div>
         <div class="col-lg-5">
+            @if (Model.CopySourceOrders.Count > 0)
+            {
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h2 class="h6 text-muted text-uppercase mb-2">Скопіювати мапінг</h2>
+                        <p class="small text-muted mb-2">
+                            З попереднього замовлення (за збігом тегів полів, не за текстом підпису).
+                        </p>
+                        <div class="d-flex flex-wrap gap-2 align-items-end">
+                            <div class="flex-grow-1">
+                                <label class="form-label small mb-0" for="copyMappingSourceOrderId">Замовлення-джерело</label>
+                                <select class="form-select form-select-sm" id="copyMappingSourceOrderId">
+                                    <option value="">— оберіть —</option>
+                                    @foreach (var source in Model.CopySourceOrders)
+                                    {
+                                        var label = source.ReferralNumber ?? source.OrderId.ToString("N")[..8];
+                                        <option value="@source.OrderId">
+                                            @label · @source.OrderDateUtc.ToLocalTime().ToString("dd.MM.yyyy") · @source.GroupCount груп
+                                        </option>
+                                    }
+                                </select>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-primary" id="btnCopyFieldMapping">
+                                Застосувати
+                            </button>
+                        </div>
+                        <p class="small text-muted mb-0 mt-2 d-none" id="copyMappingStatus"></p>
+                    </div>
+                </div>
+            }
             <div class="card mb-3">
                 <div class="card-body">
                     <h2 class="h6 text-muted text-uppercase mb-2">Групи об’єднаних полів</h2>
@@ -84,6 +114,7 @@
 @section Scripts {
     <script>
         window.__orderFieldMapping = @Html.Raw(mappingJson);
+        window.__orderFieldMappingAdaptUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("AdaptFieldMapping")));
     </script>
     <script src="~/js/order-field-mapping.js" asp-append-version="true"></script>
 }

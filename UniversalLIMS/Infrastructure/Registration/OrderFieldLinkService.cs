@@ -352,6 +352,182 @@ public sealed class OrderFieldLinkService : IOrderFieldLinkService
         return new OrderFieldLinkGroupsDetailDto { Groups = resultGroups };
     }
 
+    public async Task<IReadOnlyList<OrderFieldMappingSourceOrderDto>> GetFieldMappingSourceOrdersAsync(
+        int take = 20,
+        CancellationToken cancellationToken = default)
+    {
+        if (take <= 0)
+        {
+            take = 20;
+        }
+
+        return await (
+            from linkGroup in _context.OrderFieldLinkGroups.AsNoTracking()
+            join order in _context.Orders.AsNoTracking() on linkGroup.OrderId equals order.Id
+            group linkGroup by new { order.Id, order.ReferralNumber, order.CreatedAtUtc } into grouped
+            orderby grouped.Key.CreatedAtUtc descending
+            select new OrderFieldMappingSourceOrderDto
+            {
+                OrderId = grouped.Key.Id,
+                ReferralNumber = grouped.Key.ReferralNumber,
+                OrderDateUtc = grouped.Key.CreatedAtUtc,
+                GroupCount = grouped.Count()
+            })
+            .Take(take)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<OrderFieldMappingAdaptResultDto> AdaptFieldLinkGroupsFromOrderAsync(
+        Guid sourceOrderId,
+        IReadOnlyList<Guid> targetTemplateVersionIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (targetTemplateVersionIds.Count < 2)
+        {
+            throw new InvalidOperationException("Оберіть щонайменше два шаблони для мапінгу.");
+        }
+
+        var sourceDetail = await GetFieldLinkGroupsForOrderAsync(sourceOrderId, cancellationToken);
+        if (sourceDetail.Groups.Count == 0)
+        {
+            return new OrderFieldMappingAdaptResultDto
+            {
+                InfoMessage = "У вибраному замовленні немає збережених груп мапінгу."
+            };
+        }
+
+        var targetMapping = await GetMappingPrepareAsync(targetTemplateVersionIds, cancellationToken);
+
+        var adaptedGroups = new List<OrderFieldMappingAdaptedGroupDto>();
+        var sharedValues = new List<OrderSharedFieldValueInput>();
+        var usedTargetFieldIds = new HashSet<Guid>();
+        var skippedMembers = 0;
+
+        for (var sourceIndex = 0; sourceIndex < sourceDetail.Groups.Count; sourceIndex++)
+        {
+            var sourceGroup = sourceDetail.Groups[sourceIndex];
+            var adaptedMembers = new List<OrderFieldMappingAdaptedMemberDto>();
+
+            foreach (var sourceMember in sourceGroup.Members)
+            {
+                var targetMatch = ResolveTargetFieldForCopy(
+                    sourceMember.TemplateVersionId,
+                    sourceMember.TemplateFieldId,
+                    sourceMember.Tag,
+                    targetMapping,
+                    usedTargetFieldIds);
+
+                if (targetMatch is null)
+                {
+                    skippedMembers++;
+                    continue;
+                }
+
+                usedTargetFieldIds.Add(targetMatch.Value.Field.TemplateFieldId);
+                adaptedMembers.Add(new OrderFieldMappingAdaptedMemberDto
+                {
+                    TemplateVersionId = targetMatch.Value.TemplateVersionId,
+                    TemplateFieldId = targetMatch.Value.Field.TemplateFieldId,
+                    Tag = targetMatch.Value.Field.Tag,
+                    Title = targetMatch.Value.Field.Title
+                });
+            }
+
+            if (adaptedMembers.Count < 2)
+            {
+                foreach (var member in adaptedMembers)
+                {
+                    usedTargetFieldIds.Remove(member.TemplateFieldId);
+                }
+
+                continue;
+            }
+
+            var adaptedIndex = adaptedGroups.Count;
+            adaptedGroups.Add(new OrderFieldMappingAdaptedGroupDto
+            {
+                Label = sourceGroup.Label,
+                Members = adaptedMembers
+            });
+
+            if (!string.IsNullOrWhiteSpace(sourceGroup.SharedValue)
+                && sourceGroup.SharedValue != "(різні значення в полях групи)")
+            {
+                sharedValues.Add(new OrderSharedFieldValueInput
+                {
+                    GroupIndex = adaptedIndex,
+                    Value = sourceGroup.SharedValue
+                });
+            }
+        }
+
+        string? infoMessage = null;
+        if (adaptedGroups.Count == 0)
+        {
+            infoMessage = "Не вдалося перенести жодну групу: теги полів не збігаються з обраними шаблонами.";
+        }
+        else if (skippedMembers > 0 || adaptedGroups.Count < sourceDetail.Groups.Count)
+        {
+            infoMessage =
+                $"Перенесено {adaptedGroups.Count} з {sourceDetail.Groups.Count} груп (деякі поля пропущено — інші версії шаблонів або теги).";
+        }
+
+        return new OrderFieldMappingAdaptResultDto
+        {
+            Groups = adaptedGroups,
+            SharedValues = sharedValues,
+            InfoMessage = infoMessage
+        };
+    }
+
+    private static (Guid TemplateVersionId, OrderFieldMappingFieldDto Field)? ResolveTargetFieldForCopy(
+        Guid sourceVersionId,
+        Guid sourceFieldId,
+        string sourceTag,
+        OrderFieldMappingPrepareDto targetMapping,
+        IReadOnlySet<Guid> usedTargetFieldIds)
+    {
+        (Guid TemplateVersionId, OrderFieldMappingFieldDto Field)? TryPick(OrderFieldMappingTemplateDto template)
+        {
+            var exact = template.Fields.FirstOrDefault(field =>
+                field.TemplateFieldId == sourceFieldId && field.CanWrite && !usedTargetFieldIds.Contains(field.TemplateFieldId));
+            if (exact is not null)
+            {
+                return (template.TemplateVersionId, exact);
+            }
+
+            var byTag = template.Fields.FirstOrDefault(field =>
+                string.Equals(field.Tag, sourceTag, StringComparison.OrdinalIgnoreCase)
+                && field.CanWrite
+                && !usedTargetFieldIds.Contains(field.TemplateFieldId));
+
+            return byTag is null ? null : (template.TemplateVersionId, byTag);
+        }
+
+        var preferredTemplate = targetMapping.Templates.FirstOrDefault(template => template.TemplateVersionId == sourceVersionId);
+        var preferred = preferredTemplate is not null ? TryPick(preferredTemplate) : null;
+        if (preferred is not null)
+        {
+            return preferred;
+        }
+
+        foreach (var template in targetMapping.Templates)
+        {
+            if (template.TemplateVersionId == sourceVersionId)
+            {
+                continue;
+            }
+
+            var match = TryPick(template);
+            if (match is not null)
+            {
+                return match;
+            }
+        }
+
+        return null;
+    }
+
     private static string? ResolveGroupSharedValue(
         IEnumerable<OrderFieldLinkMember> members,
         IReadOnlyDictionary<Guid, Guid> storageIdsByFieldId,

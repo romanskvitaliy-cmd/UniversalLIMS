@@ -25,6 +25,9 @@ public sealed class PdfWorkspaceLibraryAdditionRequest
 
     [JsonPropertyName("shortLabel")]
     public string? ShortLabel { get; set; }
+
+    [JsonPropertyName("scopeToTemplateVersion")]
+    public bool ScopeToTemplateVersion { get; set; }
 }
 
 public sealed class PdfWorkspaceSaveFieldRequest

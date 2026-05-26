@@ -1358,8 +1358,22 @@ a.lims-workspace-quicklink:hover {
     word-break: break-word;
 }
 
+.pdf-fill-library-browser__item-scope {
+    display: inline-block;
+    margin-top: 0.2rem;
+    font-size: 0.62rem;
+    color: #475569;
+    background: #e2e8f0;
+    border-radius: 999px;
+    padding: 0.04rem 0.35rem;
+}
+
 .pdf-fill-library-browser__add-on-save {
     margin-top: 0.35rem;
+}
+
+.pdf-fill-library-browser__scope-to-version {
+    margin-top: 0.15rem;
 }
 
 /* Модальне вікно бібліотеки — повний список для пошуку */

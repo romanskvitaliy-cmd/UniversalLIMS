@@ -56,6 +56,7 @@
     const libraryExpandBtn = document.getElementById("pdfFillLibraryExpand");
     const libraryCount = document.getElementById("pdfFillLibraryCount");
     const libraryAddOnSave = document.getElementById("pdfFillLibraryAddOnSave");
+    const libraryScopeToVersion = document.getElementById("pdfFillLibraryScopeToVersion");
     const libraryAddNow = document.getElementById("pdfFillLibraryAddNow");
     const libraryModal = document.getElementById("pdfFillLibraryModal");
     const libraryModalBackdrop = document.getElementById("pdfFillLibraryModalBackdrop");
@@ -646,6 +647,12 @@
                 libraryAddOnSave.checked = false;
             }
         }
+        if (libraryScopeToVersion) {
+            libraryScopeToVersion.disabled = !writable;
+            if (!writable) {
+                libraryScopeToVersion.checked = false;
+            }
+        }
         if (libraryAddNow) {
             libraryAddNow.disabled = !writable;
         }
@@ -753,6 +760,12 @@
         } else {
             title.textContent = entryBody || "—";
             mainBtn.appendChild(title);
+        }
+        if (entry.scopeToTemplateVersion) {
+            const scopeBadge = document.createElement("span");
+            scopeBadge.className = "pdf-fill-library-browser__item-scope";
+            scopeBadge.textContent = "Лише v";
+            mainBtn.appendChild(scopeBadge);
         }
 
         const actions = document.createElement("div");
@@ -1003,7 +1016,7 @@
         }
     };
 
-    const upsertLibraryEntry = async ({ body, shortLabel, silent = false }) => {
+    const upsertLibraryEntry = async ({ body, shortLabel, scopeToTemplateVersion = false, silent = false }) => {
         const templateFieldId = getSelectedTemplateFieldId();
         const normalized = String(body ?? "").trim();
         if (!libraryUrl || !templateFieldId || !normalized) {
@@ -1025,7 +1038,8 @@
                     templateFieldId,
                     orderId: currentOrderId,
                     body: normalized,
-                    shortLabel: shortLabel || null
+                    shortLabel: shortLabel || null,
+                    scopeToTemplateVersion
                 })
             });
             const result = await response.json().catch(() => ({}));
@@ -1128,7 +1142,11 @@
         if (!templateFieldId || !text) {
             return [];
         }
-        return [{ templateFieldId, body: text }];
+        return [{
+            templateFieldId,
+            body: text,
+            scopeToTemplateVersion: Boolean(libraryScopeToVersion?.checked)
+        }];
     };
 
     const initLibraryPanel = () => {
@@ -1186,7 +1204,11 @@
             if (label === null) {
                 return;
             }
-            await upsertLibraryEntry({ body: text, shortLabel: label.trim() || null });
+            await upsertLibraryEntry({
+                body: text,
+                shortLabel: label.trim() || null,
+                scopeToTemplateVersion: Boolean(libraryScopeToVersion?.checked)
+            });
         });
     };
 

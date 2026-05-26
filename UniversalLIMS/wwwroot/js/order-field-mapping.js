@@ -13,6 +13,9 @@
     /** @type {{ label: string, members: { templateVersionId: string, templateFieldId: string, tag: string, title: string }[] }[]} */
     let groups = [];
 
+    /** @type {{ groupIndex: number, value: string }[]} */
+    let pendingSharedValues = [];
+
     function fieldLabel(field) {
         const title = field.title?.trim();
         return title ? `${field.tag} — ${title}` : field.tag;
@@ -112,6 +115,15 @@
                 </div>`;
             })
             .join("");
+
+        pendingSharedValues.forEach((item) => {
+            const el = document.getElementById(`shared_${item.groupIndex}`);
+            if (el) {
+                el.value = item.value ?? "";
+            }
+        });
+        pendingSharedValues = [];
+        syncJson();
     }
 
     function syncJson() {
@@ -189,6 +201,102 @@
         document.querySelectorAll(".field-map-check:checked").forEach((check) => {
             check.checked = false;
         });
+    });
+
+    function getSelectedTemplateVersionIds() {
+        return Array.from(
+            form?.querySelectorAll('input[name^="CreateInput.SelectedTemplateVersionIds"]') ?? []
+        )
+            .map((input) => input.value)
+            .filter(Boolean);
+    }
+
+    function applyAdaptedMapping(result) {
+        groups = (result.groups ?? []).map((group) => ({
+            label: group.label ?? group.members?.map((m) => m.tag).join(" / ") ?? "",
+            members: (group.members ?? []).map((m) => ({
+                templateVersionId: m.templateVersionId,
+                templateFieldId: m.templateFieldId,
+                tag: m.tag ?? "",
+                title: m.title ?? ""
+            }))
+        }));
+
+        pendingSharedValues = (result.sharedValues ?? []).map((item) => ({
+            groupIndex: item.groupIndex,
+            value: item.value ?? ""
+        }));
+
+        renderGroups();
+    }
+
+    document.getElementById("btnCopyFieldMapping")?.addEventListener("click", async () => {
+        const sourceOrderId = document.getElementById("copyMappingSourceOrderId")?.value;
+        const statusEl = document.getElementById("copyMappingStatus");
+        const adaptUrl = window.__orderFieldMappingAdaptUrl;
+
+        if (!sourceOrderId) {
+            window.alert("Оберіть замовлення, з якого копіювати мапінг.");
+            return;
+        }
+
+        const versionIds = getSelectedTemplateVersionIds();
+        if (versionIds.length < 2) {
+            window.alert("Потрібно щонайменше два шаблони в замовленні.");
+            return;
+        }
+
+        if (!adaptUrl) {
+            return;
+        }
+
+        const params = new URLSearchParams();
+        params.set("sourceOrderId", sourceOrderId);
+        versionIds.forEach((id) => params.append("templateVersionIds", id));
+
+        const btn = document.getElementById("btnCopyFieldMapping");
+        btn?.setAttribute("disabled", "disabled");
+
+        try {
+            const response = await fetch(`${adaptUrl}?${params.toString()}`, {
+                headers: { Accept: "application/json" }
+            });
+            const payload = await response.json();
+
+            if (!response.ok) {
+                const message = payload?.message ?? "Не вдалося скопіювати мапінг.";
+                window.alert(message);
+                return;
+            }
+
+            if (!payload.groups?.length) {
+                if (statusEl) {
+                    statusEl.textContent = payload.infoMessage ?? "Групи не перенесено.";
+                    statusEl.classList.remove("d-none", "text-success");
+                    statusEl.classList.add("text-warning");
+                }
+                return;
+            }
+
+            if (
+                groups.length > 0 &&
+                !window.confirm("Поточні групи буде замінено скопійованим мапінгом. Продовжити?")
+            ) {
+                return;
+            }
+
+            applyAdaptedMapping(payload);
+
+            if (statusEl) {
+                statusEl.textContent = payload.infoMessage ?? `Перенесено груп: ${payload.groups.length}.`;
+                statusEl.classList.remove("d-none", "text-warning");
+                statusEl.classList.add("text-success");
+            }
+        } catch {
+            window.alert("Помилка мережі під час копіювання мапінгу.");
+        } finally {
+            btn?.removeAttribute("disabled");
+        }
     });
 
     form?.addEventListener("submit", () => {

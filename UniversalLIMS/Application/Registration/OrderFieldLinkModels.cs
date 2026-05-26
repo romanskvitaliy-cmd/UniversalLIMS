@@ -86,3 +86,41 @@ public sealed class OrderFieldLinkMemberDetailDto
 
     public string? DataFieldKey { get; init; }
 }
+
+public sealed class OrderFieldMappingSourceOrderDto
+{
+    public Guid OrderId { get; init; }
+
+    public string? ReferralNumber { get; init; }
+
+    public DateTime OrderDateUtc { get; init; }
+
+    public int GroupCount { get; init; }
+}
+
+public sealed class OrderFieldMappingAdaptResultDto
+{
+    public IReadOnlyList<OrderFieldMappingAdaptedGroupDto> Groups { get; init; } = [];
+
+    public IReadOnlyList<OrderSharedFieldValueInput> SharedValues { get; init; } = [];
+
+    public string? InfoMessage { get; init; }
+}
+
+public sealed class OrderFieldMappingAdaptedGroupDto
+{
+    public string? Label { get; init; }
+
+    public IReadOnlyList<OrderFieldMappingAdaptedMemberDto> Members { get; init; } = [];
+}
+
+public sealed class OrderFieldMappingAdaptedMemberDto
+{
+    public Guid TemplateVersionId { get; init; }
+
+    public Guid TemplateFieldId { get; init; }
+
+    public required string Tag { get; init; }
+
+    public string? Title { get; init; }
+}

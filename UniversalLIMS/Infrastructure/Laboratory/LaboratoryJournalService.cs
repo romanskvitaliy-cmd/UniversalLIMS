@@ -27,7 +27,10 @@ public sealed class LaboratoryJournalService : ILaboratoryJournalService
 
         var samplesQuery = _context.Samples
             .AsNoTracking()
-            .Where(sample => !sample.Order.IsAnnulled && !sample.Order.Customer.IsAnnulled);
+            .Where(sample =>
+                !sample.IsAnnulled
+                && !sample.Order.IsAnnulled
+                && !sample.Order.Customer.IsAnnulled);
 
         if (_currentUser.BranchId is Guid branchId)
         {

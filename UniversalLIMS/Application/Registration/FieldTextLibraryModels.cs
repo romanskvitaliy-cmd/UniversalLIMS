@@ -11,6 +11,8 @@ public sealed class FieldTextLibraryEntryDto
     public int UsageCount { get; init; }
 
     public string RowVersionBase64 { get; init; } = string.Empty;
+
+    public bool ScopeToTemplateVersion { get; init; }
 }
 
 public sealed class FieldTextLibraryListResult
@@ -29,6 +31,9 @@ public sealed class FieldTextLibraryUpsertRequest
     public string Body { get; init; } = string.Empty;
 
     public string? ShortLabel { get; init; }
+
+    /// <summary>Якщо true — запис лише для поточної версії шаблону Fill/Map.</summary>
+    public bool ScopeToTemplateVersion { get; init; }
 }
 
 public sealed class FieldTextLibraryUpdateRequest

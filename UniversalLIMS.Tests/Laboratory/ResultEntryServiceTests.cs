@@ -188,6 +188,49 @@ public sealed class ResultEntryServiceTests
         Assert.Single(allRows, row => row.IsAnnulled && row.StoredValue == "10");
     }
 
+    [Fact]
+    public async Task SaveResultValuesAsync_NoWritePermission_SkipsAndDoesNotPersist()
+    {
+        var branchId = Guid.NewGuid();
+        await using var context = CreateContext();
+        await SeedBranchAsync(context, branchId);
+        var investigationTypeId = await SeedInvestigationTypeAsync(context);
+        var customer = await SeedCustomerAsync(context, "Клієнт без прав");
+        var equipmentId = await SeedEquipmentAsync(context, branchId);
+        var dataFieldId = await SeedResultDataFieldAsync(context, "Result.Deny", "Заборонений показник");
+        var sampleId = await SeedSampleAsync(
+            context,
+            customer.Id,
+            branchId,
+            investigationTypeId,
+            "SMP-DENY-00001");
+
+        var service = CreateService(context, branchId, LimsRoles.Specialist);
+        var save = await service.SaveResultValuesAsync(
+            sampleId,
+            new SaveResultEntryRequest
+            {
+                Values =
+                [
+                    new SaveResultEntryFieldRequest
+                    {
+                        DataFieldId = dataFieldId,
+                        Value = "99",
+                        EquipmentId = equipmentId
+                    }
+                ]
+            });
+
+        Assert.True(save.Success);
+        Assert.Equal(0, save.SavedCount);
+        Assert.Equal(1, save.SkippedCount);
+        Assert.Contains("Пропущено без прав", save.Message);
+        Assert.Empty(context.SampleResultValues.Where(value => value.SampleId == sampleId));
+
+        var sample = await context.Samples.FindAsync(sampleId);
+        Assert.Equal(SampleStatus.Registered, sample!.Status);
+    }
+
     private static ResultEntryService CreateService(
         ApplicationDbContext context,
         Guid branchId,

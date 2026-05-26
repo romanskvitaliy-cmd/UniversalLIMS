@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Hosting;
 using UniversalLIMS.Application.Laboratory;
 using UniversalLIMS.Application.Laboratory.Abstractions;
 using UniversalLIMS.Application.Security;
@@ -18,17 +19,20 @@ public sealed class LaboratoryController : Controller
     private readonly ILaboratoryPdfFillService _pdfFill;
     private readonly IResultEntryService _resultEntry;
     private readonly ApplicationDbContext _context;
+    private readonly IWebHostEnvironment _environment;
 
     public LaboratoryController(
         ILaboratoryJournalService journal,
         ILaboratoryPdfFillService pdfFill,
         IResultEntryService resultEntry,
-        ApplicationDbContext context)
+        ApplicationDbContext context,
+        IWebHostEnvironment environment)
     {
         _journal = journal;
         _pdfFill = pdfFill;
         _resultEntry = resultEntry;
         _context = context;
+        _environment = environment;
     }
 
     [HttpGet]
@@ -37,6 +41,11 @@ public sealed class LaboratoryController : Controller
         CancellationToken cancellationToken)
     {
         var result = await _journal.GetSamplesAsync(filter, cancellationToken);
+
+        if (_environment.IsDevelopment())
+        {
+            ViewData["DemoMode"] = true;
+        }
 
         return View(new LaboratoryIndexViewModel
         {
@@ -81,6 +90,9 @@ public sealed class LaboratoryController : Controller
         }
 
         var pdfTargets = await _pdfFill.GetFillTargetsAsync(sampleId, cancellationToken);
+        var statusMessage = save.Success
+            ? $"{save.Message} Поточний статус проби: {SampleStatusDisplay.ToUk(form.Status)}."
+            : save.Message;
 
         return View(
             "Results",
@@ -89,7 +101,7 @@ public sealed class LaboratoryController : Controller
                 Form = form,
                 Input = model.Input,
                 HasPdfFillTargets = pdfTargets.Count > 0,
-                StatusMessage = save.Message,
+                StatusMessage = statusMessage,
                 StatusType = save.Success ? "success" : "danger"
             });
     }

@@ -20,7 +20,8 @@ public static class WorkspaceViewModelBuilder
             IconClass = definition.IconClass,
             UserDisplayName = currentUser.UserFullName ?? "користувач",
             NavItems = WorkspaceNavigationCatalog.GetNavItems(definition.RoleCode, isDevelopment),
-            QuickLinks = WorkspaceNavigationCatalog.GetQuickLinks(definition.RoleCode)
+            QuickLinks = WorkspaceNavigationCatalog.GetQuickLinks(definition.RoleCode, isDevelopment),
+            IsDemoMode = isDevelopment
         };
     }
 }

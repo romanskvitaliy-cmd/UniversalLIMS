@@ -1388,6 +1388,51 @@
         font-weight: 700;
     }
 
+    .pdf-fill-library-modal__create {
+        border: 1px solid #dbe4f0;
+        border-radius: 10px;
+        background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+        padding: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .pdf-fill-library-modal__create-title {
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #0f172a;
+        margin-bottom: 0.35rem;
+    }
+
+    .pdf-fill-library-modal__create-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1.7fr);
+        gap: 0.35rem;
+    }
+
+    .pdf-fill-library-modal__prefixes {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.25rem;
+        margin-top: 0.35rem;
+    }
+
+    .pdf-fill-library-modal__prefix-chip {
+        font-size: 0.68rem;
+        line-height: 1.1;
+        border-radius: 999px;
+        padding: 0.16rem 0.45rem;
+    }
+
+    .pdf-fill-library-modal__create input {
+        border-color: #d8e1ed;
+        font-size: 0.78rem;
+    }
+
+    .pdf-fill-library-modal__create-hint {
+        font-size: 0.7rem;
+        color: #64748b;
+    }
+
     .pdf-tag-panel-host-hidden {
         position: absolute;
         width: 1px;
@@ -2365,7 +2410,16 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
         <div id="nudgeTagComposerBody" style="@(Model.IsEditable ? "" : null)">
             @if (Model.IsEditable)
             {
-                <label class="form-label small text-muted mb-0">Тег з бібліотеки</label>
+                <div class="d-flex justify-content-between align-items-center gap-2">
+                    <label class="form-label small text-muted mb-0">Тег з бібліотеки</label>
+                    <button id="nudgeTagLibraryExpand" type="button"
+                            class="btn btn-outline-secondary btn-sm"
+                            title="Повний список (екран)"
+                            disabled
+                            aria-haspopup="dialog">
+                        ⛶
+                    </button>
+                </div>
                 <div id="nudgeTagLibraryCombo"></div>
                 <div id="nudgeTagLivePreview" class="nudge-tag-live-preview" aria-live="polite">
                     <div class="nudge-tag-live-preview__placeholder small text-muted">Оберіть тег — ключ і повний опис зʼявляться тут</div>
@@ -2633,6 +2687,41 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
     </div>
 </div>
 <div id="nudgeHoverCard" class="nudge-hover-card"></div>
+<div id="nudgeTagLibraryModal" class="pdf-fill-library-modal" hidden>
+    <div id="nudgeTagLibraryModalBackdrop" class="pdf-fill-library-modal__backdrop" tabindex="-1"></div>
+    <div class="pdf-fill-library-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="nudgeTagLibraryModalTitle">
+        <div class="pdf-fill-library-modal__head">
+            <h2 id="nudgeTagLibraryModalTitle" class="pdf-fill-library-modal__title h6 mb-0">Бібліотека тегів</h2>
+            <button type="button" id="nudgeTagLibraryModalClose" class="btn-close btn-close-sm" aria-label="Закрити"></button>
+        </div>
+        <p id="nudgeTagLibraryModalField" class="pdf-fill-library-modal__field small text-muted mb-2"></p>
+        <div class="pdf-fill-library-browser__search-wrap pdf-fill-library-browser__search-wrap--modal mb-2">
+            <label class="pdf-fill-library-browser__search-label" for="nudgeTagLibraryModalSearch">Пошук</label>
+            <input id="nudgeTagLibraryModalSearch" type="search"
+                   class="form-control pdf-fill-library-browser__search"
+                   placeholder="Частина ключа або назви…"
+                   autocomplete="off" spellcheck="false" />
+        </div>
+        <div id="nudgeTagLibraryModalCreate" class="pdf-fill-library-modal__create">
+            <div class="pdf-fill-library-modal__create-title">➕ Створити локальний тег для цього шаблону</div>
+            <div class="pdf-fill-library-modal__create-row">
+                <input id="nudgeTagLibraryModalPrefix" type="text" class="form-control form-control-sm"
+                       placeholder="Префікс (напр. f327_)" autocomplete="off" spellcheck="false" />
+                <input id="nudgeTagLibraryModalKey" type="text" class="form-control form-control-sm"
+                       placeholder="Ключ тега або назва (напр. NewField)" autocomplete="off" spellcheck="false" />
+            </div>
+            <div id="nudgeTagLibraryModalPrefixChips" class="pdf-fill-library-modal__prefixes"></div>
+            <div class="d-flex justify-content-between align-items-center mt-2 gap-2">
+                <span id="nudgeTagLibraryModalCreateHint" class="pdf-fill-library-modal__create-hint">Префікс можна лишити порожнім.</span>
+                <button id="nudgeTagLibraryModalCreateBtn" type="button" class="btn btn-sm btn-outline-primary">Створити</button>
+            </div>
+        </div>
+        <ul id="nudgeTagLibraryModalList" class="pdf-fill-library-modal__list" role="listbox"></ul>
+        <p class="pdf-fill-library-modal__hint small text-muted mb-0 mt-2">
+            Клік або Enter — підставити тег у «Новий тег».
+        </p>
+    </div>
+</div>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
@@ -8744,25 +8833,156 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                     const nudgeTagPreviewTitle = nudgeTagPreview?.querySelector(".nudge-tag-live-preview__title");
                     const toggleNudgeTagComposerBtn = document.getElementById("toggleNudgeTagComposer");
                     const nudgeTagComposerBody = document.getElementById("nudgeTagComposerBody");
+                    const nudgeTagLibraryExpandBtn = document.getElementById("nudgeTagLibraryExpand");
+                    const nudgeTagLibraryModal = document.getElementById("nudgeTagLibraryModal");
+                    const nudgeTagLibraryModalBackdrop = document.getElementById("nudgeTagLibraryModalBackdrop");
+                    const nudgeTagLibraryModalClose = document.getElementById("nudgeTagLibraryModalClose");
+                    const nudgeTagLibraryModalField = document.getElementById("nudgeTagLibraryModalField");
+                    const nudgeTagLibraryModalSearch = document.getElementById("nudgeTagLibraryModalSearch");
+                    const nudgeTagLibraryModalCreate = document.getElementById("nudgeTagLibraryModalCreate");
+                    const nudgeTagLibraryModalPrefix = document.getElementById("nudgeTagLibraryModalPrefix");
+                    const nudgeTagLibraryModalKey = document.getElementById("nudgeTagLibraryModalKey");
+                    const nudgeTagLibraryModalPrefixChips = document.getElementById("nudgeTagLibraryModalPrefixChips");
+                    const nudgeTagLibraryModalCreateBtn = document.getElementById("nudgeTagLibraryModalCreateBtn");
+                    const nudgeTagLibraryModalCreateHint = document.getElementById("nudgeTagLibraryModalCreateHint");
+                    const nudgeTagLibraryModalList = document.getElementById("nudgeTagLibraryModalList");
 
                     let draftTagKey = (newPdfFieldTag.value || "").trim();
                     let draftItem = null;
+                    const normalizeTagLibraryText = (text) =>
+                        String(text ?? "").replace(/\s+/g, " ").trim().toLowerCase();
+
+                    const isWorkspaceStorageKey = (key) =>
+                        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(key ?? "").trim());
+
+                    const sanitizeTagPart = (value) => String(value ?? "")
+                        .trim()
+                        .replace(/\s+/g, "_")
+                        .replace(/[^A-Za-z0-9_.-]/g, "_")
+                        .replace(/_+/g, "_")
+                        .replace(/^[_.-]+|[_.-]+$/g, "");
+
+                    const normalizeTagPrefix = (value) => {
+                        const clean = sanitizeTagPart(value).replace(/\.+/g, "_");
+                        if (!clean) return "";
+                        return clean.endsWith("_") ? clean : `${clean}_`;
+                    };
+
+                    const detectPreferredLocalPrefix = (items) => {
+                        if (!Array.isArray(items) || !items.length) {
+                            return "";
+                        }
+
+                        const counters = new Map();
+                        items.forEach((item) => {
+                            const key = String(item?.key ?? "").trim();
+                            const idx = key.indexOf("_");
+                            if (idx <= 0) return;
+                            const prefix = key.slice(0, idx + 1);
+                            if (!/^[A-Za-z][A-Za-z0-9]*_$/.test(prefix)) return;
+                            counters.set(prefix, (counters.get(prefix) ?? 0) + 1);
+                        });
+
+                        let bestPrefix = "";
+                        let bestCount = 0;
+                        counters.forEach((count, prefix) => {
+                            if (count > bestCount) {
+                                bestCount = count;
+                                bestPrefix = prefix;
+                            }
+                        });
+
+                        return bestPrefix;
+                    };
+
+                    const collectKnownPrefixes = (items) => {
+                        const counters = new Map();
+                        items.forEach((item) => {
+                            const key = String(item?.key ?? "").trim();
+                            const idx = key.indexOf("_");
+                            if (idx <= 0) return;
+                            const prefix = key.slice(0, idx + 1);
+                            if (!/^[A-Za-z][A-Za-z0-9]*_$/.test(prefix)) return;
+                            counters.set(prefix, (counters.get(prefix) ?? 0) + 1);
+                        });
+                        return Array.from(counters.entries())
+                            .sort((a, b) => b[1] - a[1])
+                            .slice(0, 6)
+                            .map(([prefix]) => prefix);
+                    };
+
+                    const resolveTagGroupName = (tagKey, fallbackGroupName) => {
+                        const key = String(tagKey ?? "").trim();
+                        if (!key) return "";
+
+                        // Глобальні поля у DataField словнику мають семантичні ключі з крапками.
+                        if (key.includes(".")) {
+                            return "Глобальні (без префіксу)";
+                        }
+
+                        if (key.startsWith("f327_")) return "Форма 327 (префікс f327_)";
+                        if (key.startsWith("Food_")) return "Харчові проби (префікс Food_)";
+
+                        // Локальні префікси у форматі f###_ (та подібні) — показуємо узагальнено.
+                        const idx = key.indexOf("_");
+                        if (idx > 0) {
+                            const prefix = key.slice(0, idx + 1);
+                            return `Локальні (префікс ${prefix})`;
+                        }
+
+                        return String(fallbackGroupName ?? "");
+                    };
 
                     const buildTagLibraryItems = () => {
                         const items = [];
-                        pdfTagLibrary.querySelectorAll("optgroup").forEach((group) => {
+                        const seen = new Set();
+
+                        const addItem = (tagKey, displayName, groupName) => {
+                            const key = String(tagKey ?? "").trim();
+                            if (!key || seen.has(key) || isWorkspaceStorageKey(key)) {
+                                return;
+                            }
+
+                            seen.add(key);
+                            items.push({
+                                id: key,
+                                key,
+                                displayName: String(displayName ?? key).trim() || key,
+                                groupName: String(groupName ?? resolveTagGroupName(key, "")).trim()
+                            });
+                        };
+
+                        pdfTagLibrary?.querySelectorAll("optgroup").forEach((group) => {
                             const groupName = (group.label || "").trim();
                             group.querySelectorAll("option").forEach((option) => {
-                                if (!option.value) return;
-                                items.push({
-                                    id: option.value,
-                                    key: option.value,
-                                    displayName: option.getAttribute("data-title") || option.value,
-                                    groupName
-                                });
+                                if (!option.value) {
+                                    return;
+                                }
+
+                                addItem(
+                                    option.value,
+                                    option.getAttribute("data-title") || option.value,
+                                    groupName);
                             });
                         });
-                        return items;
+
+                        const catalog = Array.isArray(window.__dataFieldCatalog)
+                            ? window.__dataFieldCatalog
+                            : [];
+                        catalog.forEach((df) => {
+                            const tagKey = String(df?.key ?? "").trim();
+                            if (!tagKey) {
+                                return;
+                            }
+
+                            addItem(
+                                tagKey,
+                                df?.displayName ?? tagKey,
+                                resolveTagGroupName(tagKey, df?.groupName));
+                        });
+
+                        return items.sort((left, right) =>
+                            left.key.localeCompare(right.key, "uk", { sensitivity: "base" }));
                     };
 
                     const resolveDraftTitle = () => {
@@ -8930,6 +9150,8 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                     });
 
                     const libraryItems = buildTagLibraryItems();
+                    const preferredLocalPrefix = detectPreferredLocalPrefix(libraryItems);
+                    const knownPrefixes = collectKnownPrefixes(libraryItems);
                     const nudgeTagComboRoot = document.getElementById("nudgeTagLibraryCombo");
                     if (nudgeTagComboRoot && typeof initSearchableCombo === "function" && addPdfFieldForm) {
                         nudgeTagComboApi = initSearchableCombo(nudgeTagComboRoot, {
@@ -8949,6 +9171,279 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         nudgeTagComboRoot.innerHTML = "";
                     }
 
+                    const updateModalCreateHint = () => {
+                        if (!nudgeTagLibraryModalCreateHint) return;
+                        const prefix = normalizeTagPrefix(nudgeTagLibraryModalPrefix?.value);
+                        const key = composeDraftTagKey();
+                        const alreadyExists = key && libraryItems.some((item) => item.key === key);
+                        if (alreadyExists) {
+                            nudgeTagLibraryModalCreateHint.textContent = `Такий ключ уже існує: ${key}`;
+                            return;
+                        }
+                        if (prefix) {
+                            nudgeTagLibraryModalCreateHint.textContent = `Новий ключ: ${prefix}...`;
+                            return;
+                        }
+                        if (preferredLocalPrefix) {
+                            nudgeTagLibraryModalCreateHint.textContent = `Порада: для цього шаблону часто використовують префікс ${preferredLocalPrefix}`;
+                            return;
+                        }
+                        nudgeTagLibraryModalCreateHint.textContent = "Префікс можна лишити порожнім.";
+                    };
+
+                    const composeDraftTagKey = () => {
+                        const prefix = normalizeTagPrefix(nudgeTagLibraryModalPrefix?.value);
+                        const rawKey = String(nudgeTagLibraryModalKey?.value ?? "").trim();
+                        if (!rawKey) return "";
+
+                        if (!prefix) {
+                            return sanitizeTagPart(rawKey);
+                        }
+
+                        const normalizedRaw = sanitizeTagPart(rawKey);
+                        if (!normalizedRaw) return "";
+                        if (normalizedRaw.startsWith(prefix)) {
+                            return normalizedRaw;
+                        }
+
+                        return `${prefix}${normalizedRaw}`;
+                    };
+
+                    const createDraftTagFromModal = () => {
+                        if (!addPdfFieldForm) return;
+                        const key = composeDraftTagKey();
+                        if (!key) {
+                            showOverlayToast("Введіть ключ тега або назву поля.", true);
+                            return;
+                        }
+                        if (libraryItems.some((item) => item.key === key)) {
+                            showOverlayToast("Такий тег уже є в бібліотеці. Оберіть його зі списку.", true);
+                            return;
+                        }
+                        const groupName = resolveTagGroupName(key, "Локальний тег шаблону");
+                        applyTagDraft({
+                            id: key,
+                            key,
+                            displayName: key,
+                            groupName
+                        });
+                        if (nudgeDraftTitle && !nudgeDraftTitle.value.trim()) {
+                            nudgeDraftTitle.focus();
+                        } else if (isTagLibraryModalOpen) {
+                            closeTagLibraryModal();
+                        }
+                    };
+
+                    const renderPrefixChips = () => {
+                        if (!nudgeTagLibraryModalPrefixChips) return;
+                        nudgeTagLibraryModalPrefixChips.innerHTML = "";
+                        if (!knownPrefixes.length) return;
+                        knownPrefixes.forEach((prefix) => {
+                            const chip = document.createElement("button");
+                            chip.type = "button";
+                            chip.className = "btn btn-outline-secondary btn-sm pdf-fill-library-modal__prefix-chip";
+                            chip.textContent = prefix;
+                            chip.addEventListener("click", () => {
+                                if (nudgeTagLibraryModalPrefix) {
+                                    nudgeTagLibraryModalPrefix.value = prefix;
+                                    nudgeTagLibraryModalPrefix.focus();
+                                }
+                                updateModalCreateHint();
+                            });
+                            nudgeTagLibraryModalPrefixChips.appendChild(chip);
+                        });
+                    };
+
+                    // ------------------------------
+                    // Модальне вікно бібліотеки тегів
+                    // ------------------------------
+                    let isTagLibraryModalOpen = false;
+                    let tagLibraryFilterQuery = "";
+
+                    const getFilteredTagLibraryItems = () => {
+                        const q = normalizeTagLibraryText(tagLibraryFilterQuery);
+                        if (!q) return libraryItems;
+                        return libraryItems.filter((item) => {
+                            const hay = [
+                                item?.displayName,
+                                item?.key,
+                                item?.groupName
+                            ].filter(Boolean).join(" ");
+                            return normalizeTagLibraryText(hay).includes(q);
+                        });
+                    };
+
+                    const buildTagLibraryListItem = (item, currentKey) => {
+                        const li = document.createElement("li");
+                        li.className = "pdf-fill-library-browser__item";
+                        li.setAttribute("role", "option");
+
+                        const key = String(item?.key ?? "").trim();
+                        const displayName = String(item?.displayName ?? key);
+                        const groupName = String(item?.groupName ?? "");
+
+                        if (currentKey && key === String(currentKey ?? "").trim()) {
+                            li.classList.add("is-active");
+                        }
+
+                        const mainBtn = document.createElement("button");
+                        mainBtn.type = "button";
+                        mainBtn.className = "pdf-fill-library-browser__item-main";
+                        mainBtn.title = `${key}`;
+
+                        const titleEl = document.createElement("span");
+                        titleEl.className = "pdf-fill-library-browser__item-title";
+                        titleEl.textContent = displayName || key || "—";
+
+                        const badgeEl = document.createElement("span");
+                        badgeEl.className = "pdf-fill-library-browser__item-scope";
+                        badgeEl.textContent = groupName || "";
+                        badgeEl.style.display = badgeEl.textContent ? "" : "none";
+
+                        const bodyEl = document.createElement("span");
+                        bodyEl.className = "pdf-fill-library-browser__item-body";
+                        bodyEl.textContent = key;
+
+                        mainBtn.appendChild(titleEl);
+                        mainBtn.appendChild(badgeEl);
+                        mainBtn.appendChild(bodyEl);
+
+                        const applyAndClose = () => {
+                            if (nudgeTagComboApi && typeof nudgeTagComboApi.setValue === "function") {
+                                nudgeTagComboApi.setValue(key);
+                            }
+                            applyTagDraft(item);
+                            if (isTagLibraryModalOpen) {
+                                closeTagLibraryModal();
+                            }
+                        };
+
+                        mainBtn.addEventListener("mousedown", (event) => event.preventDefault());
+                        mainBtn.addEventListener("click", (event) => {
+                            event.stopPropagation();
+                            applyAndClose();
+                        });
+
+                        li.tabIndex = 0;
+                        li.addEventListener("keydown", (event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                                event.preventDefault();
+                                applyAndClose();
+                            }
+                        });
+
+                        li.appendChild(mainBtn);
+                        return li;
+                    };
+
+                    const renderTagLibraryModalList = () => {
+                        if (!nudgeTagLibraryModalList) return;
+                        const filtered = getFilteredTagLibraryItems();
+                        nudgeTagLibraryModalList.innerHTML = "";
+
+                        if (!filtered.length) {
+                            const li = document.createElement("li");
+                            li.className = "pdf-fill-library-browser__empty small text-muted";
+                            li.textContent = "Нічого не знайдено за запитом.";
+                            nudgeTagLibraryModalList.appendChild(li);
+                            return;
+                        }
+
+                        filtered.forEach((item) => {
+                            nudgeTagLibraryModalList.appendChild(
+                                buildTagLibraryListItem(item, draftTagKey));
+                        });
+                    };
+
+                    const closeTagLibraryModal = () => {
+                        if (!nudgeTagLibraryModal || !isTagLibraryModalOpen) return;
+                        isTagLibraryModalOpen = false;
+                        nudgeTagLibraryModal.hidden = true;
+                        document.body.classList.remove("pdf-fill-library-modal-open");
+                    };
+
+                    const openTagLibraryModal = () => {
+                        if (!nudgeTagLibraryModal || !addPdfFieldForm) return;
+
+                        if (nudgeTagLibraryModal.parentElement !== document.body) {
+                            document.body.appendChild(nudgeTagLibraryModal);
+                        }
+
+                        isTagLibraryModalOpen = true;
+                        if (nudgeTagLibraryModalField) {
+                            if (draftItem?.displayName && draftItem?.key) {
+                                nudgeTagLibraryModalField.textContent =
+                                    `${draftItem.displayName} · ${draftItem.key}`;
+                            } else if (draftTagKey) {
+                                nudgeTagLibraryModalField.textContent = draftTagKey;
+                            } else {
+                                nudgeTagLibraryModalField.textContent = "";
+                            }
+                        }
+
+                        tagLibraryFilterQuery = "";
+                        if (nudgeTagLibraryModalSearch) {
+                            nudgeTagLibraryModalSearch.value = "";
+                        }
+                        nudgeTagLibraryModal.hidden = false;
+                        document.body.classList.add("pdf-fill-library-modal-open");
+
+                        renderTagLibraryModalList();
+                        window.setTimeout(() => {
+                            nudgeTagLibraryModalSearch?.focus();
+                            if (typeof nudgeTagLibraryModalSearch?.select === "function") {
+                                nudgeTagLibraryModalSearch.select();
+                            }
+                        }, 0);
+                    };
+
+                    if (nudgeTagLibraryModal && nudgeTagLibraryModal.parentElement !== document.body) {
+                        document.body.appendChild(nudgeTagLibraryModal);
+                    }
+
+                    if (nudgeTagLibraryExpandBtn) {
+                        nudgeTagLibraryExpandBtn.disabled = !addPdfFieldForm;
+                    }
+
+                    if (nudgeTagLibraryModalSearch) {
+                        nudgeTagLibraryModalSearch.addEventListener("input", () => {
+                            tagLibraryFilterQuery = nudgeTagLibraryModalSearch.value;
+                            if (nudgeTagLibraryModalKey && !nudgeTagLibraryModalKey.value.trim()) {
+                                nudgeTagLibraryModalKey.value = nudgeTagLibraryModalSearch.value.trim();
+                            }
+                            renderTagLibraryModalList();
+                        });
+                    }
+
+                    nudgeTagLibraryModalPrefix?.addEventListener("input", () => updateModalCreateHint());
+                    nudgeTagLibraryModalKey?.addEventListener("input", () => updateModalCreateHint());
+                    nudgeTagLibraryModalKey?.addEventListener("keydown", (event) => {
+                        if (event.key === "Enter") {
+                            event.preventDefault();
+                            createDraftTagFromModal();
+                        }
+                    });
+                    nudgeTagLibraryModalCreateBtn?.addEventListener("click", () => createDraftTagFromModal());
+
+                    nudgeTagLibraryExpandBtn?.addEventListener("click", () => openTagLibraryModal());
+                    nudgeTagLibraryModalClose?.addEventListener("click", () => closeTagLibraryModal());
+                    nudgeTagLibraryModalBackdrop?.addEventListener("click", () => closeTagLibraryModal());
+
+                    const tagComboTrigger = nudgeTagComboRoot?.querySelector(".searchable-combo-trigger");
+                    tagComboTrigger?.addEventListener("click", (event) => {
+                        event.preventDefault();
+                        event.stopImmediatePropagation();
+                        nudgeTagComboApi?.close();
+                        openTagLibraryModal();
+                    }, true);
+
+                    document.addEventListener("keydown", (event) => {
+                        if (event.key === "Escape" && isTagLibraryModalOpen) {
+                            event.preventDefault();
+                            closeTagLibraryModal();
+                        }
+                    });
+
                     if (draftTagKey) {
                         const match = libraryItems.find((item) => item.id === draftTagKey);
                         if (match) {
@@ -8961,6 +9456,15 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                     } else {
                         updateNudgeTagPreview(null);
                     }
+
+                    if (nudgeTagLibraryModalCreate) {
+                        nudgeTagLibraryModalCreate.hidden = !addPdfFieldForm;
+                    }
+                    if (nudgeTagLibraryModalPrefix && preferredLocalPrefix) {
+                        nudgeTagLibraryModalPrefix.value = preferredLocalPrefix;
+                    }
+                    renderPrefixChips();
+                    updateModalCreateHint();
                 }
 
                 let syncingHorizontalScroll = false;

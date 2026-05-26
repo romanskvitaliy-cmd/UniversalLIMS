@@ -43,11 +43,19 @@ public sealed class FieldTextLibraryEntryConfiguration : IEntityTypeConfiguratio
 
         builder.HasIndex(entry => new { entry.BranchId, entry.DataFieldId, entry.NormalizedBodyHash })
             .IsUnique()
-            .HasFilter("[IsAnnulled] = 0 AND [DataFieldId] IS NOT NULL");
+            .HasFilter("[IsAnnulled] = 0 AND [DataFieldId] IS NOT NULL AND [TemplateVersionId] IS NULL");
+
+        builder.HasIndex(entry => new { entry.BranchId, entry.DataFieldId, entry.TemplateVersionId, entry.NormalizedBodyHash })
+            .IsUnique()
+            .HasFilter("[IsAnnulled] = 0 AND [DataFieldId] IS NOT NULL AND [TemplateVersionId] IS NOT NULL");
 
         builder.HasIndex(entry => new { entry.BranchId, entry.NormalizedTag, entry.NormalizedBodyHash })
             .IsUnique()
-            .HasFilter("[IsAnnulled] = 0 AND [DataFieldId] IS NULL AND [NormalizedTag] IS NOT NULL");
+            .HasFilter("[IsAnnulled] = 0 AND [DataFieldId] IS NULL AND [NormalizedTag] IS NOT NULL AND [TemplateVersionId] IS NULL");
+
+        builder.HasIndex(entry => new { entry.BranchId, entry.NormalizedTag, entry.TemplateVersionId, entry.NormalizedBodyHash })
+            .IsUnique()
+            .HasFilter("[IsAnnulled] = 0 AND [DataFieldId] IS NULL AND [NormalizedTag] IS NOT NULL AND [TemplateVersionId] IS NOT NULL");
 
         builder.HasIndex(entry => new { entry.BranchId, entry.DataFieldId, entry.UsageCount });
 
@@ -60,6 +68,13 @@ public sealed class FieldTextLibraryEntryConfiguration : IEntityTypeConfiguratio
             .WithMany()
             .HasForeignKey(entry => entry.DataFieldId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(entry => entry.TemplateVersion)
+            .WithMany()
+            .HasForeignKey(entry => entry.TemplateVersionId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(entry => new { entry.BranchId, entry.TemplateVersionId, entry.DataFieldId });
 
         builder.HasQueryFilter(entry => !entry.IsAnnulled);
     }

@@ -25,6 +25,11 @@ public static class WorkspaceNavigationCatalog
                 new("Кабінет", "Home", "Workspace", "bi-house-door"),
                 new("Журнал проб", "Laboratory", "Index", "bi-droplet-half"),
             ],
+            LimsRoles.Specialist when isDevelopment =>
+            [
+                new("Кабінет", "Home", "Workspace", "bi-house-door"),
+                new("Журнал проб", "Laboratory", "Index", "bi-droplet-half"),
+            ],
             LimsRoles.Specialist =>
             [
                 new("Кабінет", "Home", "Workspace", "bi-house-door"),
@@ -32,30 +37,34 @@ public static class WorkspaceNavigationCatalog
             _ => []
         };
 
-    public static IReadOnlyList<WorkspaceQuickLinkVm> GetQuickLinks(string roleCode) =>
+    public static IReadOnlyList<WorkspaceQuickLinkVm> GetQuickLinks(string roleCode, bool isDevelopment = false) =>
         roleCode switch
         {
-            LimsRoles.SystemAdministrator =>
-            [
-                Link("Шаблони документів", "Створення та публікація шаблонів", "bi-layout-text-window-reverse",
-                    "/Templates", true),
-                Link("PDF Workspace", "Заповнення PDF-полів замовлення", "bi-file-earmark-pdf",
-                    "/PdfWorkspace", true),
-                Link("Перевірка фундаменту", "Діагностика системи (розробка)", "bi-tools",
-                    "/Diagnostics/Foundation", true),
-            ],
+            LimsRoles.SystemAdministrator => BuildAdminQuickLinks(isDevelopment),
             LimsRoles.Registrar =>
             [
                 Link("PDF Workspace", "Прийом проб і заповнення направлень", "bi-file-earmark-pdf",
                     "/PdfWorkspace", true),
                 Link("Замовлення", "Реєстр замовлень і направлень", "bi-journal-plus",
                     "/Orders", true),
+                ..BuildLaboratoryDemoQuickLinks(isDevelopment)
             ],
             LimsRoles.LaboratoryTechnician =>
             [
                 Link("Лабораторний журнал", "Список проб філії з фільтрами", "bi-droplet-half",
                     "/Laboratory", true),
-                Link("Результати", "Внесення результатів (незабаром)", "bi-clipboard2-pulse",
+                Link("Результати", "Оберіть пробу в журналі → PDF або показники", "bi-clipboard2-pulse",
+                    "/Laboratory", true),
+            ],
+            LimsRoles.Specialist when isDevelopment =>
+            [
+                Link("Лабораторний журнал", "Демо: перегляд проб філії (режим розробки)", "bi-droplet-half",
+                    "/Laboratory", true),
+                Link("Замовлення", "Демо: реєстр замовлень (режим розробки)", "bi-journal-plus",
+                    "/Orders", true),
+                Link("Протоколи", "Перегляд протоколів (незабаром)", "bi-clipboard2-check",
+                    null, false),
+                Link("Висновки", "Затвердження висновків (незабаром)", "bi-patch-check",
                     null, false),
             ],
             LimsRoles.Specialist =>
@@ -84,6 +93,37 @@ public static class WorkspaceNavigationCatalog
         }
 
         return items;
+    }
+
+    private static IReadOnlyList<WorkspaceQuickLinkVm> BuildAdminQuickLinks(bool isDevelopment)
+    {
+        var links = new List<WorkspaceQuickLinkVm>
+        {
+            Link("Шаблони документів", "Створення та публікація шаблонів", "bi-layout-text-window-reverse",
+                "/Templates", true),
+            Link("PDF Workspace", "Заповнення PDF-полів замовлення", "bi-file-earmark-pdf",
+                "/PdfWorkspace", true),
+            Link("Перевірка фундаменту", "Діагностика системи (розробка)", "bi-tools",
+                "/Diagnostics/Foundation", true),
+        };
+
+        links.AddRange(BuildLaboratoryDemoQuickLinks(isDevelopment));
+        return links;
+    }
+
+    private static IEnumerable<WorkspaceQuickLinkVm> BuildLaboratoryDemoQuickLinks(bool isDevelopment)
+    {
+        if (!isDevelopment)
+        {
+            yield break;
+        }
+
+        yield return Link(
+            "Лабораторний журнал",
+            "Демо: список проб філії",
+            "bi-droplet-half",
+            "/Laboratory",
+            true);
     }
 
     private static WorkspaceQuickLinkVm Link(

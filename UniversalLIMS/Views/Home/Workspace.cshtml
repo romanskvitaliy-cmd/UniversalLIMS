@@ -4,6 +4,15 @@
     ViewData["Title"] = $"Кабінет — {Model.RoleDisplayName}";
 }
 
+@if (Model.IsDemoMode)
+{
+    <div class="alert alert-warning py-2 px-3 small mb-3">
+        <strong>Режим демонстрації (Development).</strong>
+        Доступні журнал проб і реєстр замовлень для всіх ролей.
+        Для повної демонстрації лабораторії оберіть роль <strong>Лаборант</strong> через «Змінити роль».
+    </div>
+}
+
 <div class="lims-workspace-welcome" style="--workspace-accent: @Model.AccentColor">
     <div class="lims-workspace-welcome__icon" aria-hidden="true">
         <i class="bi @Model.IconClass"></i>

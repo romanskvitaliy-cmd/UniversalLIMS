@@ -18,6 +18,13 @@ public sealed class FieldTextLibraryEntry : BaseEntity, ISoftAnnulled
 
     public DataField? DataField { get; set; }
 
+    /// <summary>
+    /// Якщо задано — текст лише для цієї версії шаблону; null — спільний для філії (усі версії з тим самим DataField/тегом).
+    /// </summary>
+    public Guid? TemplateVersionId { get; set; }
+
+    public TemplateVersion? TemplateVersion { get; set; }
+
     /// <summary>Fallback, якщо поле не прив’язане до DataField.</summary>
     public string? NormalizedTag { get; set; }
 
