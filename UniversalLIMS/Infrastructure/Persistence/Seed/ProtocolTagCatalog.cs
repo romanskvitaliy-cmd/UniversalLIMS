@@ -11,16 +11,6 @@ public static class ProtocolTagCatalog
         DataFieldScope Scope = DataFieldScope.Registration,
         DataFieldType FieldType = DataFieldType.Text);
 
-    public static IReadOnlyList<TagDefinition> All { get; } = BuildAll();
-
-    private static IReadOnlyList<TagDefinition> BuildAll()
-    {
-        var list = new List<TagDefinition>();
-        list.AddRange(F327);
-        list.AddRange(Food);
-        return list;
-    }
-
     public static IReadOnlyList<TagDefinition> F327 { get; } =
     [
         // Спільні (локальні копії)
@@ -76,4 +66,7 @@ public static class ProtocolTagCatalog
         new("Food_MethodND", "НД на метод випробувань", DataFieldScope.Result),
         new("Food_ComplianceMark", "Відмітка про відповідність", DataFieldScope.Conclusion),
     ];
+
+    /// <summary>Усі теги каталогу (після <see cref="F327"/> та <see cref="Food"/>).</summary>
+    public static IReadOnlyList<TagDefinition> All { get; } = [.. F327, .. Food];
 }
