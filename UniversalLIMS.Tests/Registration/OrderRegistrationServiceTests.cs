@@ -266,6 +266,13 @@ public sealed class OrderRegistrationServiceTests
             document.TemplateVersionId == foodVersionId && document.TargetBranchId == foodLabId);
         Assert.All(order.OrderDocuments, document =>
             Assert.Contains(result.Samples, sample => sample.SampleId == document.SampleId));
+
+        var detail = await service.GetOrderDetailAsync(result.OrderId);
+        Assert.NotNull(detail);
+        Assert.Equal(2, detail!.Samples.Count);
+        Assert.Equal(2, detail.Documents.Select(document => document.SampleId).Distinct().Count());
+        Assert.Contains(detail.Samples, sample => sample.InvestigationTypeNameUk.Contains("води"));
+        Assert.Contains(detail.Samples, sample => sample.InvestigationTypeNameUk.Contains("харчових"));
     }
 
     [Fact]

@@ -319,7 +319,7 @@ public sealed class OrderRegistrationService : IOrderRegistrationService
                 CustomerFullName = item.Customer.FullName,
                 item.Status,
                 OrderDate = item.RegisteredAtUtc ?? item.CreatedAtUtc,
-                Sample = item.Samples
+                Samples = item.Samples
                     .Where(sample => !sample.IsAnnulled)
                     .OrderBy(sample => sample.CreatedAtUtc)
                     .Select(sample => new
@@ -328,13 +328,14 @@ public sealed class OrderRegistrationService : IOrderRegistrationService
                         sample.Number,
                         InvestigationTypeNameUk = sample.InvestigationType.NameUk
                     })
-                    .FirstOrDefault(),
+                    .ToList(),
                 Documents = item.OrderDocuments
                     .Where(document => !document.IsAnnulled)
                     .OrderBy(document => document.CreatedAtUtc)
                     .Select(document => new
                     {
                         document.Id,
+                        document.SampleId,
                         document.TemplateVersionId,
                         TemplateNameUk = document.TemplateVersion.Template.NameUk,
                         document.TemplateVersion.VersionNumber,
@@ -346,15 +347,25 @@ public sealed class OrderRegistrationService : IOrderRegistrationService
             })
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (order is null || order.Sample is null)
+        if (order is null || order.Samples.Count == 0)
         {
             return null;
         }
+
+        var sampleDtos = order.Samples
+            .Select(sample => new OrderDetailSampleDto
+            {
+                SampleId = sample.Id,
+                SampleNumber = sample.Number,
+                InvestigationTypeNameUk = sample.InvestigationTypeNameUk
+            })
+            .ToList();
 
         var documentDtos = order.Documents
             .Select(document => new OrderDocumentItemDto
             {
                 OrderDocumentId = document.Id,
+                SampleId = document.SampleId,
                 TemplateVersionId = document.TemplateVersionId,
                 TemplateNameUk = document.TemplateNameUk,
                 VersionNumber = document.VersionNumber,
@@ -373,11 +384,12 @@ public sealed class OrderRegistrationService : IOrderRegistrationService
             CustomerFullName = order.CustomerFullName,
             Status = order.Status,
             OrderDate = order.OrderDate,
-            SampleId = order.Sample.Id,
-            SampleNumber = order.Sample.Number,
-            InvestigationTypeNameUk = order.Sample.InvestigationTypeNameUk,
+            SampleId = sampleDtos[0].SampleId,
+            SampleNumber = sampleDtos[0].SampleNumber,
+            InvestigationTypeNameUk = sampleDtos[0].InvestigationTypeNameUk,
             WorkflowSummaryUk = OrderDocumentStatusDisplay.SummarizeWorkflow(
                 documentDtos.Select(document => document.Status).ToList()),
+            Samples = sampleDtos,
             Documents = documentDtos
         };
     }

@@ -14,7 +14,7 @@
             @(detail.ReferralNumber ?? "—") · @detail.CustomerFullName
         </p>
         <p class="small text-muted mb-0">
-            Проба @detail.SampleNumber · @detail.InvestigationTypeNameUk ·
+            Проб: @detail.Samples.Count · документів: @detail.Documents.Count ·
             <span class="badge lims-status-badge @OrderStatusDisplay.BadgeClass(detail.Status)">@OrderStatusDisplay.ToUk(detail.Status)</span>
             · <strong>@detail.WorkflowSummaryUk</strong>
         </p>
@@ -55,21 +55,42 @@
                 <input type="hidden" name="OrderId" value="@detail.OrderId" />
             </form>
             <div class="table-responsive">
-                    <table class="table table-sm table-hover align-middle lims-workspace-table mb-0">
-                        <thead>
-                            <tr>
-                                <th class="ps-3" style="width:2.5rem">
-                                    <input type="checkbox" class="form-check-input" id="selectAllDocuments"
-                                           title="Обрати всі, що можна відправити" />
-                                </th>
-                                <th>Шаблон</th>
-                                <th>Філія призначення</th>
-                                <th>Статус</th>
-                                <th class="text-end pe-3">Дії</th>
+                <table class="table table-sm table-hover align-middle lims-workspace-table mb-0">
+                    <thead>
+                        <tr>
+                            <th class="ps-3" style="width:2.5rem">
+                                <input type="checkbox" class="form-check-input" id="selectAllDocuments"
+                                       title="Обрати всі, що можна відправити" />
+                            </th>
+                            <th>Шаблон</th>
+                            <th>Філія призначення</th>
+                            <th>Статус</th>
+                            <th class="text-end pe-3">Дії</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var sample in detail.Samples)
+                        {
+                            var sampleDocuments = detail.Documents
+                                .Where(document => document.SampleId == sample.SampleId)
+                                .ToList();
+                            <tr class="table-light">
+                                <td colspan="5" class="ps-3">
+                                    <div class="d-flex flex-wrap justify-content-between gap-2">
+                                        <span class="fw-semibold">Проба @sample.SampleNumber</span>
+                                        <span class="small text-muted">
+                                            @sample.InvestigationTypeNameUk · документів: @sampleDocuments.Count
+                                        </span>
+                                    </div>
+                                </td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var document in detail.Documents)
+                            @if (sampleDocuments.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="5" class="ps-3 text-muted small">Для цієї проби документів немає.</td>
+                                </tr>
+                            }
+                            @foreach (var document in sampleDocuments)
                             {
                                 <tr data-document-id="@document.OrderDocumentId">
                                     <td class="ps-3">
@@ -135,8 +156,9 @@
                                     </td>
                                 </tr>
                             }
-                        </tbody>
-                    </table>
+                        }
+                    </tbody>
+                </table>
             </div>
             @if (detail.Documents.Any(document => document.CanSendToLab))
             {

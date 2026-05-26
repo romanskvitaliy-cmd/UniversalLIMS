@@ -60,12 +60,25 @@ public sealed class OrderDetailDto
 
     public required string WorkflowSummaryUk { get; init; }
 
+    public required IReadOnlyList<OrderDetailSampleDto> Samples { get; init; }
+
     public required IReadOnlyList<OrderDocumentItemDto> Documents { get; init; }
+}
+
+public sealed class OrderDetailSampleDto
+{
+    public Guid SampleId { get; init; }
+
+    public required string SampleNumber { get; init; }
+
+    public required string InvestigationTypeNameUk { get; init; }
 }
 
 public sealed class OrderDocumentItemDto
 {
     public Guid OrderDocumentId { get; init; }
+
+    public Guid SampleId { get; init; }
 
     public Guid TemplateVersionId { get; init; }
 
