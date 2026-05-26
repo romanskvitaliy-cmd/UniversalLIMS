@@ -97,6 +97,7 @@ public sealed class ResultEntryServiceTests
             SampleId = sampleId,
             TemplateId = Guid.NewGuid(),
             TemplateVersionId = Guid.NewGuid(),
+            TargetBranchId = branchId,
             Status = OrderDocumentStatus.SentToLab,
             SentToLabAtUtc = DateTime.UtcNow
         });
@@ -269,6 +270,7 @@ public sealed class ResultEntryServiceTests
         return new ResultEntryService(
             context,
             currentUser,
+            new FixedLaboratoryBranchContext(branchId),
             new TestDateTimeProvider(),
             permissions,
             new SampleWorkflowService());
@@ -376,6 +378,15 @@ public sealed class ResultEntryServiceTests
             Status = SampleStatus.Registered
         };
         context.Samples.Add(sample);
+        context.OrderDocuments.Add(new OrderDocument
+        {
+            OrderId = order.Id,
+            SampleId = sample.Id,
+            TemplateId = Guid.NewGuid(),
+            TemplateVersionId = Guid.NewGuid(),
+            TargetBranchId = branchId,
+            Status = OrderDocumentStatus.SentToLab
+        });
         await context.SaveChangesAsync();
         return sample.Id;
     }
@@ -456,6 +467,19 @@ public sealed class ResultEntryServiceTests
     private sealed class TestDateTimeProvider : IDateTimeProvider
     {
         public DateTime UtcNow { get; } = new(2026, 5, 25, 12, 0, 0, DateTimeKind.Utc);
+    }
+
+    private sealed class FixedLaboratoryBranchContext : ILaboratoryBranchContext
+    {
+        private readonly Guid? _branchId;
+
+        public FixedLaboratoryBranchContext(Guid? branchId) => _branchId = branchId;
+
+        public Task<LaboratoryBranchContextState> GetStateAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(new LaboratoryBranchContextState { ActiveBranchId = _branchId });
+
+        public Task SetSelectedBranchAsync(Guid? branchId, CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
     }
 
     private sealed class TestPermissionService : IResultFieldPermissionService

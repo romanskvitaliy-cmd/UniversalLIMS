@@ -17,17 +17,20 @@ public sealed class LaboratoryController : Controller
     private readonly ILaboratoryJournalService _journal;
     private readonly ILaboratoryPdfFillService _pdfFill;
     private readonly IResultEntryService _resultEntry;
+    private readonly ILaboratoryBranchContext _laboratoryBranchContext;
     private readonly ApplicationDbContext _context;
 
     public LaboratoryController(
         ILaboratoryJournalService journal,
         ILaboratoryPdfFillService pdfFill,
         IResultEntryService resultEntry,
+        ILaboratoryBranchContext laboratoryBranchContext,
         ApplicationDbContext context)
     {
         _journal = journal;
         _pdfFill = pdfFill;
         _resultEntry = resultEntry;
+        _laboratoryBranchContext = laboratoryBranchContext;
         _context = context;
     }
 
@@ -37,12 +40,26 @@ public sealed class LaboratoryController : Controller
         CancellationToken cancellationToken)
     {
         var result = await _journal.GetSamplesAsync(filter, cancellationToken);
+        var branchContext = await _laboratoryBranchContext.GetStateAsync(cancellationToken);
 
         return View(new LaboratoryIndexViewModel
         {
             Filter = filter,
-            Result = result
+            Result = result,
+            CanSelectLaboratoryBranch = branchContext.CanSelectBranch,
+            ActiveLaboratoryBranchId = branchContext.ActiveBranchId,
+            LaboratoryBranches = branchContext.Branches
         });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SetLaboratoryBranch(
+        Guid? activeLaboratoryBranchId,
+        CancellationToken cancellationToken)
+    {
+        await _laboratoryBranchContext.SetSelectedBranchAsync(activeLaboratoryBranchId, cancellationToken);
+        return RedirectToAction(nameof(Index));
     }
 
     /// <summary>Табличне внесення показників (DataFieldScope.Result).</summary>

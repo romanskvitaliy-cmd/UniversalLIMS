@@ -50,4 +50,18 @@ public sealed class OrderCreateInputModel
     public List<Guid> DocumentTargetBranchIds { get; set; } = [];
 
     public bool OpenPdfAfterCreate { get; set; } = true;
+
+    /// <summary>Основний сценарій UI: кілька досліджень/проб в одному замовленні.</summary>
+    public List<OrderCreateSampleInputModel> Samples { get; set; } = [];
+}
+
+public sealed class OrderCreateSampleInputModel
+{
+    public Guid InvestigationTypeId { get; set; }
+
+    public Guid? TemplateVersionId { get; set; }
+
+    public List<Guid> SelectedTemplateVersionIds { get; set; } = [];
+
+    public List<Guid> DocumentTargetBranchIds { get; set; } = [];
 }

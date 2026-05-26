@@ -357,6 +357,7 @@ public sealed class TemplateFieldsController : Controller
             return View(refreshed ?? model);
         }
 
+        TempData["TemplateSuccess"] = "Права доступу збережено.";
         return RedirectToAction(nameof(Permissions), new { templateVersionId = model.TemplateVersionId });
     }
 

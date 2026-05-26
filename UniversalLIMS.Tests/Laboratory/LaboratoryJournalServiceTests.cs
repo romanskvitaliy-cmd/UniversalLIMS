@@ -32,6 +32,27 @@ public sealed class LaboratoryJournalServiceTests
     }
 
     [Fact]
+    public async Task GetSamplesAsync_AdminAllLabs_ReturnsSamplesFromAllTargetBranches()
+    {
+        var branchA = Guid.NewGuid();
+        var branchB = Guid.NewGuid();
+        await using var context = CreateContext();
+        await SeedBranchesAsync(context, branchA, branchB);
+        var investigationTypeId = await SeedInvestigationTypeAsync(context);
+        var customer = await SeedCustomerAsync(context, "Адмін Усі");
+        await SeedSampleAsync(context, customer.Id, branchA, investigationTypeId, "SMP-A-00001");
+        await SeedSampleAsync(context, customer.Id, branchB, investigationTypeId, "SMP-B-00001");
+
+        var service = CreateService(context, branchId: null);
+
+        var result = await service.GetSamplesAsync(new SampleJournalFilter { PageSize = 50 });
+
+        Assert.Equal(2, result.Items.Count);
+        Assert.Contains(result.Items, item => item.SampleNumber == "SMP-A-00001");
+        Assert.Contains(result.Items, item => item.SampleNumber == "SMP-B-00001");
+    }
+
+    [Fact]
     public async Task GetSamplesAsync_UsesCustomerFullName_NotOrderFieldValue()
     {
         var branchId = Guid.NewGuid();
@@ -136,13 +157,23 @@ public sealed class LaboratoryJournalServiceTests
         };
         context.Orders.Add(orderEarly);
         await context.SaveChangesAsync();
-        context.Samples.Add(new Sample
+        var sampleEarly = new Sample
         {
             OrderId = orderEarly.Id,
             InvestigationTypeId = investigationTypeId,
             Number = "SMP-EARLY",
             RegisteredAt = new DateTime(2026, 5, 10, 12, 0, 0, DateTimeKind.Utc),
             Status = SampleStatus.Registered
+        };
+        context.Samples.Add(sampleEarly);
+        context.OrderDocuments.Add(new OrderDocument
+        {
+            OrderId = orderEarly.Id,
+            SampleId = sampleEarly.Id,
+            TemplateId = Guid.NewGuid(),
+            TemplateVersionId = Guid.NewGuid(),
+            TargetBranchId = branchId,
+            Status = OrderDocumentStatus.SentToLab
         });
 
         var orderLate = new Order
@@ -154,13 +185,23 @@ public sealed class LaboratoryJournalServiceTests
         };
         context.Orders.Add(orderLate);
         await context.SaveChangesAsync();
-        context.Samples.Add(new Sample
+        var sampleLate = new Sample
         {
             OrderId = orderLate.Id,
             InvestigationTypeId = investigationTypeId,
             Number = "SMP-LATE",
             RegisteredAt = new DateTime(2026, 5, 25, 12, 0, 0, DateTimeKind.Utc),
             Status = SampleStatus.Registered
+        };
+        context.Samples.Add(sampleLate);
+        context.OrderDocuments.Add(new OrderDocument
+        {
+            OrderId = orderLate.Id,
+            SampleId = sampleLate.Id,
+            TemplateId = Guid.NewGuid(),
+            TemplateVersionId = Guid.NewGuid(),
+            TargetBranchId = branchId,
+            Status = OrderDocumentStatus.SentToLab
         });
         await context.SaveChangesAsync();
 
@@ -273,13 +314,23 @@ public sealed class LaboratoryJournalServiceTests
         context.Orders.Add(order);
         await context.SaveChangesAsync();
 
-        context.Samples.Add(new Sample
+        var sample = new Sample
         {
             OrderId = order.Id,
             InvestigationTypeId = investigationTypeId,
             Number = sampleNumber,
             RegisteredAt = new DateTime(2026, 5, 20, 10, 0, 0, DateTimeKind.Utc),
             Status = status
+        };
+        context.Samples.Add(sample);
+        context.OrderDocuments.Add(new OrderDocument
+        {
+            OrderId = order.Id,
+            SampleId = sample.Id,
+            TemplateId = Guid.NewGuid(),
+            TemplateVersionId = Guid.NewGuid(),
+            TargetBranchId = branchId,
+            Status = OrderDocumentStatus.SentToLab
         });
         await context.SaveChangesAsync();
         return order.Id;
@@ -306,7 +357,7 @@ public sealed class LaboratoryJournalServiceTests
     private static LaboratoryJournalService CreateService(
         ApplicationDbContext context,
         Guid? branchId) =>
-        new(context, new FixedBranchUserService(branchId));
+        new(context, new FixedLaboratoryBranchContext(branchId));
 
     private static ApplicationDbContext CreateContext()
     {
@@ -317,24 +368,16 @@ public sealed class LaboratoryJournalServiceTests
         return new ApplicationDbContext(options);
     }
 
-    private sealed class FixedBranchUserService : ICurrentUserService
+    private sealed class FixedLaboratoryBranchContext : ILaboratoryBranchContext
     {
-        public FixedBranchUserService(Guid? branchId) => BranchId = branchId;
+        private readonly Guid? _branchId;
 
-        public string? UserId => "test-user";
+        public FixedLaboratoryBranchContext(Guid? branchId) => _branchId = branchId;
 
-        public string? UserName => "test";
+        public Task<LaboratoryBranchContextState> GetStateAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(new LaboratoryBranchContextState { ActiveBranchId = _branchId });
 
-        public string? UserFullName => "Test User";
-
-        public Guid? BranchId { get; }
-
-        public string? IpAddress => null;
-
-        public string? UserAgent => null;
-
-        public string? CorrelationId => null;
-
-        public bool IsAuthenticated => true;
+        public Task SetSelectedBranchAsync(Guid? branchId, CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
     }
 }

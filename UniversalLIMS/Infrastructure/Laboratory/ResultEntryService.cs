@@ -15,6 +15,7 @@ public sealed class ResultEntryService : IResultEntryService
 
     private readonly ApplicationDbContext _context;
     private readonly ICurrentUserService _currentUser;
+    private readonly ILaboratoryBranchContext _laboratoryBranchContext;
     private readonly IDateTimeProvider _dateTimeProvider;
     private readonly IResultFieldPermissionService _permissions;
     private readonly ISampleWorkflowService _workflow;
@@ -22,12 +23,14 @@ public sealed class ResultEntryService : IResultEntryService
     public ResultEntryService(
         ApplicationDbContext context,
         ICurrentUserService currentUser,
+        ILaboratoryBranchContext laboratoryBranchContext,
         IDateTimeProvider dateTimeProvider,
         IResultFieldPermissionService permissions,
         ISampleWorkflowService workflow)
     {
         _context = context;
         _currentUser = currentUser;
+        _laboratoryBranchContext = laboratoryBranchContext;
         _dateTimeProvider = dateTimeProvider;
         _permissions = permissions;
         _workflow = workflow;
@@ -102,7 +105,7 @@ public sealed class ResultEntryService : IResultEntryService
                 .ThenInclude(order => order.OrderDocuments)
             .FirstOrDefaultAsync(item => item.Id == sampleId && !item.IsAnnulled, cancellationToken);
 
-        if (sample is null || !IsAccessibleForCurrentBranch(sample.Order.BranchId))
+        if (sample is null || !await IsAccessibleForActiveLaboratoryAsync(sample, cancellationToken))
         {
             return new SaveResultEntryResult
             {
@@ -258,10 +261,12 @@ public sealed class ResultEntryService : IResultEntryService
             .AsNoTracking()
             .Include(item => item.Order)
                 .ThenInclude(order => order.Customer)
+            .Include(item => item.Order)
+                .ThenInclude(order => order.OrderDocuments)
             .Include(item => item.InvestigationType)
             .FirstOrDefaultAsync(item => item.Id == sampleId && !item.IsAnnulled, cancellationToken);
 
-        if (sample is null || !IsAccessibleForCurrentBranch(sample.Order.BranchId))
+        if (sample is null || !await IsAccessibleForActiveLaboratoryAsync(sample, cancellationToken))
         {
             return null;
         }
@@ -269,14 +274,19 @@ public sealed class ResultEntryService : IResultEntryService
         return sample;
     }
 
-    private bool IsAccessibleForCurrentBranch(Guid orderBranchId)
+    private async Task<bool> IsAccessibleForActiveLaboratoryAsync(Sample sample, CancellationToken cancellationToken)
     {
-        if (_currentUser.BranchId is not Guid branchId)
+        var branchContext = await _laboratoryBranchContext.GetStateAsync(cancellationToken);
+        if (branchContext.ActiveBranchId is not Guid branchId)
         {
             return true;
         }
 
-        return orderBranchId == branchId;
+        return sample.Order.OrderDocuments.Any(document =>
+            !document.IsAnnulled
+            && document.SampleId == sample.Id
+            && document.TargetBranchId == branchId
+            && document.Status != OrderDocumentStatus.Pending);
     }
 
     private async Task<IReadOnlyList<DataField>> LoadResultDataFieldsAsync(

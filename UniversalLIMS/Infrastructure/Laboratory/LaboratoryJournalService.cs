@@ -3,6 +3,7 @@ using UniversalLIMS.Application.Abstractions;
 using UniversalLIMS.Application.Common;
 using UniversalLIMS.Application.Laboratory;
 using UniversalLIMS.Application.Laboratory.Abstractions;
+using UniversalLIMS.Domain.Registration;
 using UniversalLIMS.Infrastructure.Persistence;
 
 namespace UniversalLIMS.Infrastructure.Laboratory;
@@ -10,12 +11,14 @@ namespace UniversalLIMS.Infrastructure.Laboratory;
 public sealed class LaboratoryJournalService : ILaboratoryJournalService
 {
     private readonly ApplicationDbContext _context;
-    private readonly ICurrentUserService _currentUser;
+    private readonly ILaboratoryBranchContext _laboratoryBranchContext;
 
-    public LaboratoryJournalService(ApplicationDbContext context, ICurrentUserService currentUser)
+    public LaboratoryJournalService(
+        ApplicationDbContext context,
+        ILaboratoryBranchContext laboratoryBranchContext)
     {
         _context = context;
-        _currentUser = currentUser;
+        _laboratoryBranchContext = laboratoryBranchContext;
     }
 
     public async Task<PagedResult<SampleJournalItemDto>> GetSamplesAsync(
@@ -24,18 +27,21 @@ public sealed class LaboratoryJournalService : ILaboratoryJournalService
     {
         var page = Math.Max(1, filter.Page);
         var pageSize = Math.Clamp(filter.PageSize, 1, 100);
+        var branchContext = await _laboratoryBranchContext.GetStateAsync(cancellationToken);
 
         var samplesQuery = _context.Samples
             .AsNoTracking()
             .Where(sample =>
                 !sample.IsAnnulled
                 && !sample.Order.IsAnnulled
-                && !sample.Order.Customer.IsAnnulled);
+                && !sample.Order.Customer.IsAnnulled
+                && sample.OrderDocuments.Any(document =>
+                    !document.IsAnnulled
+                    && document.Status != OrderDocumentStatus.Pending
+                    && (!branchContext.ActiveBranchId.HasValue
+                        || document.TargetBranchId == branchContext.ActiveBranchId.Value)));
 
-        if (_currentUser.BranchId is Guid branchId)
-        {
-            samplesQuery = samplesQuery.Where(sample => sample.Order.BranchId == branchId);
-        }
+        var targetBranchFilter = branchContext.ActiveBranchId;
 
         if (!string.IsNullOrWhiteSpace(filter.SampleNumber))
         {
@@ -62,11 +68,11 @@ public sealed class LaboratoryJournalService : ILaboratoryJournalService
 
         var totalCount = await samplesQuery.CountAsync(cancellationToken);
 
-        var items = await samplesQuery
+        var rows = await samplesQuery
             .OrderByDescending(sample => sample.RegisteredAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(sample => new SampleJournalItemDto
+            .Select(sample => new
             {
                 SampleId = sample.Id,
                 SampleNumber = sample.Number,
@@ -75,9 +81,32 @@ public sealed class LaboratoryJournalService : ILaboratoryJournalService
                 CustomerFullName = sample.Order.Customer.FullName,
                 RegisteredAt = sample.RegisteredAt,
                 Status = sample.Status,
-                InvestigationTypeName = sample.InvestigationType.NameUk
+                InvestigationTypeName = sample.InvestigationType.NameUk,
+                TargetBranchNames = sample.OrderDocuments
+                    .Where(document =>
+                        !document.IsAnnulled
+                        && document.Status != OrderDocumentStatus.Pending
+                        && (!targetBranchFilter.HasValue || document.TargetBranchId == targetBranchFilter.Value))
+                    .Select(document => document.TargetBranch.Name)
+                    .Distinct()
+                    .ToList()
             })
             .ToListAsync(cancellationToken);
+
+        var items = rows
+            .Select(row => new SampleJournalItemDto
+            {
+                SampleId = row.SampleId,
+                SampleNumber = row.SampleNumber,
+                OrderId = row.OrderId,
+                ReferralNumber = row.ReferralNumber,
+                CustomerFullName = row.CustomerFullName,
+                RegisteredAt = row.RegisteredAt,
+                Status = row.Status,
+                InvestigationTypeName = row.InvestigationTypeName,
+                TargetBranchName = string.Join(", ", row.TargetBranchNames)
+            })
+            .ToList();
 
         return new PagedResult<SampleJournalItemDto>
         {

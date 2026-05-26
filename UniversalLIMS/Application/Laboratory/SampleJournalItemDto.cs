@@ -22,4 +22,6 @@ public sealed class SampleJournalItemDto
     public SampleStatus Status { get; init; }
 
     public required string InvestigationTypeName { get; init; }
+
+    public required string TargetBranchName { get; init; }
 }

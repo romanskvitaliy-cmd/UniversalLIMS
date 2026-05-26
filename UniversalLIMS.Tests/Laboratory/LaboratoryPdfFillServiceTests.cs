@@ -38,7 +38,7 @@ public sealed class LaboratoryPdfFillServiceTests
 
         await context.SaveChangesAsync();
 
-        var service = new LaboratoryPdfFillService(context, new FixedCurrentUser(branchId));
+        var service = new LaboratoryPdfFillService(context, new FixedLaboratoryBranchContext(branchId));
         var targets = await service.GetFillTargetsAsync(sampleId);
 
         Assert.Single(targets);
@@ -74,12 +74,10 @@ public sealed class LaboratoryPdfFillServiceTests
 
         await context.SaveChangesAsync();
 
-        var service = new LaboratoryPdfFillService(context, new FixedCurrentUser(branchId));
+        var service = new LaboratoryPdfFillService(context, new FixedLaboratoryBranchContext(branchId));
         var targets = await service.GetFillTargetsAsync(sampleId);
 
-        Assert.Single(targets);
-        Assert.Null(targets[0].OrderDocumentId);
-        Assert.Equal(versionId, targets[0].TemplateVersionId);
+        Assert.Empty(targets);
     }
 
     private static void SeedBranchCustomerOrderSample(
@@ -186,24 +184,16 @@ public sealed class LaboratoryPdfFillServiceTests
         return new ApplicationDbContext(options);
     }
 
-    private sealed class FixedCurrentUser : ICurrentUserService
+    private sealed class FixedLaboratoryBranchContext : ILaboratoryBranchContext
     {
-        public FixedCurrentUser(Guid? branchId) => BranchId = branchId;
+        private readonly Guid? _branchId;
 
-        public string? UserId => null;
+        public FixedLaboratoryBranchContext(Guid? branchId) => _branchId = branchId;
 
-        public string? UserName => "test";
+        public Task<LaboratoryBranchContextState> GetStateAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(new LaboratoryBranchContextState { ActiveBranchId = _branchId });
 
-        public string? UserFullName => "Test User";
-
-        public Guid? BranchId { get; }
-
-        public string? IpAddress => null;
-
-        public string? UserAgent => null;
-
-        public string? CorrelationId => null;
-
-        public bool IsAuthenticated => true;
+        public Task SetSelectedBranchAsync(Guid? branchId, CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
     }
 }

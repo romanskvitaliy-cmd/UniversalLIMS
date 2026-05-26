@@ -9,9 +9,46 @@
 <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
     <div>
         <h1 class="h3 mb-1">Лабораторний журнал проб</h1>
-        <p class="text-muted mb-0">Облік проб вашої філії. Номер проби та ПІБ замовника — з SSOT (колонки <code>Samples</code> та <code>Customers</code>).</p>
+        <p class="text-muted mb-0">Облік проб, переданих у лабораторію. Номер проби та ПІБ замовника — з SSOT (колонки <code>Samples</code> та <code>Customers</code>).</p>
     </div>
 </div>
+
+@if (Model.CanSelectLaboratoryBranch)
+{
+    <form asp-action="SetLaboratoryBranch" method="post" class="card mb-3">
+        <div class="card-body py-2">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-5 col-lg-4">
+                    <label class="form-label small text-muted" for="activeLaboratoryBranchId">Контекст лабораторії</label>
+                    <select class="form-select form-select-sm" id="activeLaboratoryBranchId" name="activeLaboratoryBranchId">
+                        @if (Model.ActiveLaboratoryBranchId is null)
+                        {
+                            <option value="" selected>Усі лабораторії</option>
+                        }
+                        else
+                        {
+                            <option value="">Усі лабораторії</option>
+                        }
+                        @foreach (var branch in Model.LaboratoryBranches)
+                        {
+                            if (Model.ActiveLaboratoryBranchId == branch.Id)
+                            {
+                                <option value="@branch.Id" selected>@branch.Name</option>
+                            }
+                            else
+                            {
+                                <option value="@branch.Id">@branch.Name</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-md-auto">
+                    <button type="submit" class="btn btn-sm btn-outline-primary">Змінити</button>
+                </div>
+            </div>
+        </div>
+    </form>
+}
 
 <form method="get" asp-action="Index" class="card mb-3">
     <div class="card-body">
@@ -75,6 +112,7 @@ else
                     <th>Направлення</th>
                     <th>Замовник</th>
                     <th>Тип дослідження</th>
+                    <th>Лабораторія</th>
                     <th>Дата реєстрації</th>
                     <th>Статус</th>
                     <th></th>
@@ -88,6 +126,7 @@ else
                         <td>@(string.IsNullOrWhiteSpace(sample.ReferralNumber) ? "—" : sample.ReferralNumber)</td>
                         <td>@sample.CustomerFullName</td>
                         <td>@sample.InvestigationTypeName</td>
+                        <td>@sample.TargetBranchName</td>
                         <td class="text-nowrap">@sample.RegisteredAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
                         <td><span class="badge lims-status-badge @SampleStatusDisplay.BadgeClass(sample.Status)">@SampleStatusDisplay.ToUk(sample.Status)</span></td>
                         <td class="text-end text-nowrap">

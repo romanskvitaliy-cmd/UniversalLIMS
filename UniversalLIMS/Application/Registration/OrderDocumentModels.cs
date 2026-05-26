@@ -13,9 +13,22 @@ public sealed class CreatedOrderDocumentDto
 {
     public Guid OrderDocumentId { get; init; }
 
+    public Guid SampleId { get; init; }
+
     public Guid TemplateVersionId { get; init; }
 
     public Guid TargetBranchId { get; init; }
+}
+
+public sealed class CreatedOrderSampleDto
+{
+    public Guid SampleId { get; init; }
+
+    public Guid InvestigationTypeId { get; init; }
+
+    public required string SampleNumber { get; init; }
+
+    public IReadOnlyList<CreatedOrderDocumentDto> Documents { get; init; } = [];
 }
 
 public sealed class BranchOptionDto

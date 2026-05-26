@@ -202,6 +202,73 @@ public sealed class OrderRegistrationServiceTests
     }
 
     [Fact]
+    public async Task CreateOrderAsync_CreatesOneOrderWithMultipleSamplesAndDocuments()
+    {
+        var registrarBranchId = Guid.NewGuid();
+        var waterLabId = Guid.NewGuid();
+        var foodLabId = Guid.NewGuid();
+        await using var context = CreateContext();
+        await SeedBranchesAsync(context, registrarBranchId, waterLabId, foodLabId);
+        var (waterTypeId, foodTypeId, _) = await SeedDefaultInvestigationTypesAsync(context);
+        var waterVersionId = await SeedActivePublishedPdfTemplateAsync(context, "F327", "Ф327 дослідження питної води");
+        var foodVersionId = await SeedActivePublishedPdfTemplateAsync(context, "F343", "Ф343 досліджень проб харчових продуктів");
+        var customer = await SeedCustomerAsync(context, "Кілька Досліджень");
+        var service = CreateService(context, registrarBranchId);
+
+        var result = await service.CreateOrderAsync(new CreateOrderRequest
+        {
+            CustomerId = customer.Id,
+            Samples =
+            [
+                new CreateOrderSampleRequest
+                {
+                    InvestigationTypeId = waterTypeId,
+                    Documents =
+                    [
+                        new CreateOrderDocumentRequest
+                        {
+                            TemplateVersionId = waterVersionId,
+                            TargetBranchId = waterLabId
+                        }
+                    ]
+                },
+                new CreateOrderSampleRequest
+                {
+                    InvestigationTypeId = foodTypeId,
+                    Documents =
+                    [
+                        new CreateOrderDocumentRequest
+                        {
+                            TemplateVersionId = foodVersionId,
+                            TargetBranchId = foodLabId
+                        }
+                    ]
+                }
+            ]
+        });
+
+        Assert.Equal(2, result.Samples.Count);
+        Assert.Equal(2, result.Documents.Count);
+
+        var order = await context.Orders
+            .Include(item => item.Samples)
+            .Include(item => item.OrderDocuments)
+            .SingleAsync(item => item.Id == result.OrderId);
+
+        Assert.Equal(registrarBranchId, order.BranchId);
+        Assert.Equal(2, order.Samples.Count);
+        Assert.Equal(2, order.OrderDocuments.Count);
+        Assert.Contains(order.Samples, sample => sample.InvestigationTypeId == waterTypeId);
+        Assert.Contains(order.Samples, sample => sample.InvestigationTypeId == foodTypeId);
+        Assert.Contains(order.OrderDocuments, document =>
+            document.TemplateVersionId == waterVersionId && document.TargetBranchId == waterLabId);
+        Assert.Contains(order.OrderDocuments, document =>
+            document.TemplateVersionId == foodVersionId && document.TargetBranchId == foodLabId);
+        Assert.All(order.OrderDocuments, document =>
+            Assert.Contains(result.Samples, sample => sample.SampleId == document.SampleId));
+    }
+
+    [Fact]
     public async Task SendDocumentsToLabAsync_UpdatesDocumentAndSampleStatus()
     {
         var branchId = Guid.NewGuid();

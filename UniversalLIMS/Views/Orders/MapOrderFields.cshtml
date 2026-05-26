@@ -29,8 +29,22 @@
     <input type="hidden" asp-for="CreateInput.NewCustomerAddress" />
     <input type="hidden" asp-for="CreateInput.NewCustomerEdrpou" />
     <input type="hidden" asp-for="CreateInput.InvestigationTypeId" />
+    <input type="hidden" asp-for="CreateInput.TemplateVersionId" />
     <input type="hidden" asp-for="CreateInput.OpenPdfAfterCreate" />
-  @for (var i = 0; i < Model.CreateInput.SelectedTemplateVersionIds.Count; i++)
+    @for (var sampleIndex = 0; sampleIndex < Model.CreateInput.Samples.Count; sampleIndex++)
+    {
+        <input type="hidden" name="CreateInput.Samples[@sampleIndex].InvestigationTypeId" value="@Model.CreateInput.Samples[sampleIndex].InvestigationTypeId" />
+        <input type="hidden" name="CreateInput.Samples[@sampleIndex].TemplateVersionId" value="@Model.CreateInput.Samples[sampleIndex].TemplateVersionId" />
+        @for (var documentIndex = 0; documentIndex < Model.CreateInput.Samples[sampleIndex].SelectedTemplateVersionIds.Count; documentIndex++)
+        {
+            <input type="hidden" name="CreateInput.Samples[@sampleIndex].SelectedTemplateVersionIds[@documentIndex]" value="@Model.CreateInput.Samples[sampleIndex].SelectedTemplateVersionIds[documentIndex]" />
+        }
+        @for (var branchIndex = 0; branchIndex < Model.CreateInput.Samples[sampleIndex].DocumentTargetBranchIds.Count; branchIndex++)
+        {
+            <input type="hidden" name="CreateInput.Samples[@sampleIndex].DocumentTargetBranchIds[@branchIndex]" value="@Model.CreateInput.Samples[sampleIndex].DocumentTargetBranchIds[branchIndex]" />
+        }
+    }
+    @for (var i = 0; i < Model.CreateInput.SelectedTemplateVersionIds.Count; i++)
     {
         <input type="hidden" name="CreateInput.SelectedTemplateVersionIds[@i]" value="@Model.CreateInput.SelectedTemplateVersionIds[i]" />
     }

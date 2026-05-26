@@ -3,7 +3,6 @@ using UniversalLIMS.Application.Abstractions;
 using UniversalLIMS.Application.Laboratory;
 using UniversalLIMS.Application.Laboratory.Abstractions;
 using UniversalLIMS.Domain.Registration;
-using UniversalLIMS.Domain.Templates;
 using UniversalLIMS.Infrastructure.Persistence;
 
 namespace UniversalLIMS.Infrastructure.Laboratory;
@@ -17,25 +16,31 @@ public sealed class LaboratoryPdfFillService : ILaboratoryPdfFillService
     ];
 
     private readonly ApplicationDbContext _context;
-    private readonly ICurrentUserService _currentUser;
+    private readonly ILaboratoryBranchContext _laboratoryBranchContext;
 
-    public LaboratoryPdfFillService(ApplicationDbContext context, ICurrentUserService currentUser)
+    public LaboratoryPdfFillService(
+        ApplicationDbContext context,
+        ILaboratoryBranchContext laboratoryBranchContext)
     {
         _context = context;
-        _currentUser = currentUser;
+        _laboratoryBranchContext = laboratoryBranchContext;
     }
 
     public async Task<IReadOnlyList<SamplePdfFillTargetDto>> GetFillTargetsAsync(
         Guid sampleId,
         CancellationToken cancellationToken = default)
     {
+        var branchContext = await _laboratoryBranchContext.GetStateAsync(cancellationToken);
         var sampleQuery = _context.Samples
             .AsNoTracking()
             .Where(sample => sample.Id == sampleId && !sample.IsAnnulled && !sample.Order.IsAnnulled);
 
-        if (_currentUser.BranchId is Guid branchId)
+        if (branchContext.ActiveBranchId is Guid branchId)
         {
-            sampleQuery = sampleQuery.Where(sample => sample.Order.BranchId == branchId);
+            sampleQuery = sampleQuery.Where(sample => sample.OrderDocuments.Any(document =>
+                !document.IsAnnulled
+                && document.TargetBranchId == branchId
+                && LabFillStatuses.Contains(document.Status)));
         }
 
         var sample = await sampleQuery
@@ -57,7 +62,9 @@ public sealed class LaboratoryPdfFillService : ILaboratoryPdfFillService
             .Where(document =>
                 document.SampleId == sampleId
                 && !document.IsAnnulled
-                && LabFillStatuses.Contains(document.Status))
+                && LabFillStatuses.Contains(document.Status)
+                && (!branchContext.ActiveBranchId.HasValue
+                    || document.TargetBranchId == branchContext.ActiveBranchId.Value))
             .Join(
                 _context.TemplateVersions.AsNoTracking(),
                 document => document.TemplateVersionId,
@@ -81,35 +88,6 @@ public sealed class LaboratoryPdfFillService : ILaboratoryPdfFillService
             .ThenBy(target => target.VersionNumber)
             .ToListAsync(cancellationToken);
 
-        if (documents.Count > 0)
-        {
-            return documents;
-        }
-
-        var fallback = await (
-                from link in _context.InvestigationTypeTemplates.AsNoTracking()
-                join version in _context.TemplateVersions.AsNoTracking()
-                    on link.TemplateId equals version.TemplateId
-                join template in _context.Templates.AsNoTracking()
-                    on version.TemplateId equals template.Id
-                where link.InvestigationTypeId == sample.InvestigationTypeId
-                      && link.IsActive
-                      && version.Status == TemplateVersionStatus.Published
-                      && !version.IsAnnulled
-                      && version.DocumentFormat == TemplateDocumentFormat.Pdf
-                orderby version.VersionNumber descending
-                select new SamplePdfFillTargetDto
-                {
-                    SampleId = sample.Id,
-                    OrderId = sample.OrderId,
-                    TemplateVersionId = version.Id,
-                    OrderDocumentId = null,
-                    TemplateNameUk = template.NameUk,
-                    VersionNumber = version.VersionNumber,
-                    DocumentStatus = null
-                })
-            .FirstOrDefaultAsync(cancellationToken);
-
-        return fallback is null ? [] : [fallback];
+        return documents;
     }
 }

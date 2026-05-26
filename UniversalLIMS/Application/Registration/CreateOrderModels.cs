@@ -8,9 +8,23 @@ public sealed class CreateOrderRequest
 
     public CreateCustomerRequest? NewCustomer { get; init; }
 
+    /// <summary>Застарілий одиночний вибір; використовується, якщо <see cref="Samples"/> порожній.</summary>
     public Guid InvestigationTypeId { get; init; }
 
     /// <summary>Застарілий одиночний вибір; якщо <see cref="Documents"/> порожній — використовується це поле.</summary>
+    public Guid? TemplateVersionId { get; init; }
+
+    /// <summary>Застарілий список документів для одного дослідження.</summary>
+    public IReadOnlyList<CreateOrderDocumentRequest> Documents { get; init; } = [];
+
+    /// <summary>Кілька проб/досліджень в одному замовленні.</summary>
+    public IReadOnlyList<CreateOrderSampleRequest> Samples { get; init; } = [];
+}
+
+public sealed class CreateOrderSampleRequest
+{
+    public Guid InvestigationTypeId { get; init; }
+
     public Guid? TemplateVersionId { get; init; }
 
     public IReadOnlyList<CreateOrderDocumentRequest> Documents { get; init; } = [];
@@ -27,6 +41,8 @@ public sealed class CreateOrderResult
     public required string ReferralNumber { get; init; }
 
     public required string SampleNumber { get; init; }
+
+    public IReadOnlyList<CreatedOrderSampleDto> Samples { get; init; } = [];
 
     public IReadOnlyList<CreatedOrderDocumentDto> Documents { get; init; } = [];
 }

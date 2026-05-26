@@ -203,25 +203,9 @@ public sealed class OrderRegistrationService : IOrderRegistrationService
 
         var customerId = await ResolveCustomerIdAsync(request, cancellationToken);
 
-        var investigationTypeExists = await _context.InvestigationTypes
-            .AnyAsync(
-                type => type.Id == request.InvestigationTypeId && type.IsActive && !type.IsAnnulled,
-                cancellationToken);
-
-        if (!investigationTypeExists)
-        {
-            throw new InvalidOperationException("Оберіть коректний тип дослідження.");
-        }
-
-        var documentPlans = await ResolveDocumentPlansAsync(
-            request.InvestigationTypeId,
-            request.Documents,
-            request.TemplateVersionId,
-            branchId,
-            cancellationToken);
+        var samplePlans = await ResolveOrderSamplePlansAsync(request, branchId, cancellationToken);
 
         var referralNumber = await _numberingService.AssignReferralNumberAsync(branchId, cancellationToken);
-        var sampleNumber = await _numberingService.AssignSampleNumberAsync(branchId, cancellationToken);
         var registeredAtUtc = _dateTimeProvider.UtcNow;
 
         var order = new Order
@@ -236,54 +220,80 @@ public sealed class OrderRegistrationService : IOrderRegistrationService
         _context.Orders.Add(order);
         await _context.SaveChangesAsync(cancellationToken);
 
-        var sample = new Sample
-        {
-            OrderId = order.Id,
-            InvestigationTypeId = request.InvestigationTypeId,
-            Number = sampleNumber,
-            RegisteredAt = registeredAtUtc,
-            Status = SampleStatus.Registered
-        };
-
-        _context.Samples.Add(sample);
-        await _context.SaveChangesAsync(cancellationToken);
-
+        var createdSamples = new List<CreatedOrderSampleDto>();
         var createdDocuments = new List<CreatedOrderDocumentDto>();
+        var versionIds = samplePlans
+            .SelectMany(plan => plan.Documents.Select(document => document.TemplateVersionId))
+            .Distinct()
+            .ToList();
+        var versionById = await _context.TemplateVersions
+            .AsNoTracking()
+            .Where(version => versionIds.Contains(version.Id))
+            .ToDictionaryAsync(version => version.Id, cancellationToken);
 
-        foreach (var plan in documentPlans)
+        foreach (var samplePlan in samplePlans)
         {
-            var version = await _context.TemplateVersions
-                .AsNoTracking()
-                .FirstAsync(item => item.Id == plan.TemplateVersionId, cancellationToken);
-
-            var orderDocument = new OrderDocument
+            var sampleNumber = await _numberingService.AssignSampleNumberAsync(branchId, cancellationToken);
+            var sample = new Sample
             {
                 OrderId = order.Id,
-                SampleId = sample.Id,
-                TemplateId = version.TemplateId,
-                TemplateVersionId = version.Id,
-                TargetBranchId = plan.TargetBranchId,
-                Status = OrderDocumentStatus.Pending
+                InvestigationTypeId = samplePlan.InvestigationTypeId,
+                Number = sampleNumber,
+                RegisteredAt = registeredAtUtc,
+                Status = SampleStatus.Registered
             };
 
-            _context.OrderDocuments.Add(orderDocument);
-            await _context.SaveChangesAsync(cancellationToken);
+            _context.Samples.Add(sample);
 
-            createdDocuments.Add(new CreatedOrderDocumentDto
+            var sampleDocuments = new List<CreatedOrderDocumentDto>();
+            foreach (var documentPlan in samplePlan.Documents)
             {
-                OrderDocumentId = orderDocument.Id,
-                TemplateVersionId = version.Id,
-                TargetBranchId = plan.TargetBranchId
+                var version = versionById[documentPlan.TemplateVersionId];
+                var orderDocument = new OrderDocument
+                {
+                    OrderId = order.Id,
+                    SampleId = sample.Id,
+                    TemplateId = version.TemplateId,
+                    TemplateVersionId = version.Id,
+                    TargetBranchId = documentPlan.TargetBranchId,
+                    Status = OrderDocumentStatus.Pending
+                };
+
+                _context.OrderDocuments.Add(orderDocument);
+
+                var documentDto = new CreatedOrderDocumentDto
+                {
+                    OrderDocumentId = orderDocument.Id,
+                    SampleId = sample.Id,
+                    TemplateVersionId = version.Id,
+                    TargetBranchId = documentPlan.TargetBranchId
+                };
+                sampleDocuments.Add(documentDto);
+                createdDocuments.Add(documentDto);
+            }
+
+            createdSamples.Add(new CreatedOrderSampleDto
+            {
+                SampleId = sample.Id,
+                InvestigationTypeId = samplePlan.InvestigationTypeId,
+                SampleNumber = sample.Number,
+                Documents = sampleDocuments
             });
         }
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        var firstSample = createdSamples[0];
+        var firstDocument = firstSample.Documents[0];
 
         return new CreateOrderResult
         {
             OrderId = order.Id,
-            SampleId = sample.Id,
-            TemplateVersionId = documentPlans[0].TemplateVersionId,
+            SampleId = firstSample.SampleId,
+            TemplateVersionId = firstDocument.TemplateVersionId,
             ReferralNumber = referralNumber,
-            SampleNumber = sampleNumber,
+            SampleNumber = firstSample.SampleNumber,
+            Samples = createdSamples,
             Documents = createdDocuments
         };
     }
@@ -407,8 +417,14 @@ public sealed class OrderRegistrationService : IOrderRegistrationService
             document.SentToLabAtUtc = sentAtUtc;
         }
 
-        var sample = order.Samples.FirstOrDefault(item => !item.IsAnnulled);
-        if (sample is not null && sample.Status == SampleStatus.Registered)
+        var sentSampleIds = documents
+            .Select(document => document.SampleId)
+            .Distinct()
+            .ToHashSet();
+        var sentSamples = order.Samples
+            .Where(sample => !sample.IsAnnulled && sentSampleIds.Contains(sample.Id))
+            .ToList();
+        foreach (var sample in sentSamples.Where(sample => sample.Status == SampleStatus.Registered))
         {
             sample.Status = SampleStatus.Routed;
             sample.RoutedAtUtc = sentAtUtc;
@@ -462,7 +478,67 @@ public sealed class OrderRegistrationService : IOrderRegistrationService
         return await query.FirstOrDefaultAsync(cancellationToken);
     }
 
+    private sealed record OrderSamplePlan(Guid InvestigationTypeId, List<OrderDocumentPlan> Documents);
+
     private sealed record OrderDocumentPlan(Guid TemplateVersionId, Guid TargetBranchId);
+
+    private async Task<List<OrderSamplePlan>> ResolveOrderSamplePlansAsync(
+        CreateOrderRequest request,
+        Guid defaultBranchId,
+        CancellationToken cancellationToken)
+    {
+        var requestedSamples = request.Samples
+            .Where(sample => sample.InvestigationTypeId != Guid.Empty)
+            .ToList();
+
+        if (requestedSamples.Count == 0)
+        {
+            if (request.InvestigationTypeId == Guid.Empty)
+            {
+                throw new InvalidOperationException("Оберіть хоча б одне дослідження.");
+            }
+
+            requestedSamples =
+            [
+                new CreateOrderSampleRequest
+                {
+                    InvestigationTypeId = request.InvestigationTypeId,
+                    TemplateVersionId = request.TemplateVersionId,
+                    Documents = request.Documents
+                }
+            ];
+        }
+
+        var investigationTypeIds = requestedSamples
+            .Select(sample => sample.InvestigationTypeId)
+            .Distinct()
+            .ToList();
+        var activeInvestigationTypeIds = await _context.InvestigationTypes
+            .AsNoTracking()
+            .Where(type => investigationTypeIds.Contains(type.Id) && type.IsActive && !type.IsAnnulled)
+            .Select(type => type.Id)
+            .ToListAsync(cancellationToken);
+
+        if (activeInvestigationTypeIds.Count != investigationTypeIds.Count)
+        {
+            throw new InvalidOperationException("Оберіть коректні типи досліджень.");
+        }
+
+        var plans = new List<OrderSamplePlan>();
+        foreach (var sample in requestedSamples)
+        {
+            var documents = await ResolveDocumentPlansAsync(
+                sample.InvestigationTypeId,
+                sample.Documents,
+                sample.TemplateVersionId,
+                defaultBranchId,
+                cancellationToken);
+
+            plans.Add(new OrderSamplePlan(sample.InvestigationTypeId, documents));
+        }
+
+        return plans;
+    }
 
     private async Task<List<OrderDocumentPlan>> ResolveDocumentPlansAsync(
         Guid investigationTypeId,

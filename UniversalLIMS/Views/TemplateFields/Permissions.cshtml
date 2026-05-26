@@ -8,6 +8,19 @@
 <h1 class="h3">Права доступу до полів шаблону</h1>
 <p class="text-muted">@Model.TemplateNameUk · v@(Model.VersionNumber)</p>
 
+@if (TempData["TemplateSuccess"] is string successMessage)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @successMessage
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Закрити"></button>
+    </div>
+}
+
+@if (!ViewData.ModelState.IsValid)
+{
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+}
+
 @if (Model.IsPublishedVersion && Model.IsEditable)
 {
     <div class="alert alert-warning">

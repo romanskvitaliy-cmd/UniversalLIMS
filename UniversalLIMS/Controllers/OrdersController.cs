@@ -62,7 +62,8 @@ public sealed class OrdersController : Controller
         ValidateCustomerSelection(input);
         ValidateDocumentSelection(input, form);
 
-        if (input.SelectedTemplateVersionIds.Count < 2)
+        var selectedTemplateVersionIds = GetSelectedTemplateVersionIds(input);
+        if (selectedTemplateVersionIds.Count < 2)
         {
             ModelState.AddModelError(
                 nameof(input.SelectedTemplateVersionIds),
@@ -77,7 +78,7 @@ public sealed class OrdersController : Controller
         try
         {
             var mapping = await _orderFieldLinks.GetMappingPrepareAsync(
-                input.SelectedTemplateVersionIds,
+                selectedTemplateVersionIds,
                 cancellationToken);
 
             return View("MapOrderFields", await BuildMapOrderFieldsViewModelAsync(form, input, mapping, cancellationToken));
@@ -137,7 +138,7 @@ public sealed class OrdersController : Controller
             try
             {
                 var mapping = await _orderFieldLinks.GetMappingPrepareAsync(
-                    input.SelectedTemplateVersionIds,
+                    GetSelectedTemplateVersionIds(input),
                     cancellationToken);
 
                 return View("MapOrderFields", await BuildMapOrderFieldsViewModelAsync(form, input, mapping, cancellationToken));
@@ -181,7 +182,7 @@ public sealed class OrdersController : Controller
             ModelState.AddModelError(string.Empty, ex.Message);
 
             var mapping = await _orderFieldLinks.GetMappingPrepareAsync(
-                input.SelectedTemplateVersionIds,
+                GetSelectedTemplateVersionIds(input),
                 cancellationToken);
 
             return View("MapOrderFields", await BuildMapOrderFieldsViewModelAsync(form, input, mapping, cancellationToken));
@@ -338,28 +339,50 @@ public sealed class OrdersController : Controller
 
     private void ValidateDocumentSelection(OrderCreateInputModel input, OrderCreateFormDto form)
     {
-        if (input.SelectedTemplateVersionIds.Count == 0)
+        var samples = GetEffectiveSamples(input);
+        if (samples.Count == 0)
         {
+            ModelState.AddModelError(string.Empty, "Додайте хоча б одне дослідження.");
             return;
         }
 
-        var allowedIds = form.TemplateOptions
-            .Where(option => option.InvestigationTypeId == input.InvestigationTypeId)
-            .Select(option => option.TemplateVersionId)
-            .ToHashSet();
-
-        if (input.SelectedTemplateVersionIds.Any(id => !allowedIds.Contains(id)))
+        for (var sampleIndex = 0; sampleIndex < samples.Count; sampleIndex++)
         {
-            ModelState.AddModelError(
-                nameof(input.SelectedTemplateVersionIds),
-                "Обрано недоступний шаблон для цього типу дослідження.");
-        }
+            var sample = samples[sampleIndex];
+            var selectedTemplateVersionIds = sample.SelectedTemplateVersionIds
+                .Where(id => id != Guid.Empty)
+                .ToList();
 
-        if (input.SelectedTemplateVersionIds.Distinct().Count() != input.SelectedTemplateVersionIds.Count)
-        {
-            ModelState.AddModelError(
-                nameof(input.SelectedTemplateVersionIds),
-                "Кожен шаблон можна обрати лише один раз.");
+            if (sample.InvestigationTypeId == Guid.Empty)
+            {
+                ModelState.AddModelError(string.Empty, $"У рядку {sampleIndex + 1} оберіть тип дослідження.");
+                continue;
+            }
+
+            if (selectedTemplateVersionIds.Count == 0)
+            {
+                ModelState.AddModelError(string.Empty, $"У рядку {sampleIndex + 1} оберіть PDF-бланк.");
+                continue;
+            }
+
+            var allowedIds = form.TemplateOptions
+                .Where(option => option.InvestigationTypeId == sample.InvestigationTypeId)
+                .Select(option => option.TemplateVersionId)
+                .ToHashSet();
+
+            if (selectedTemplateVersionIds.Any(id => !allowedIds.Contains(id)))
+            {
+                ModelState.AddModelError(
+                    nameof(input.SelectedTemplateVersionIds),
+                    $"У рядку {sampleIndex + 1} обрано недоступний шаблон для цього типу дослідження.");
+            }
+
+            if (selectedTemplateVersionIds.Distinct().Count() != selectedTemplateVersionIds.Count)
+            {
+                ModelState.AddModelError(
+                    nameof(input.SelectedTemplateVersionIds),
+                    $"У рядку {sampleIndex + 1} кожен шаблон можна обрати лише один раз.");
+            }
         }
     }
 
@@ -368,22 +391,16 @@ public sealed class OrdersController : Controller
         var useExisting = string.Equals(input.CustomerMode, "existing", StringComparison.OrdinalIgnoreCase);
         var defaultBranchId = form.DefaultBranchId ?? Guid.Empty;
 
-        var documents = new List<CreateOrderDocumentRequest>();
-        for (var index = 0; index < input.SelectedTemplateVersionIds.Count; index++)
-        {
-            var templateVersionId = input.SelectedTemplateVersionIds[index];
-            var targetBranchId = index < input.DocumentTargetBranchIds.Count
-                && input.DocumentTargetBranchIds[index] != Guid.Empty
-                ? input.DocumentTargetBranchIds[index]
-                : defaultBranchId;
-
-            documents.Add(new CreateOrderDocumentRequest
+        var samples = GetEffectiveSamples(input)
+            .Select(sample => new CreateOrderSampleRequest
             {
-                TemplateVersionId = templateVersionId,
-                TargetBranchId = targetBranchId
-            });
-        }
+                InvestigationTypeId = sample.InvestigationTypeId,
+                TemplateVersionId = sample.TemplateVersionId,
+                Documents = MapDocuments(sample, defaultBranchId)
+            })
+            .ToList();
 
+        var legacySample = samples.FirstOrDefault();
         return new CreateOrderRequest
         {
             CustomerId = useExisting ? input.SelectedCustomerId : null,
@@ -398,11 +415,82 @@ public sealed class OrdersController : Controller
                     Address = input.NewCustomerAddress,
                     Edrpou = input.NewCustomerEdrpou
                 },
-            InvestigationTypeId = input.InvestigationTypeId,
-            TemplateVersionId = input.TemplateVersionId,
-            Documents = documents
+            InvestigationTypeId = legacySample?.InvestigationTypeId ?? Guid.Empty,
+            TemplateVersionId = legacySample?.TemplateVersionId,
+            Documents = legacySample?.Documents ?? [],
+            Samples = samples
         };
     }
+
+    private static List<CreateOrderDocumentRequest> MapDocuments(
+        OrderCreateSampleInputModel sample,
+        Guid defaultBranchId)
+    {
+        var documents = new List<CreateOrderDocumentRequest>();
+        for (var index = 0; index < sample.SelectedTemplateVersionIds.Count; index++)
+        {
+            var templateVersionId = sample.SelectedTemplateVersionIds[index];
+            var targetBranchId = index < sample.DocumentTargetBranchIds.Count
+                && sample.DocumentTargetBranchIds[index] != Guid.Empty
+                ? sample.DocumentTargetBranchIds[index]
+                : defaultBranchId;
+
+            documents.Add(new CreateOrderDocumentRequest
+            {
+                TemplateVersionId = templateVersionId,
+                TargetBranchId = targetBranchId
+            });
+        }
+
+        return documents;
+    }
+
+    private static List<OrderCreateSampleInputModel> GetEffectiveSamples(OrderCreateInputModel input)
+    {
+        var samples = input.Samples
+            .Where(sample => sample.InvestigationTypeId != Guid.Empty
+                || sample.TemplateVersionId.HasValue
+                || sample.SelectedTemplateVersionIds.Any(id => id != Guid.Empty))
+            .Select(sample =>
+            {
+                if (sample.SelectedTemplateVersionIds.Count == 0 && sample.TemplateVersionId is Guid versionId)
+                {
+                    sample.SelectedTemplateVersionIds.Add(versionId);
+                }
+
+                return sample;
+            })
+            .ToList();
+
+        if (samples.Count > 0)
+        {
+            return samples;
+        }
+
+        if (input.InvestigationTypeId == Guid.Empty
+            && input.TemplateVersionId is null
+            && input.SelectedTemplateVersionIds.Count == 0)
+        {
+            return [];
+        }
+
+        return
+        [
+            new OrderCreateSampleInputModel
+            {
+                InvestigationTypeId = input.InvestigationTypeId,
+                TemplateVersionId = input.TemplateVersionId,
+                SelectedTemplateVersionIds = input.SelectedTemplateVersionIds,
+                DocumentTargetBranchIds = input.DocumentTargetBranchIds
+            }
+        ];
+    }
+
+    private static IReadOnlyList<Guid> GetSelectedTemplateVersionIds(OrderCreateInputModel input) =>
+        GetEffectiveSamples(input)
+            .SelectMany(sample => sample.SelectedTemplateVersionIds)
+            .Where(id => id != Guid.Empty)
+            .ToList();
 
     private static bool TryParseFieldMappingPayload(
         string? json,
