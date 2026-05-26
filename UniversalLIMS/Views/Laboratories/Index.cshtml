@@ -1,0 +1,122 @@
+@model LaboratoryOverviewViewModel
+@{
+    Layout = "_LayoutWorkspace";
+    ViewData["Title"] = "Лабораторії";
+    var overview = Model.Overview;
+}
+
+<div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+    <div>
+        <h1 class="h3 mb-1">Лабораторії</h1>
+        <p class="text-muted mb-0">
+            Огляд усіх лабораторних філій. Оберіть лабораторію, щоб відкрити її журнал проб,
+            або перегляньте зведення по всій мережі.
+        </p>
+    </div>
+    <a class="btn btn-outline-secondary btn-sm" asp-controller="Home" asp-action="Workspace">← Кабінет адміністратора</a>
+</div>
+
+@if (overview.ActiveBranchId is Guid activeBranchId)
+{
+    <div class="alert alert-info py-2">
+        Поточний контекст журналу:
+        <strong>@(overview.ActiveBranchName ?? "Обрана лабораторія")</strong>.
+        <a class="alert-link" asp-controller="Laboratory" asp-action="Index">Відкрити журнал</a>
+    </div>
+}
+else
+{
+    <div class="alert alert-secondary py-2 mb-3">
+        Поточний контекст журналу: <strong>Усі лабораторії</strong>.
+        <a class="alert-link" asp-controller="Laboratory" asp-action="Index">Відкрити журнал</a>
+    </div>
+}
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card h-100 border-primary-subtle">
+            <div class="card-body">
+                <div class="text-muted small mb-1">Усі лабораторії</div>
+                <div class="display-6 fw-semibold mb-2">@overview.TotalActiveSampleCount</div>
+                <p class="small text-muted mb-3">проб у лабораторному workflow</p>
+                <div class="d-flex flex-wrap gap-2 small mb-3">
+                    <span class="badge text-bg-light border">В роботі: @overview.TotalInProgressSampleCount</span>
+                    <span class="badge text-bg-light border">Результати внесено: @overview.TotalResultsEnteredSampleCount</span>
+                </div>
+                <form asp-action="EnterJournal" method="post" class="m-0">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-primary btn-sm w-100">
+                        Відкрити журнал усіх лабораторій
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-8">
+        <div class="card h-100">
+            <div class="card-body">
+                <h2 class="h6 mb-2">Як працює огляд</h2>
+                <ul class="small text-muted mb-0 ps-3">
+                    <li>Кожна картка нижче — окрема лабораторія-виконавець (<code>TargetBranch</code> документів).</li>
+                    <li>Після входу в журнал можна змінити контекст у селекторі «Контекст лабораторії».</li>
+                    <li>Адміністратор бачить проби всіх філій; лаборант — лише своєї філії користувача.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<h2 class="h5 mb-3">Філії (@overview.Branches.Count)</h2>
+
+@if (!overview.Branches.Any())
+{
+    <div class="alert alert-warning mb-0">Активних лабораторних філій не знайдено.</div>
+}
+else
+{
+    <div class="row g-3">
+        @foreach (var branch in overview.Branches)
+        {
+            var isActive = overview.ActiveBranchId == branch.BranchId;
+            <div class="col-md-6 col-xl-4">
+                <div class="card h-100 @(isActive ? "border-primary" : null)">
+                    <div class="card-body d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                            <div>
+                                <div class="fw-semibold">@branch.Name</div>
+                                <div class="small text-muted">@branch.Code · @branch.City</div>
+                            </div>
+                            @if (isActive)
+                            {
+                                <span class="badge text-bg-primary">Поточний контекст</span>
+                            }
+                        </div>
+
+                        <div class="row g-2 small mb-3">
+                            <div class="col-4">
+                                <div class="text-muted">Проб</div>
+                                <div class="fw-semibold fs-5">@branch.ActiveSampleCount</div>
+                            </div>
+                            <div class="col-4">
+                                <div class="text-muted">В роботі</div>
+                                <div class="fw-semibold fs-5">@branch.InProgressSampleCount</div>
+                            </div>
+                            <div class="col-4">
+                                <div class="text-muted">Готово</div>
+                                <div class="fw-semibold fs-5">@branch.ResultsEnteredSampleCount</div>
+                            </div>
+                        </div>
+
+                        <form asp-action="EnterJournal" method="post" class="mt-auto">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="branchId" value="@branch.BranchId" />
+                            <button type="submit" class="btn btn-outline-primary btn-sm w-100">
+                                Відкрити журнал цієї лабораторії
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}

@@ -15,7 +15,7 @@ public static class RolePortalCatalog
     public static readonly IReadOnlyList<RolePortalDefinition> All =
     [
         new(LimsRoles.SystemAdministrator, "Адміністратор", "#6366f1", "99, 102, 241", "bi-shield-lock",
-            "Шаблони, користувачі, налаштування системи"),
+            "Шаблони, лабораторії, користувачі та налаштування системи"),
         new(LimsRoles.Registrar, "Реєстратор", "#0ea5e9", "14, 165, 233", "bi-file-earmark-medical",
             "Прийом проб і замовлення"),
         new(LimsRoles.LaboratoryTechnician, "Лаборант", "#10b981", "16, 185, 129", "bi-droplet-half",

@@ -11,7 +11,32 @@
         <h1 class="h3 mb-1">Лабораторний журнал проб</h1>
         <p class="text-muted mb-0">Облік проб, переданих у лабораторію. Номер проби та ПІБ замовника — з SSOT (колонки <code>Samples</code> та <code>Customers</code>).</p>
     </div>
+    @if (Model.CanSelectLaboratoryBranch)
+    {
+        <a class="btn btn-outline-secondary btn-sm" asp-controller="Laboratories" asp-action="Index">← Лабораторії</a>
+    }
 </div>
+
+@if (Model.CanSelectLaboratoryBranch)
+{
+    <div class="alert alert-info py-2 mb-3">
+        @if (Model.ActiveLaboratoryBranchId is Guid)
+        {
+            <span>
+                Перегляд журналу для лабораторії
+                <strong>@(Model.ActiveLaboratoryBranchName ?? "обрана філія")</strong>.
+            </span>
+        }
+        else
+        {
+            <span>Перегляд журналу для <strong>усіх лабораторій</strong>.</span>
+        }
+        <span class="ms-1">
+            Змінити контекст можна нижче або на сторінці
+            <a asp-controller="Laboratories" asp-action="Index" class="alert-link">Лабораторії</a>.
+        </span>
+    </div>
+}
 
 @if (Model.CanSelectLaboratoryBranch)
 {

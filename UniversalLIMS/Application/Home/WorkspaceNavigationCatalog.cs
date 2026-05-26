@@ -38,6 +38,10 @@ public static class WorkspaceNavigationCatalog
         {
             LimsRoles.SystemAdministrator =>
             [
+                Link("Лабораторії", "Огляд усіх філій і вхід у журнал проб", "bi-building",
+                    "/Laboratories", true),
+                Link("Лабораторний журнал", "Проби в роботі з урахуванням обраного контексту", "bi-droplet-half",
+                    "/Laboratory", true),
                 Link("Шаблони документів", "Створення та публікація шаблонів", "bi-layout-text-window-reverse",
                     "/Templates", true),
                 Link("PDF Workspace", "Заповнення PDF-полів замовлення", "bi-file-earmark-pdf",
@@ -76,6 +80,8 @@ public static class WorkspaceNavigationCatalog
         var items = new List<WorkspaceNavItem>
         {
             new("Кабінет", "Home", "Workspace", "bi-house-door"),
+            new("Лабораторії", "Laboratories", "Index", "bi-building"),
+            new("Журнал проб", "Laboratory", "Index", "bi-droplet-half"),
             new("Шаблони", "Templates", "Index", "bi-layout-text-window-reverse"),
             new("PDF Workspace", "PdfWorkspace", "Index", "bi-file-earmark-pdf"),
         };

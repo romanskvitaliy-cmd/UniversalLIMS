@@ -15,6 +15,8 @@ public sealed class LaboratoryIndexViewModel
 
     public Guid? ActiveLaboratoryBranchId { get; init; }
 
+    public string? ActiveLaboratoryBranchName { get; init; }
+
     public IReadOnlyList<BranchOptionDto> LaboratoryBranches { get; init; } = [];
 
     public static IReadOnlyList<(SampleStatus Value, string Label)> StatusOptions { get; } =

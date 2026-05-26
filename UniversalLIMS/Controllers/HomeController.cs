@@ -117,8 +117,62 @@ public class HomeController : Controller
         {
             model.Metrics = await BuildRegistrarMetricsAsync(cancellationToken);
         }
+        else if (activeRole == LimsRoles.SystemAdministrator)
+        {
+            model.Metrics = await BuildAdministratorMetricsAsync(cancellationToken);
+        }
 
         return View(model);
+    }
+
+    private async Task<IReadOnlyList<WorkspaceMetricVm>> BuildAdministratorMetricsAsync(
+        CancellationToken cancellationToken)
+    {
+        var branches = await _context.Branches
+            .AsNoTracking()
+            .CountAsync(branch => branch.IsActive && !branch.IsAnnulled, cancellationToken);
+
+        var activeSamples = await _context.Samples
+            .AsNoTracking()
+            .Where(sample =>
+                !sample.IsAnnulled
+                && !sample.Order.IsAnnulled
+                && sample.OrderDocuments.Any(document =>
+                    !document.IsAnnulled
+                    && document.Status != OrderDocumentStatus.Pending))
+            .CountAsync(cancellationToken);
+
+        var inProgressSamples = await _context.Samples
+            .AsNoTracking()
+            .Where(sample =>
+                !sample.IsAnnulled
+                && sample.Status == SampleStatus.InProgress)
+            .CountAsync(cancellationToken);
+
+        return
+        [
+            new WorkspaceMetricVm
+            {
+                Label = "Лабораторії",
+                Value = branches.ToString("N0"),
+                Description = "активних філій",
+                IconClass = "bi-building"
+            },
+            new WorkspaceMetricVm
+            {
+                Label = "У лабораторії",
+                Value = activeSamples.ToString("N0"),
+                Description = "проб у workflow",
+                IconClass = "bi-droplet-half"
+            },
+            new WorkspaceMetricVm
+            {
+                Label = "В роботі",
+                Value = inProgressSamples.ToString("N0"),
+                Description = "проб зараз",
+                IconClass = "bi-activity"
+            }
+        ];
     }
 
     private async Task<IReadOnlyList<WorkspaceMetricVm>> BuildRegistrarMetricsAsync(CancellationToken cancellationToken)

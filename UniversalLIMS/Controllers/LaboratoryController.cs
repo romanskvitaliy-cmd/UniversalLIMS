@@ -48,6 +48,9 @@ public sealed class LaboratoryController : Controller
             Result = result,
             CanSelectLaboratoryBranch = branchContext.CanSelectBranch,
             ActiveLaboratoryBranchId = branchContext.ActiveBranchId,
+            ActiveLaboratoryBranchName = branchContext.ActiveBranchId is Guid branchId
+                ? branchContext.Branches.FirstOrDefault(branch => branch.Id == branchId)?.Name
+                : null,
             LaboratoryBranches = branchContext.Branches
         });
     }

@@ -4,6 +4,7 @@
     Layout = "_LayoutWorkspace";
     ViewData["Title"] = $"Кабінет — {Model.RoleDisplayName}";
     var isRegistrar = Model.RoleCode == LimsRoles.Registrar;
+    var isAdministrator = Model.RoleCode == LimsRoles.SystemAdministrator;
 }
 
 <div class="lims-workspace-welcome" style="--workspace-accent: @Model.AccentColor">
@@ -32,6 +33,26 @@
         </span>
         <span class="lims-workspace-primary-action__cta">
             Почати
+            <i class="bi bi-arrow-right-short"></i>
+        </span>
+    </a>
+}
+
+@if (isAdministrator)
+{
+    <a class="lims-workspace-primary-action" href="/Laboratories" style="--workspace-accent: @Model.AccentColor">
+        <span class="lims-workspace-primary-action__icon" aria-hidden="true">
+            <i class="bi bi-building"></i>
+        </span>
+        <span class="lims-workspace-primary-action__body">
+            <span class="lims-workspace-primary-action__eyebrow">Головна дія адміністратора</span>
+            <span class="lims-workspace-primary-action__title">Переглянути лабораторії</span>
+            <span class="lims-workspace-primary-action__desc">
+                Огляд усіх філій, показники workflow і вхід у журнал проб будь-якої лабораторії.
+            </span>
+        </span>
+        <span class="lims-workspace-primary-action__cta">
+            Відкрити
             <i class="bi bi-arrow-right-short"></i>
         </span>
     </a>
