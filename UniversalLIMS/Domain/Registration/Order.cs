@@ -34,4 +34,6 @@ public class Order : BaseEntity, ISoftAnnulled
     public ICollection<OrderDocument> OrderDocuments { get; set; } = [];
 
     public ICollection<OrderFieldValue> FieldValues { get; set; } = [];
+
+    public ICollection<OrderFieldLinkGroup> FieldLinkGroups { get; set; } = [];
 }

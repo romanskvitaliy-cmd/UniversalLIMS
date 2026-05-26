@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using UniversalLIMS.Application.Registration;
@@ -13,11 +14,20 @@ namespace UniversalLIMS.Controllers;
 [RequireActiveLimsRole]
 public sealed class OrdersController : Controller
 {
-    private readonly IOrderRegistrationService _orderRegistration;
+    private static readonly JsonSerializerOptions FieldMappingJsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
 
-    public OrdersController(IOrderRegistrationService orderRegistration)
+    private readonly IOrderRegistrationService _orderRegistration;
+    private readonly IOrderFieldLinkService _orderFieldLinks;
+
+    public OrdersController(
+        IOrderRegistrationService orderRegistration,
+        IOrderFieldLinkService orderFieldLinks)
     {
         _orderRegistration = orderRegistration;
+        _orderFieldLinks = orderFieldLinks;
     }
 
     [HttpGet]
@@ -39,6 +49,132 @@ public sealed class OrdersController : Controller
     {
         var form = await _orderRegistration.GetCreateFormAsync(cancellationToken);
         return View(new OrderCreateViewModel { Form = form });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> PrepareFieldMapping(
+        OrderCreateInputModel input,
+        CancellationToken cancellationToken)
+    {
+        var form = await _orderRegistration.GetCreateFormAsync(cancellationToken);
+
+        ValidateCustomerSelection(input);
+        ValidateDocumentSelection(input, form);
+
+        if (input.SelectedTemplateVersionIds.Count < 2)
+        {
+            ModelState.AddModelError(
+                nameof(input.SelectedTemplateVersionIds),
+                "Мапінг спільних полів доступний для двох і більше шаблонів.");
+        }
+
+        if (!ModelState.IsValid)
+        {
+            return View("Create", new OrderCreateViewModel { Form = form, Input = input });
+        }
+
+        try
+        {
+            var mapping = await _orderFieldLinks.GetMappingPrepareAsync(
+                input.SelectedTemplateVersionIds,
+                cancellationToken);
+
+            return View("MapOrderFields", new OrderMapFieldsViewModel
+            {
+                Form = form,
+                CreateInput = input,
+                Mapping = mapping
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            ModelState.AddModelError(string.Empty, ex.Message);
+            return View("Create", new OrderCreateViewModel { Form = form, Input = input });
+        }
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CreateWithFieldMapping(
+        OrderCreateInputModel input,
+        string? fieldMappingJson,
+        CancellationToken cancellationToken)
+    {
+        var form = await _orderRegistration.GetCreateFormAsync(cancellationToken);
+
+        ValidateCustomerSelection(input);
+        ValidateDocumentSelection(input, form);
+
+        if (!TryParseFieldMappingPayload(fieldMappingJson, out var groups, out var sharedValues, out var parseError))
+        {
+            ModelState.AddModelError(string.Empty, parseError);
+        }
+
+        if (!ModelState.IsValid)
+        {
+            try
+            {
+                var mapping = await _orderFieldLinks.GetMappingPrepareAsync(
+                    input.SelectedTemplateVersionIds,
+                    cancellationToken);
+
+                return View("MapOrderFields", new OrderMapFieldsViewModel
+                {
+                    Form = form,
+                    CreateInput = input,
+                    Mapping = mapping
+                });
+            }
+            catch
+            {
+                return View("Create", new OrderCreateViewModel { Form = form, Input = input });
+            }
+        }
+
+        try
+        {
+            var result = await _orderRegistration.CreateOrderAsync(MapToRequest(input, form), cancellationToken);
+
+            if (groups.Count > 0)
+            {
+                await _orderFieldLinks.SaveFieldLinkGroupsAsync(result.OrderId, groups, cancellationToken);
+                await _orderFieldLinks.ApplySharedFieldValuesAsync(
+                    result.OrderId,
+                    groups,
+                    sharedValues,
+                    cancellationToken);
+            }
+
+            TempData["OrderCreateSuccess"] =
+                $"Створено замовлення {result.ReferralNumber}, проба {result.SampleNumber}, документів: {result.Documents.Count}." +
+                (groups.Count > 0 ? $" Об’єднано груп полів: {groups.Count}." : string.Empty);
+
+            if (input.OpenPdfAfterCreate && result.Documents.Count == 1)
+            {
+                return RedirectToAction(
+                    "Fill",
+                    "PdfWorkspace",
+                    new { templateVersionId = result.Documents[0].TemplateVersionId, orderId = result.OrderId });
+            }
+
+            return RedirectToAction(nameof(Details), new { id = result.OrderId });
+        }
+        catch (InvalidOperationException ex)
+        {
+            ModelState.AddModelError(string.Empty, ex.Message);
+
+            var mapping = await _orderFieldLinks.GetMappingPrepareAsync(
+                input.SelectedTemplateVersionIds,
+                cancellationToken);
+
+            return View("MapOrderFields", new OrderMapFieldsViewModel
+            {
+                Form = form,
+                CreateInput = input,
+                Mapping = mapping
+            });
+        }
     }
 
     [HttpPost]
@@ -236,5 +372,46 @@ public sealed class OrdersController : Controller
             TemplateVersionId = input.TemplateVersionId,
             Documents = documents
         };
+    }
+
+    private static bool TryParseFieldMappingPayload(
+        string? json,
+        out IReadOnlyList<OrderFieldLinkGroupInput> groups,
+        out IReadOnlyList<OrderSharedFieldValueInput> sharedValues,
+        out string error)
+    {
+        groups = [];
+        sharedValues = [];
+        error = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return true;
+        }
+
+        try
+        {
+            var payload = JsonSerializer.Deserialize<FieldMappingPayload>(json, FieldMappingJsonOptions);
+            if (payload is null)
+            {
+                return true;
+            }
+
+            groups = payload.Groups ?? [];
+            sharedValues = payload.SharedValues ?? [];
+            return true;
+        }
+        catch (JsonException)
+        {
+            error = "Некоректний формат мапінгу полів. Спробуйте об’єднати поля знову.";
+            return false;
+        }
+    }
+
+    private sealed class FieldMappingPayload
+    {
+        public List<OrderFieldLinkGroupInput>? Groups { get; set; }
+
+        public List<OrderSharedFieldValueInput>? SharedValues { get; set; }
     }
 }

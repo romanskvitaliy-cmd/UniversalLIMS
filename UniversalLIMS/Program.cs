@@ -83,6 +83,7 @@ namespace UniversalLIMS
             builder.Services.AddSingleton<ITemplateOriginalOpenTokenIssuer, TemplateOriginalOpenTokenIssuer>();
             builder.Services.AddScoped<ICustomerService, CustomerService>();
             builder.Services.AddScoped<IOrderRegistrationService, OrderRegistrationService>();
+            builder.Services.AddScoped<IOrderFieldLinkService, OrderFieldLinkService>();
             builder.Services.AddScoped<ILaboratoryJournalService, LaboratoryJournalService>();
             builder.Services.AddScoped<ILaboratoryPdfFillService, LaboratoryPdfFillService>();
             builder.Services.AddScoped<IResultFieldPermissionService, ResultFieldPermissionService>();

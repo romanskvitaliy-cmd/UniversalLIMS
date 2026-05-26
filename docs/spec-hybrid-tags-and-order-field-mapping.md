@@ -1,7 +1,7 @@
 # Spec: гібридні теги + мапінг полів у реєстратурі
 
 > Оновлено: 2026-05-26  
-> Статус: **Етап 0** — spec + каталог тегів + Fill для семантичного `DataField`  
+> Статус: **Етап 1** — мапінг у реєстратурі (див. `handoff-hybrid-tags-and-registry-mapping.md`)  
 > Репозиторій: UniversalLIMS (.NET 8 MVC)
 
 ---
@@ -55,7 +55,11 @@
 - Каталог: `Infrastructure/Persistence/Seed/ProtocolTagCatalog.cs` + optgroup у `Map.cshtml`.
 - Seed при старті: `ProtocolTagCatalogSeeder` → `DataFields`.
 
-### 4.2 Реєстратура (Етап 1–2, TODO)
+### 4.2 Реєстратура (Етап 1–2)
+
+**Етап 1 (реалізовано):** `Orders/Create` → «Далі: мапінг» → `MapOrderFields` → `CreateWithFieldMapping`.
+
+**Етап 2 (частково в тому ж flow):** спільні textarea на сторінці мапінгу → `ApplySharedFieldValuesAsync`.
 
 1. Вибір кількох `TemplateVersion`.
 2. Крок **«Мапінг спільних полів»** (skip якщо 1 шаблон).

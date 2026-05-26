@@ -99,7 +99,18 @@
             </label>
         </div>
 
-        <button type="submit" class="btn btn-primary">Створити замовлення</button>
+        <div class="d-flex flex-wrap gap-2">
+            <button type="submit" class="btn btn-primary" id="btnCreateOrder">Створити замовлення</button>
+            <button type="submit"
+                    class="btn btn-outline-primary d-none"
+                    id="btnPrepareFieldMapping"
+                    formaction="@Url.Action("PrepareFieldMapping")">
+                Далі: мапінг спільних полів
+            </button>
+        </div>
+        <p class="small text-muted mt-2 mb-0 d-none" id="fieldMappingHint">
+            Обрано кілька бланків — можна об’єднати однакові поля перед створенням справи.
+        </p>
     </div>
 </form>
 

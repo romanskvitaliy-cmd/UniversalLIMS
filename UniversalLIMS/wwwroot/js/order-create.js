@@ -16,8 +16,17 @@
     const documentsList = document.getElementById("templateDocumentsList");
     const documentsPlaceholder = document.getElementById("templateDocumentsPlaceholder");
     const form = document.getElementById("orderCreateForm");
+    const btnPrepareMapping = document.getElementById("btnPrepareFieldMapping");
+    const fieldMappingHint = document.getElementById("fieldMappingHint");
 
     let searchTimer = null;
+
+    function syncFieldMappingActions() {
+        const checkedCount = documentsList?.querySelectorAll(".template-version-checkbox:checked").length ?? 0;
+        const multi = checkedCount >= 2;
+        btnPrepareMapping?.classList.toggle("d-none", !multi);
+        fieldMappingHint?.classList.toggle("d-none", !multi);
+    }
 
     function syncCustomerMode() {
         const isNew = modeNew?.checked;
@@ -117,8 +126,13 @@
             };
 
             syncBranchEnabled();
-            checkbox.addEventListener("change", syncBranchEnabled);
+            checkbox.addEventListener("change", () => {
+                syncBranchEnabled();
+                syncFieldMappingActions();
+            });
         });
+
+        syncFieldMappingActions();
     }
 
     async function searchCustomers(query) {
