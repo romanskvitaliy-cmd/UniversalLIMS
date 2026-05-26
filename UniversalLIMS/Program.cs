@@ -84,6 +84,7 @@ namespace UniversalLIMS
             builder.Services.AddScoped<ICustomerService, CustomerService>();
             builder.Services.AddScoped<IOrderRegistrationService, OrderRegistrationService>();
             builder.Services.AddScoped<ILaboratoryJournalService, LaboratoryJournalService>();
+            builder.Services.AddScoped<ILaboratoryPdfFillService, LaboratoryPdfFillService>();
             builder.Services.AddScoped<IResultFieldPermissionService, ResultFieldPermissionService>();
             builder.Services.AddScoped<IResultEntryService, ResultEntryService>();
             builder.Services.AddScoped<ISampleWorkflowService, SampleWorkflowService>();
@@ -91,6 +92,7 @@ namespace UniversalLIMS
             builder.Services.AddScoped<INumberingService, NumberingService>();
             builder.Services.AddScoped<IReferralPdfGenerator, ReferralPdfGenerator>();
             builder.Services.AddScoped<IPdfWorkspaceFillService, PdfWorkspaceFillService>();
+            builder.Services.AddScoped<ITemplateFieldPermissionService, TemplateFieldPermissionService>();
             builder.Services.AddAuthorization(options =>
             {
                 options.AddPolicy(LimsPolicies.ManageSystem, policy =>
@@ -104,6 +106,9 @@ namespace UniversalLIMS
 
                 options.AddPolicy(LimsPolicies.ApproveConclusions, policy =>
                     policy.RequireRole(LimsRoles.SystemAdministrator, LimsRoles.Specialist));
+
+                options.AddPolicy(LimsPolicies.FillPdfWorkspace, policy =>
+                    policy.RequireRole(LimsRoles.All));
             });
             builder.Services.AddAntiforgery(options =>
             {
