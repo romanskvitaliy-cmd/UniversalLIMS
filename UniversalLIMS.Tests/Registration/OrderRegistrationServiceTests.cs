@@ -277,6 +277,52 @@ public sealed class OrderRegistrationServiceTests
         Assert.Contains("20250101", result.Items[0].ReferralNumber);
     }
 
+    [Fact]
+    public async Task GetCreateFormAsync_ListsActivePdfTemplatesFromConstructorEvenWithoutLinks()
+    {
+        await using var context = CreateContext();
+        var (_, foodTypeId, _) = await SeedDefaultInvestigationTypesAsync(context);
+        await SeedActivePublishedPdfTemplateAsync(context, "0004", "Ф343 Досліджень проб харчових продуктів");
+
+        var service = CreateService(context, branchId: null);
+
+        var form = await service.GetCreateFormAsync();
+
+        var option = Assert.Single(form.InvestigationTypes);
+        Assert.Equal(foodTypeId, option.Id);
+        Assert.Equal("Ф343 Досліджень проб харчових продуктів", option.NameUk);
+        Assert.Single(form.TemplateOptions);
+        Assert.Equal(option.TemplateVersionId, form.TemplateOptions[0].TemplateVersionId);
+    }
+
+    [Fact]
+    public async Task CreateOrderAsync_AcceptsActivePdfTemplateMatchedByNameWithoutLink()
+    {
+        var branchId = Guid.NewGuid();
+        await using var context = CreateContext();
+        await SeedBranchesAsync(context, branchId);
+        var (_, foodTypeId, _) = await SeedDefaultInvestigationTypesAsync(context);
+        var versionId = await SeedActivePublishedPdfTemplateAsync(
+            context,
+            "0004",
+            "Ф343 Досліджень проб харчових продуктів");
+        var customer = await SeedCustomerAsync(context, "Харчовий клієнт");
+        var service = CreateService(context, branchId);
+
+        var result = await service.CreateOrderAsync(new CreateOrderRequest
+        {
+            CustomerId = customer.Id,
+            InvestigationTypeId = foodTypeId,
+            Documents =
+            [
+                new CreateOrderDocumentRequest { TemplateVersionId = versionId, TargetBranchId = branchId }
+            ]
+        });
+
+        Assert.Single(result.Documents);
+        Assert.Equal(versionId, result.Documents[0].TemplateVersionId);
+    }
+
     private static async Task SeedBranchesAsync(ApplicationDbContext context, params Guid[] branchIds)
     {
         foreach (var branchId in branchIds)
@@ -299,6 +345,62 @@ public sealed class OrderRegistrationServiceTests
         context.Customers.Add(customer);
         await context.SaveChangesAsync();
         return customer;
+    }
+
+    private static async Task<(Guid WaterTypeId, Guid FoodTypeId, Guid AirTypeId)> SeedDefaultInvestigationTypesAsync(
+        ApplicationDbContext context)
+    {
+        var waterType = new InvestigationType
+        {
+            Code = "WATER",
+            NameUk = "Дослідження води",
+            SortOrder = 1
+        };
+        var foodType = new InvestigationType
+        {
+            Code = "FOOD",
+            NameUk = "Дослідження харчових продуктів",
+            SortOrder = 2
+        };
+        var airType = new InvestigationType
+        {
+            Code = "INDOOR_AIR",
+            NameUk = "Повітря закритих приміщень",
+            SortOrder = 3
+        };
+
+        context.InvestigationTypes.AddRange(waterType, foodType, airType);
+        await context.SaveChangesAsync();
+
+        return (waterType.Id, foodType.Id, airType.Id);
+    }
+
+    private static async Task<Guid> SeedActivePublishedPdfTemplateAsync(
+        ApplicationDbContext context,
+        string code,
+        string nameUk)
+    {
+        var template = new Template
+        {
+            Code = code,
+            NameUk = nameUk,
+            Status = TemplateStatus.Active
+        };
+        context.Templates.Add(template);
+
+        var version = new TemplateVersion
+        {
+            TemplateId = template.Id,
+            VersionNumber = 1,
+            Status = TemplateVersionStatus.Published,
+            DocumentFormat = TemplateDocumentFormat.Pdf,
+            StorageKey = $"{code}.pdf"
+        };
+        context.TemplateVersions.Add(version);
+        template.CurrentPublishedVersionId = version.Id;
+
+        await context.SaveChangesAsync();
+        return version.Id;
     }
 
     private static async Task<Guid> SeedOrderAsync(
@@ -334,7 +436,8 @@ public sealed class OrderRegistrationServiceTests
         var template2 = new Template
         {
             Code = "TST-TPL-2",
-            NameUk = "Другий шаблон"
+            NameUk = "Другий шаблон",
+            Status = TemplateStatus.Active
         };
         context.Templates.Add(template2);
 
@@ -373,7 +476,8 @@ public sealed class OrderRegistrationServiceTests
         var template = new Template
         {
             Code = "TST-TPL",
-            NameUk = "Тестовий шаблон"
+            NameUk = "Тестовий шаблон",
+            Status = TemplateStatus.Active
         };
         context.Templates.Add(template);
 

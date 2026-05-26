@@ -35,6 +35,8 @@ public sealed class InvestigationTypeOptionDto
 {
     public Guid Id { get; init; }
 
+    public Guid? TemplateVersionId { get; init; }
+
     public required string Code { get; init; }
 
     public required string NameUk { get; init; }

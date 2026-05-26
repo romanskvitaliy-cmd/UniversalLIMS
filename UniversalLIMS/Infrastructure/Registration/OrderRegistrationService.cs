@@ -148,50 +148,26 @@ public sealed class OrderRegistrationService : IOrderRegistrationService
 
     public async Task<OrderCreateFormDto> GetCreateFormAsync(CancellationToken cancellationToken = default)
     {
-        var investigationTypes = await _context.InvestigationTypes
-            .AsNoTracking()
-            .Where(type => type.IsActive && !type.IsAnnulled)
-            .OrderBy(type => type.SortOrder)
-            .Select(type => new InvestigationTypeOptionDto
+        var availableTemplateOptions = await GetAvailableOrderTemplateOptionsAsync(cancellationToken);
+
+        var investigationTypeDtos = availableTemplateOptions
+            .Select(option => new InvestigationTypeOptionDto
             {
-                Id = type.Id,
-                Code = type.Code,
-                NameUk = type.NameUk
+                Id = option.InvestigationTypeId,
+                TemplateVersionId = option.TemplateVersionId,
+                Code = option.InvestigationTypeCode,
+                NameUk = option.TemplateNameUk
             })
-            .ToListAsync(cancellationToken);
+            .ToList();
 
-        var templateOptions = await (
-                from link in _context.InvestigationTypeTemplates.AsNoTracking()
-                join template in _context.Templates.AsNoTracking() on link.TemplateId equals template.Id
-                join version in _context.TemplateVersions.AsNoTracking() on template.CurrentPublishedVersionId equals version.Id
-                where link.IsActive
-                      && !template.IsAnnulled
-                      && version.Status == TemplateVersionStatus.Published
-                      && !version.IsAnnulled
-                      && version.DocumentFormat == TemplateDocumentFormat.Pdf
-                orderby link.InvestigationTypeId, link.SortOrder
-                select new
-                {
-                    link.InvestigationTypeId,
-                    link.SortOrder,
-                    version.Id,
-                    template.NameUk,
-                    version.VersionNumber
-                })
-            .ToListAsync(cancellationToken);
-
-        var defaultSortByType = templateOptions
-            .GroupBy(option => option.InvestigationTypeId)
-            .ToDictionary(group => group.Key, group => group.Min(item => item.SortOrder));
-
-        var templateDtos = templateOptions
+        var templateDtos = availableTemplateOptions
             .Select(option => new OrderTemplateOptionDto
             {
                 InvestigationTypeId = option.InvestigationTypeId,
-                TemplateVersionId = option.Id,
-                TemplateNameUk = option.NameUk,
+                TemplateVersionId = option.TemplateVersionId,
+                TemplateNameUk = option.TemplateNameUk,
                 VersionNumber = option.VersionNumber,
-                IsDefault = option.SortOrder == defaultSortByType[option.InvestigationTypeId]
+                IsDefault = true
             })
             .ToList();
 
@@ -209,7 +185,7 @@ public sealed class OrderRegistrationService : IOrderRegistrationService
 
         return new OrderCreateFormDto
         {
-            InvestigationTypes = investigationTypes,
+            InvestigationTypes = investigationTypeDtos,
             TemplateOptions = templateDtos,
             Branches = branches,
             DefaultBranchId = _currentUser.BranchId
@@ -584,22 +560,14 @@ public sealed class OrderRegistrationService : IOrderRegistrationService
         Guid? explicitTemplateVersionId,
         CancellationToken cancellationToken)
     {
+        var availableTemplateOptions = await GetAvailableOrderTemplateOptionsAsync(cancellationToken);
+        var matchingOptions = availableTemplateOptions
+            .Where(option => option.InvestigationTypeId == investigationTypeId)
+            .ToList();
+
         if (explicitTemplateVersionId is Guid versionId)
         {
-            var isValid = await (
-                    from link in _context.InvestigationTypeTemplates.AsNoTracking()
-                    join template in _context.Templates.AsNoTracking() on link.TemplateId equals template.Id
-                    join version in _context.TemplateVersions.AsNoTracking() on versionId equals version.Id
-                    where link.InvestigationTypeId == investigationTypeId
-                          && link.IsActive
-                          && template.CurrentPublishedVersionId == version.Id
-                          && version.DocumentFormat == TemplateDocumentFormat.Pdf
-                          && version.Status == TemplateVersionStatus.Published
-                          && !version.IsAnnulled
-                    select version.Id)
-                .AnyAsync(cancellationToken);
-
-            if (!isValid)
+            if (matchingOptions.All(option => option.TemplateVersionId != versionId))
             {
                 throw new InvalidOperationException("Обрана PDF-версія шаблону недоступна для цього типу дослідження.");
             }
@@ -607,19 +575,9 @@ public sealed class OrderRegistrationService : IOrderRegistrationService
             return versionId;
         }
 
-        var resolvedId = await (
-                from link in _context.InvestigationTypeTemplates.AsNoTracking()
-                join template in _context.Templates.AsNoTracking() on link.TemplateId equals template.Id
-                join version in _context.TemplateVersions.AsNoTracking() on template.CurrentPublishedVersionId equals version.Id
-                where link.InvestigationTypeId == investigationTypeId
-                      && link.IsActive
-                      && !template.IsAnnulled
-                      && version.Status == TemplateVersionStatus.Published
-                      && !version.IsAnnulled
-                      && version.DocumentFormat == TemplateDocumentFormat.Pdf
-                orderby link.SortOrder
-                select version.Id)
-            .FirstOrDefaultAsync(cancellationToken);
+        var resolvedId = matchingOptions
+            .Select(option => option.TemplateVersionId)
+            .FirstOrDefault();
 
         if (resolvedId == Guid.Empty)
         {
@@ -629,4 +587,213 @@ public sealed class OrderRegistrationService : IOrderRegistrationService
 
         return resolvedId;
     }
+
+    private async Task<List<AvailableOrderTemplateOption>> GetAvailableOrderTemplateOptionsAsync(
+        CancellationToken cancellationToken)
+    {
+        var investigationTypes = await _context.InvestigationTypes
+            .AsNoTracking()
+            .Where(type => type.IsActive && !type.IsAnnulled)
+            .OrderBy(type => type.SortOrder)
+            .Select(type => new ActiveInvestigationType(
+                type.Id,
+                type.Code,
+                type.NameUk,
+                type.SortOrder))
+            .ToListAsync(cancellationToken);
+
+        if (investigationTypes.Count == 0)
+        {
+            return [];
+        }
+
+        var activePublishedTemplates = await (
+                from template in _context.Templates.AsNoTracking()
+                join version in _context.TemplateVersions.AsNoTracking()
+                    on template.CurrentPublishedVersionId equals version.Id
+                where template.Status == TemplateStatus.Active
+                      && !template.IsAnnulled
+                      && version.Status == TemplateVersionStatus.Published
+                      && !version.IsAnnulled
+                      && version.DocumentFormat == TemplateDocumentFormat.Pdf
+                select new ActivePublishedTemplate(
+                    template.Id,
+                    version.Id,
+                    template.Code,
+                    template.NameUk,
+                    version.VersionNumber))
+            .ToListAsync(cancellationToken);
+
+        if (activePublishedTemplates.Count == 0)
+        {
+            return [];
+        }
+
+        var templateIds = activePublishedTemplates
+            .Select(template => template.TemplateId)
+            .ToList();
+        var activeLinks = await _context.InvestigationTypeTemplates
+            .AsNoTracking()
+            .Where(link => link.IsActive && templateIds.Contains(link.TemplateId))
+            .Select(link => new ActiveTemplateLink(
+                link.TemplateId,
+                link.InvestigationTypeId,
+                link.SortOrder))
+            .ToListAsync(cancellationToken);
+        var linksByTemplateId = activeLinks
+            .GroupBy(link => link.TemplateId)
+            .ToDictionary(group => group.Key, group => group.ToList());
+
+        var options = new List<AvailableOrderTemplateOption>();
+        foreach (var template in activePublishedTemplates)
+        {
+            var templateLinks = linksByTemplateId.GetValueOrDefault(template.TemplateId) ?? [];
+            var linkedTypeIds = templateLinks
+                .Select(link => link.InvestigationTypeId)
+                .ToHashSet();
+            var investigationType = ResolveBestInvestigationType(
+                template.NameUk,
+                investigationTypes,
+                linkedTypeIds);
+
+            if (investigationType is null)
+            {
+                continue;
+            }
+
+            var linkSortOrder = templateLinks
+                .Where(link => link.InvestigationTypeId == investigationType.Id)
+                .Select(link => (int?)link.SortOrder)
+                .FirstOrDefault();
+
+            options.Add(new AvailableOrderTemplateOption(
+                investigationType.Id,
+                investigationType.Code,
+                investigationType.SortOrder,
+                template.TemplateVersionId,
+                template.TemplateCode,
+                template.NameUk,
+                template.VersionNumber,
+                linkSortOrder ?? int.MaxValue));
+        }
+
+        return options
+            .OrderBy(option => option.InvestigationTypeSortOrder)
+            .ThenBy(option => option.LinkSortOrder)
+            .ThenBy(option => option.TemplateCode)
+            .ThenBy(option => option.TemplateNameUk)
+            .ToList();
+    }
+
+    private static ActiveInvestigationType? ResolveBestInvestigationType(
+        string templateNameUk,
+        IReadOnlyList<ActiveInvestigationType> investigationTypes,
+        IReadOnlySet<Guid> linkedTypeIds)
+    {
+        var scoredTypes = investigationTypes
+            .Select(type => new
+            {
+                Type = type,
+                Score = GetTemplateTypeMatchScore(templateNameUk, type.Code, type.NameUk)
+            })
+            .Where(item => item.Score > 0)
+            .ToList();
+
+        if (scoredTypes.Count > 0)
+        {
+            var bestScore = scoredTypes.Max(item => item.Score);
+            return scoredTypes
+                .Where(item => item.Score == bestScore)
+                .OrderByDescending(item => linkedTypeIds.Contains(item.Type.Id))
+                .ThenBy(item => item.Type.SortOrder)
+                .Select(item => item.Type)
+                .First();
+        }
+
+        var linkedTypes = investigationTypes
+            .Where(type => linkedTypeIds.Contains(type.Id))
+            .OrderBy(type => type.SortOrder)
+            .ToList();
+        if (linkedTypes.Count == 1)
+        {
+            return linkedTypes[0];
+        }
+
+        return investigationTypes.Count == 1
+            ? investigationTypes[0]
+            : null;
+    }
+
+    private static int GetTemplateTypeMatchScore(
+        string templateNameUk,
+        string investigationTypeCode,
+        string investigationTypeNameUk)
+    {
+        var templateName = NormalizeForMatch(templateNameUk);
+        var typeName = NormalizeForMatch(investigationTypeNameUk);
+
+        if (templateName == typeName)
+        {
+            return 100;
+        }
+
+        if (templateName.Contains(typeName, StringComparison.Ordinal)
+            || typeName.Contains(templateName, StringComparison.Ordinal))
+        {
+            return 80;
+        }
+
+        var score = investigationTypeCode.ToUpperInvariant() switch
+        {
+            "WATER" when templateName.Contains("вод", StringComparison.Ordinal) => 60,
+            "FOOD" when templateName.Contains("харч", StringComparison.Ordinal)
+                || templateName.Contains("страв", StringComparison.Ordinal)
+                || templateName.Contains("напівфабрикат", StringComparison.Ordinal) => 60,
+            "INDOOR_AIR" when templateName.Contains("повітр", StringComparison.Ordinal) => 60,
+            _ => 0
+        };
+
+        var typeTokens = typeName
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(token => token.Length > 3)
+            .ToHashSet(StringComparer.Ordinal);
+        var commonTokenCount = templateName
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Count(token => typeTokens.Contains(token));
+
+        return score + commonTokenCount;
+    }
+
+    private static string NormalizeForMatch(string? value) =>
+        string.IsNullOrWhiteSpace(value)
+            ? string.Empty
+            : value.Trim().ToLowerInvariant();
+
+    private sealed record ActiveInvestigationType(
+        Guid Id,
+        string Code,
+        string NameUk,
+        int SortOrder);
+
+    private sealed record ActivePublishedTemplate(
+        Guid TemplateId,
+        Guid TemplateVersionId,
+        string TemplateCode,
+        string NameUk,
+        int VersionNumber);
+
+    private sealed record ActiveTemplateLink(
+        Guid TemplateId,
+        Guid InvestigationTypeId,
+        int SortOrder);
+
+    private sealed record AvailableOrderTemplateOption(
+        Guid InvestigationTypeId,
+        string InvestigationTypeCode,
+        int InvestigationTypeSortOrder,
+        Guid TemplateVersionId,
+        string TemplateCode,
+        string TemplateNameUk,
+        int VersionNumber,
+        int LinkSortOrder);
 }

@@ -5,6 +5,14 @@
 
 ---
 
+## 0. Швидкі посилання
+
+- Політика версій шаблонів: `docs/handoff-template-versioning-policy.md`
+- Fill + lifecycle версій: `docs/handoff-pdf-fill-panel-and-template-lifecycle.md`
+- Гібридні теги + мапінг реєстратури: `docs/handoff-hybrid-tags-and-registry-mapping.md`
+
+---
+
 ## 1. Де ми зараз
 
 | Блок | Статус |

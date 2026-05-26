@@ -1552,12 +1552,29 @@ a.lims-workspace-quicklink:hover {
     box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
 }
 
+.pdf-fill-library-modal__dialog.is-dragged {
+    position: fixed;
+    margin: 0;
+}
+
+.pdf-fill-library-modal__dialog.is-dragging {
+    user-select: none;
+}
+
 .pdf-fill-library-modal__head {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 0.5rem;
     margin-bottom: 0.25rem;
+}
+
+.pdf-fill-library-modal__head--draggable {
+    cursor: grab;
+}
+
+.pdf-fill-library-modal__dialog.is-dragging .pdf-fill-library-modal__head--draggable {
+    cursor: grabbing;
 }
 
 .pdf-fill-library-modal__title {

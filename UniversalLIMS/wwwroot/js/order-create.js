@@ -13,6 +13,7 @@
     const selectedLabelInput = document.getElementById("selectedCustomerLabel");
     const selectedSummary = document.getElementById("selectedCustomerSummary");
     const investigationSelect = document.getElementById("investigationTypeId");
+    const selectedTemplateVersionInput = document.getElementById("selectedTemplateVersionId");
     const documentsList = document.getElementById("templateDocumentsList");
     const documentsPlaceholder = document.getElementById("templateDocumentsPlaceholder");
     const form = document.getElementById("orderCreateForm");
@@ -53,6 +54,12 @@
 
     function renderTemplateDocuments() {
         const typeId = investigationSelect?.value;
+        const selectedOption = investigationSelect?.selectedOptions?.[0];
+        const selectedTemplateVersionId = selectedOption?.dataset?.templateVersionId || "";
+        if (selectedTemplateVersionInput) {
+            selectedTemplateVersionInput.value = selectedTemplateVersionId;
+        }
+
         if (!documentsList || !documentsPlaceholder) {
             return;
         }
@@ -65,7 +72,13 @@
             return;
         }
 
-        const options = templateOptions.filter((item) => item.investigationTypeId === typeId);
+        const options = templateOptions.filter((item) => {
+            if (selectedTemplateVersionId) {
+                return item.templateVersionId === selectedTemplateVersionId;
+            }
+
+            return item.investigationTypeId === typeId;
+        });
         if (!options.length) {
             documentsPlaceholder.textContent = "Для цього типу немає опублікованих PDF-шаблонів.";
             documentsPlaceholder.classList.remove("d-none");

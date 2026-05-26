@@ -2690,7 +2690,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
 <div id="nudgeTagLibraryModal" class="pdf-fill-library-modal" hidden>
     <div id="nudgeTagLibraryModalBackdrop" class="pdf-fill-library-modal__backdrop" tabindex="-1"></div>
     <div class="pdf-fill-library-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="nudgeTagLibraryModalTitle">
-        <div class="pdf-fill-library-modal__head">
+        <div class="pdf-fill-library-modal__head pdf-fill-library-modal__head--draggable" title="Перетягніть, щоб відсунути вікно від PDF">
             <h2 id="nudgeTagLibraryModalTitle" class="pdf-fill-library-modal__title h6 mb-0">Бібліотека тегів</h2>
             <button type="button" id="nudgeTagLibraryModalClose" class="btn-close btn-close-sm" aria-label="Закрити"></button>
         </div>
@@ -8837,6 +8837,8 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                     const nudgeTagLibraryModal = document.getElementById("nudgeTagLibraryModal");
                     const nudgeTagLibraryModalBackdrop = document.getElementById("nudgeTagLibraryModalBackdrop");
                     const nudgeTagLibraryModalClose = document.getElementById("nudgeTagLibraryModalClose");
+                    const nudgeTagLibraryModalDialog = nudgeTagLibraryModal?.querySelector(".pdf-fill-library-modal__dialog");
+                    const nudgeTagLibraryModalHead = nudgeTagLibraryModal?.querySelector(".pdf-fill-library-modal__head");
                     const nudgeTagLibraryModalField = document.getElementById("nudgeTagLibraryModalField");
                     const nudgeTagLibraryModalSearch = document.getElementById("nudgeTagLibraryModalSearch");
                     const nudgeTagLibraryModalCreate = document.getElementById("nudgeTagLibraryModalCreate");
@@ -9259,6 +9261,92 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                     // ------------------------------
                     let isTagLibraryModalOpen = false;
                     let tagLibraryFilterQuery = "";
+                    let tagLibraryModalPosition = null;
+
+                    const clampTagLibraryModalPosition = (left, top) => {
+                        if (!nudgeTagLibraryModalDialog) {
+                            return { left, top };
+                        }
+
+                        const margin = 12;
+                        const width = nudgeTagLibraryModalDialog.offsetWidth || 0;
+                        const height = nudgeTagLibraryModalDialog.offsetHeight || 0;
+                        const maxLeft = Math.max(margin, window.innerWidth - width - margin);
+                        const maxTop = Math.max(margin, window.innerHeight - height - margin);
+
+                        return {
+                            left: Math.min(Math.max(left, margin), maxLeft),
+                            top: Math.min(Math.max(top, margin), maxTop)
+                        };
+                    };
+
+                    const applyTagLibraryModalPosition = () => {
+                        if (!nudgeTagLibraryModalDialog) return;
+
+                        if (!tagLibraryModalPosition) {
+                            nudgeTagLibraryModalDialog.classList.remove("is-dragged");
+                            nudgeTagLibraryModalDialog.style.left = "";
+                            nudgeTagLibraryModalDialog.style.top = "";
+                            return;
+                        }
+
+                        tagLibraryModalPosition = clampTagLibraryModalPosition(
+                            tagLibraryModalPosition.left,
+                            tagLibraryModalPosition.top);
+
+                        nudgeTagLibraryModalDialog.classList.add("is-dragged");
+                        nudgeTagLibraryModalDialog.style.left = `${tagLibraryModalPosition.left}px`;
+                        nudgeTagLibraryModalDialog.style.top = `${tagLibraryModalPosition.top}px`;
+                    };
+
+                    const initTagLibraryModalDrag = () => {
+                        if (!nudgeTagLibraryModalDialog || !nudgeTagLibraryModalHead) return;
+
+                        let dragState = null;
+
+                        const stopDrag = () => {
+                            if (!dragState) return;
+                            nudgeTagLibraryModalDialog.classList.remove("is-dragging");
+                            document.removeEventListener("pointermove", moveDrag);
+                            document.removeEventListener("pointerup", stopDrag);
+                            document.removeEventListener("pointercancel", stopDrag);
+                            dragState = null;
+                        };
+
+                        const moveDrag = (event) => {
+                            if (!dragState) return;
+                            tagLibraryModalPosition = clampTagLibraryModalPosition(
+                                event.clientX - dragState.offsetX,
+                                event.clientY - dragState.offsetY);
+                            applyTagLibraryModalPosition();
+                        };
+
+                        nudgeTagLibraryModalHead.addEventListener("pointerdown", (event) => {
+                            if (event.button !== 0 || event.target.closest("button, input, textarea, select, a")) {
+                                return;
+                            }
+
+                            const rect = nudgeTagLibraryModalDialog.getBoundingClientRect();
+                            dragState = {
+                                offsetX: event.clientX - rect.left,
+                                offsetY: event.clientY - rect.top
+                            };
+
+                            tagLibraryModalPosition = { left: rect.left, top: rect.top };
+                            applyTagLibraryModalPosition();
+                            nudgeTagLibraryModalDialog.classList.add("is-dragging");
+
+                            event.preventDefault();
+                            document.addEventListener("pointermove", moveDrag);
+                            document.addEventListener("pointerup", stopDrag);
+                            document.addEventListener("pointercancel", stopDrag);
+                        });
+
+                        window.addEventListener("resize", () => {
+                            if (!isTagLibraryModalOpen || !tagLibraryModalPosition) return;
+                            applyTagLibraryModalPosition();
+                        });
+                    };
 
                     const getFilteredTagLibraryItems = () => {
                         const q = normalizeTagLibraryText(tagLibraryFilterQuery);
@@ -9387,6 +9475,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         }
                         nudgeTagLibraryModal.hidden = false;
                         document.body.classList.add("pdf-fill-library-modal-open");
+                        applyTagLibraryModalPosition();
 
                         renderTagLibraryModalList();
                         window.setTimeout(() => {
@@ -9400,6 +9489,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                     if (nudgeTagLibraryModal && nudgeTagLibraryModal.parentElement !== document.body) {
                         document.body.appendChild(nudgeTagLibraryModal);
                     }
+                    initTagLibraryModalDrag();
 
                     if (nudgeTagLibraryExpandBtn) {
                         nudgeTagLibraryExpandBtn.disabled = !addPdfFieldForm;

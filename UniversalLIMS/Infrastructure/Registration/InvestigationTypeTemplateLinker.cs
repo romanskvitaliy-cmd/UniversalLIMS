@@ -28,7 +28,7 @@ public static class InvestigationTypeTemplateLinker
         var investigationTypeRows = await context.InvestigationTypes
             .AsNoTracking()
             .Where(type => type.IsActive && !type.IsAnnulled)
-            .Select(type => new { type.Id, type.NameUk })
+            .Select(type => new { type.Id, type.Code, type.NameUk })
             .ToListAsync(cancellationToken);
 
         if (investigationTypeRows.Count == 0)
@@ -37,7 +37,7 @@ public static class InvestigationTypeTemplateLinker
         }
 
         var investigationTypes = investigationTypeRows
-            .Select(type => new InvestigationTypeLinkTarget(type.Id, type.NameUk))
+            .Select(type => new InvestigationTypeLinkTarget(type.Id, type.Code, type.NameUk))
             .ToList();
 
         var targetTypeIds = ResolveTargetInvestigationTypeIds(template.NameUk, investigationTypes);
@@ -99,32 +99,69 @@ public static class InvestigationTypeTemplateLinker
             return investigationTypes.Select(type => type.Id).ToList();
         }
 
-        var exactMatches = investigationTypes
-            .Where(type => NormalizeName(type.NameUk) == normalizedTemplateName)
-            .Select(type => type.Id)
+        var scoredMatches = investigationTypes
+            .Select(type => new
+            {
+                type.Id,
+                Score = GetTemplateTypeMatchScore(normalizedTemplateName, type.Code, type.NameUk)
+            })
+            .Where(type => type.Score > 0)
             .ToList();
 
-        if (exactMatches.Count > 0)
+        if (scoredMatches.Count > 0)
         {
-            return exactMatches;
+            var bestScore = scoredMatches.Max(type => type.Score);
+            return scoredMatches
+                .Where(type => type.Score == bestScore)
+                .Select(type => type.Id)
+                .ToList();
         }
 
-        var partialMatches = investigationTypes
-            .Where(type =>
-            {
-                var typeName = NormalizeName(type.NameUk);
-                return typeName.Contains(normalizedTemplateName, StringComparison.Ordinal)
-                    || normalizedTemplateName.Contains(typeName, StringComparison.Ordinal);
-            })
-            .Select(type => type.Id)
-            .ToList();
-
-        return partialMatches.Count > 0
-            ? partialMatches
-            : investigationTypes.Select(type => type.Id).ToList();
+        return investigationTypes.Count == 1
+            ? [investigationTypes[0].Id]
+            : [];
     }
 
-    private sealed record InvestigationTypeLinkTarget(Guid Id, string NameUk);
+    private sealed record InvestigationTypeLinkTarget(Guid Id, string Code, string NameUk);
+
+    private static int GetTemplateTypeMatchScore(
+        string normalizedTemplateName,
+        string investigationTypeCode,
+        string investigationTypeNameUk)
+    {
+        var typeName = NormalizeName(investigationTypeNameUk);
+
+        if (normalizedTemplateName == typeName)
+        {
+            return 100;
+        }
+
+        if (normalizedTemplateName.Contains(typeName, StringComparison.Ordinal)
+            || typeName.Contains(normalizedTemplateName, StringComparison.Ordinal))
+        {
+            return 80;
+        }
+
+        var score = investigationTypeCode.ToUpperInvariant() switch
+        {
+            "WATER" when normalizedTemplateName.Contains("вод", StringComparison.Ordinal) => 60,
+            "FOOD" when normalizedTemplateName.Contains("харч", StringComparison.Ordinal)
+                || normalizedTemplateName.Contains("страв", StringComparison.Ordinal)
+                || normalizedTemplateName.Contains("напівфабрикат", StringComparison.Ordinal) => 60,
+            "INDOOR_AIR" when normalizedTemplateName.Contains("повітр", StringComparison.Ordinal) => 60,
+            _ => 0
+        };
+
+        var typeTokens = typeName
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(token => token.Length > 3)
+            .ToHashSet(StringComparer.Ordinal);
+        var commonTokenCount = normalizedTemplateName
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Count(token => typeTokens.Contains(token));
+
+        return score + commonTokenCount;
+    }
 
     private static string NormalizeName(string? value) =>
         string.IsNullOrWhiteSpace(value)

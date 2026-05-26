@@ -4,8 +4,9 @@
 @{
     Layout = "_LayoutWorkspace";
     ViewData["Title"] = "Прийом нової проби";
-    var templateOptionsJson = JsonSerializer.Serialize(Model.Form.TemplateOptions);
-    var branchesJson = JsonSerializer.Serialize(Model.Form.Branches);
+    var orderCreateJsonOptions = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+    var templateOptionsJson = JsonSerializer.Serialize(Model.Form.TemplateOptions, orderCreateJsonOptions);
+    var branchesJson = JsonSerializer.Serialize(Model.Form.Branches, orderCreateJsonOptions);
     var defaultBranchId = Model.Form.DefaultBranchId?.ToString("D") ?? "";
 }
 
@@ -108,10 +109,23 @@
         <div class="row g-2 mb-3">
             <div class="col-md-6">
                 <label class="form-label small text-muted" asp-for="Input.InvestigationTypeId">Тип дослідження</label>
-                <select asp-for="Input.InvestigationTypeId" class="form-select form-select-sm" id="investigationTypeId"
-                        asp-items="@(new SelectList(Model.Form.InvestigationTypes, nameof(InvestigationTypeOptionDto.Id), nameof(InvestigationTypeOptionDto.NameUk)))">
+                <select asp-for="Input.InvestigationTypeId" class="form-select form-select-sm" id="investigationTypeId">
                     <option value="">— оберіть —</option>
+                    @foreach (var option in Model.Form.InvestigationTypes)
+                    {
+                        var selected = Model.Input.TemplateVersionId == option.TemplateVersionId
+                            || (!Model.Input.TemplateVersionId.HasValue && Model.Input.InvestigationTypeId == option.Id);
+                        if (selected)
+                        {
+                            <option value="@option.Id" data-template-version-id="@option.TemplateVersionId" selected>@option.NameUk</option>
+                        }
+                        else
+                        {
+                            <option value="@option.Id" data-template-version-id="@option.TemplateVersionId">@option.NameUk</option>
+                        }
+                    }
                 </select>
+                <input type="hidden" asp-for="Input.TemplateVersionId" id="selectedTemplateVersionId" />
                 <span asp-validation-for="Input.InvestigationTypeId" class="text-danger small"></span>
             </div>
         </div>
