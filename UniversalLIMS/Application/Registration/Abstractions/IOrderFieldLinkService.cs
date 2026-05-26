@@ -16,4 +16,8 @@ public interface IOrderFieldLinkService
         IReadOnlyList<OrderFieldLinkGroupInput> groups,
         IReadOnlyList<OrderSharedFieldValueInput> sharedValues,
         CancellationToken cancellationToken = default);
+
+    Task<OrderFieldLinkGroupsDetailDto> GetFieldLinkGroupsForOrderAsync(
+        Guid orderId,
+        CancellationToken cancellationToken = default);
 }

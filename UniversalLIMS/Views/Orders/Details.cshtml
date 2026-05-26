@@ -151,6 +151,54 @@
     </div>
 </div>
 
+@if (Model.FieldLinkGroups.Groups.Count > 0)
+{
+    <div class="card mb-3">
+        <div class="card-header py-2 d-flex justify-content-between align-items-center">
+            <span class="fw-semibold">Мапінг спільних полів</span>
+            <span class="small text-muted">@Model.FieldLinkGroups.Groups.Count груп</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="list-group list-group-flush">
+                @foreach (var (group, index) in Model.FieldLinkGroups.Groups.Select((group, index) => (group, index)))
+                {
+                    var groupTitle = !string.IsNullOrWhiteSpace(group.Label)
+                        ? group.Label
+                        : $"Група {index + 1}";
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                            <div class="fw-semibold">@groupTitle</div>
+                            @if (!string.IsNullOrWhiteSpace(group.SharedValue))
+                            {
+                                <span class="badge text-bg-light border text-wrap text-start" style="max-width: 50%;">
+                                    @group.SharedValue
+                                </span>
+                            }
+                        </div>
+                        <ul class="small mb-0 ps-3">
+                            @foreach (var member in group.Members)
+                            {
+                                <li>
+                                    <span class="text-muted">@member.TemplateNameUk (v@(member.VersionNumber)):</span>
+                                    <code class="user-select-all">@member.Tag</code>
+                                    @if (!string.IsNullOrWhiteSpace(member.Title))
+                                    {
+                                        <span class="text-muted">— @member.Title</span>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(member.DataFieldKey))
+                                    {
+                                        <span class="text-muted"> → @member.DataFieldKey</span>
+                                    }
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}
+
 <p class="small text-muted mb-0">
     Дата реєстрації: @detail.OrderDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
 </p>

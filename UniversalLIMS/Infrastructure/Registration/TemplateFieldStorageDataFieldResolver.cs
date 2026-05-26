@@ -100,4 +100,57 @@ internal static class TemplateFieldStorageDataFieldResolver
 
         return result;
     }
+
+    /// <summary>Лише читання — не створює workspace DataField.</summary>
+    public static async Task<Dictionary<Guid, Guid>> ResolveStorageDataFieldIdsReadOnlyAsync(
+        ApplicationDbContext context,
+        IEnumerable<TemplateField> fields,
+        CancellationToken cancellationToken)
+    {
+        var fieldList = fields.ToList();
+        if (fieldList.Count == 0)
+        {
+            return new Dictionary<Guid, Guid>();
+        }
+
+        var mappedDataFieldIds = fieldList
+            .Where(field => field.DataFieldId.HasValue)
+            .Select(field => field.DataFieldId!.Value)
+            .Distinct()
+            .ToList();
+
+        var dataFieldKeysById = mappedDataFieldIds.Count == 0
+            ? new Dictionary<Guid, string>()
+            : await context.DataFields
+                .AsNoTracking()
+                .Where(dataField => mappedDataFieldIds.Contains(dataField.Id) && dataField.IsActive)
+                .ToDictionaryAsync(dataField => dataField.Id, dataField => dataField.Key, cancellationToken);
+
+        var workspaceKeys = fieldList.Select(field => WorkspaceDataFieldKey(field.Id)).ToList();
+        var existingWorkspaceByKey = await context.DataFields
+            .AsNoTracking()
+            .Where(dataField => workspaceKeys.Contains(dataField.Key) && dataField.IsActive)
+            .ToDictionaryAsync(dataField => dataField.Key, dataField => dataField.Id, cancellationToken);
+
+        var result = new Dictionary<Guid, Guid>();
+
+        foreach (var field in fieldList)
+        {
+            if (field.DataFieldId.HasValue
+                && dataFieldKeysById.TryGetValue(field.DataFieldId.Value, out var mappedKey)
+                && !IsWorkspaceDataFieldKey(mappedKey, field.Id))
+            {
+                result[field.Id] = field.DataFieldId.Value;
+                continue;
+            }
+
+            var workspaceKey = WorkspaceDataFieldKey(field.Id);
+            if (existingWorkspaceByKey.TryGetValue(workspaceKey, out var workspaceId))
+            {
+                result[field.Id] = workspaceId;
+            }
+        }
+
+        return result;
+    }
 }

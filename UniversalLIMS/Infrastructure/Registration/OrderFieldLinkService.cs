@@ -239,6 +239,149 @@ public sealed class OrderFieldLinkService : IOrderFieldLinkService
         await _context.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<OrderFieldLinkGroupsDetailDto> GetFieldLinkGroupsForOrderAsync(
+        Guid orderId,
+        CancellationToken cancellationToken = default)
+    {
+        var groups = await _context.OrderFieldLinkGroups
+            .AsNoTracking()
+            .Where(group => group.OrderId == orderId)
+            .Include(group => group.Members)
+            .OrderBy(group => group.SortOrder)
+            .ThenBy(group => group.CreatedAtUtc)
+            .ToListAsync(cancellationToken);
+
+        if (groups.Count == 0)
+        {
+            return new OrderFieldLinkGroupsDetailDto();
+        }
+
+        var memberFieldIds = groups
+            .SelectMany(group => group.Members)
+            .Select(member => member.TemplateFieldId)
+            .Distinct()
+            .ToList();
+
+        var templateFields = await _context.TemplateFields
+            .AsNoTracking()
+            .Where(field => memberFieldIds.Contains(field.Id) && !field.IsAnnulled)
+            .ToListAsync(cancellationToken);
+
+        var fieldsById = templateFields.ToDictionary(field => field.Id);
+
+        var versionIds = groups
+            .SelectMany(group => group.Members)
+            .Select(member => member.TemplateVersionId)
+            .Distinct()
+            .ToList();
+
+        var versions = await _context.TemplateVersions
+            .AsNoTracking()
+            .Include(version => version.Template)
+            .Where(version => versionIds.Contains(version.Id))
+            .ToDictionaryAsync(version => version.Id, cancellationToken);
+
+        var storageIdsByFieldId = await TemplateFieldStorageDataFieldResolver.ResolveStorageDataFieldIdsReadOnlyAsync(
+            _context,
+            templateFields,
+            cancellationToken);
+
+        var storageDataFieldIds = storageIdsByFieldId.Values.Distinct().ToList();
+
+        var dataFieldKeys = await _context.DataFields
+            .AsNoTracking()
+            .Where(dataField => storageDataFieldIds.Contains(dataField.Id))
+            .ToDictionaryAsync(dataField => dataField.Id, dataField => dataField.Key, cancellationToken);
+
+        var orderValues = await _context.OrderFieldValues
+            .AsNoTracking()
+            .Where(fieldValue => fieldValue.OrderId == orderId
+                                  && fieldValue.SampleId == null
+                                  && storageDataFieldIds.Contains(fieldValue.DataFieldId))
+            .ToDictionaryAsync(fieldValue => fieldValue.DataFieldId, fieldValue => fieldValue.StoredValue, cancellationToken);
+
+        var resultGroups = new List<OrderFieldLinkGroupDetailDto>();
+
+        foreach (var group in groups)
+        {
+            var memberDetails = new List<OrderFieldLinkMemberDetailDto>();
+
+            foreach (var member in group.Members.OrderBy(member => member.CreatedAtUtc))
+            {
+                if (!fieldsById.TryGetValue(member.TemplateFieldId, out var field))
+                {
+                    continue;
+                }
+
+                if (!versions.TryGetValue(member.TemplateVersionId, out var version))
+                {
+                    continue;
+                }
+
+                string? dataFieldKey = null;
+                if (storageIdsByFieldId.TryGetValue(member.TemplateFieldId, out var storageId)
+                    && dataFieldKeys.TryGetValue(storageId, out var key))
+                {
+                    dataFieldKey = key;
+                }
+
+                memberDetails.Add(new OrderFieldLinkMemberDetailDto
+                {
+                    TemplateVersionId = member.TemplateVersionId,
+                    TemplateNameUk = version.Template.NameUk,
+                    VersionNumber = version.VersionNumber,
+                    TemplateFieldId = member.TemplateFieldId,
+                    Tag = field.Tag,
+                    Title = field.Title,
+                    DataFieldKey = dataFieldKey
+                });
+            }
+
+            var sharedValue = ResolveGroupSharedValue(group.Members, storageIdsByFieldId, orderValues);
+
+            resultGroups.Add(new OrderFieldLinkGroupDetailDto
+            {
+                GroupId = group.Id,
+                Label = group.Label,
+                SortOrder = group.SortOrder,
+                SharedValue = sharedValue,
+                Members = memberDetails
+            });
+        }
+
+        return new OrderFieldLinkGroupsDetailDto { Groups = resultGroups };
+    }
+
+    private static string? ResolveGroupSharedValue(
+        IEnumerable<OrderFieldLinkMember> members,
+        IReadOnlyDictionary<Guid, Guid> storageIdsByFieldId,
+        IReadOnlyDictionary<Guid, string?> orderValues)
+    {
+        var distinctValues = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var member in members)
+        {
+            if (!storageIdsByFieldId.TryGetValue(member.TemplateFieldId, out var dataFieldId))
+            {
+                continue;
+            }
+
+            if (!orderValues.TryGetValue(dataFieldId, out var stored) || string.IsNullOrWhiteSpace(stored))
+            {
+                continue;
+            }
+
+            distinctValues.Add(stored.Trim());
+        }
+
+        return distinctValues.Count switch
+        {
+            0 => null,
+            1 => distinctValues.First(),
+            _ => "(різні значення в полях групи)"
+        };
+    }
+
     private static void ValidateGroups(IReadOnlyList<OrderFieldLinkGroupInput> groups)
     {
         var usedFieldIds = new HashSet<Guid>();

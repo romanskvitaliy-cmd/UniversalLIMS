@@ -7,6 +7,8 @@ public sealed class OrderDetailViewModel
     public required OrderDetailDto Detail { get; init; }
 
     public required IReadOnlyList<BranchOptionDto> Branches { get; init; }
+
+    public OrderFieldLinkGroupsDetailDto FieldLinkGroups { get; init; } = new();
 }
 
 public sealed class SendOrderDocumentsInputModel

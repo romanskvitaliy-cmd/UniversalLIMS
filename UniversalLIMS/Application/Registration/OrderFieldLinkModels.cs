@@ -50,3 +50,39 @@ public sealed class OrderSharedFieldValueInput
 
     public string? Value { get; init; }
 }
+
+public sealed class OrderFieldLinkGroupsDetailDto
+{
+    public IReadOnlyList<OrderFieldLinkGroupDetailDto> Groups { get; init; } = [];
+}
+
+public sealed class OrderFieldLinkGroupDetailDto
+{
+    public Guid GroupId { get; init; }
+
+    public string? Label { get; init; }
+
+    public int SortOrder { get; init; }
+
+    /// <summary>Спільне значення з OrderFieldValue (якщо є).</summary>
+    public string? SharedValue { get; init; }
+
+    public IReadOnlyList<OrderFieldLinkMemberDetailDto> Members { get; init; } = [];
+}
+
+public sealed class OrderFieldLinkMemberDetailDto
+{
+    public Guid TemplateVersionId { get; init; }
+
+    public required string TemplateNameUk { get; init; }
+
+    public int VersionNumber { get; init; }
+
+    public Guid TemplateFieldId { get; init; }
+
+    public required string Tag { get; init; }
+
+    public string? Title { get; init; }
+
+    public string? DataFieldKey { get; init; }
+}

@@ -227,11 +227,13 @@ public sealed class OrdersController : Controller
         }
 
         var form = await _orderRegistration.GetCreateFormAsync(cancellationToken);
+        var fieldLinkGroups = await _orderFieldLinks.GetFieldLinkGroupsForOrderAsync(id, cancellationToken);
 
         return View(new OrderDetailViewModel
         {
             Detail = detail,
-            Branches = form.Branches
+            Branches = form.Branches,
+            FieldLinkGroups = fieldLinkGroups
         });
     }
 
