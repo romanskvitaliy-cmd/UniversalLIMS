@@ -317,6 +317,64 @@ a.lims-workspace-primary-action:hover {
     }
 }
 
+.lims-workspace-metrics {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    margin-bottom: 1.75rem;
+}
+
+@media (min-width: 768px) {
+    .lims-workspace-metrics {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+.lims-workspace-metric {
+    display: flex;
+    align-items: center;
+    gap: 0.95rem;
+    padding: 1rem 1.1rem;
+    background: var(--ws-surface);
+    border: 1px solid var(--ws-border);
+    border-radius: 16px;
+    box-shadow: var(--ws-shadow);
+}
+
+.lims-workspace-metric__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--workspace-accent, #0d9488) 10%, var(--ws-bg));
+    color: var(--workspace-accent, #0d9488);
+    font-size: 1.25rem;
+}
+
+.lims-workspace-metric__label {
+    color: var(--ws-muted);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.lims-workspace-metric__value {
+    color: var(--ws-text);
+    font-size: 1.55rem;
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.04em;
+}
+
+.lims-workspace-metric__desc {
+    color: var(--ws-muted);
+    font-size: 0.82rem;
+}
+
 .lims-section-title {
     font-size: 0.75rem;
     font-weight: 700;

@@ -2,10 +2,13 @@ using System.Diagnostics;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using UniversalLIMS.Application.Abstractions;
 using UniversalLIMS.Application.Home;
 using UniversalLIMS.Application.Security;
+using UniversalLIMS.Domain.Registration;
+using UniversalLIMS.Infrastructure.Persistence;
 using UniversalLIMS.Models;
 
 namespace UniversalLIMS.Controllers;
@@ -19,6 +22,7 @@ public class HomeController : Controller
     private readonly IPortalThemeService _portalTheme;
     private readonly IDateTimeProvider _dateTime;
     private readonly IWebHostEnvironment _environment;
+    private readonly ApplicationDbContext _context;
     private readonly LimsPortalOptions _portalOptions;
 
     public HomeController(
@@ -28,6 +32,7 @@ public class HomeController : Controller
         IPortalThemeService portalTheme,
         IDateTimeProvider dateTime,
         IWebHostEnvironment environment,
+        ApplicationDbContext context,
         IOptions<LimsPortalOptions> portalOptions)
     {
         _logger = logger;
@@ -36,6 +41,7 @@ public class HomeController : Controller
         _portalTheme = portalTheme;
         _dateTime = dateTime;
         _environment = environment;
+        _context = context;
         _portalOptions = portalOptions.Value;
     }
 
@@ -92,7 +98,7 @@ public class HomeController : Controller
     }
 
     [HttpGet]
-    public IActionResult Workspace()
+    public async Task<IActionResult> Workspace(CancellationToken cancellationToken)
     {
         var activeRole = _activeLimsRole.ResolveActiveRole(User);
         if (string.IsNullOrWhiteSpace(activeRole))
@@ -107,7 +113,74 @@ public class HomeController : Controller
             return RedirectToAction(nameof(Index));
         }
 
+        if (activeRole == LimsRoles.Registrar)
+        {
+            model.Metrics = await BuildRegistrarMetricsAsync(cancellationToken);
+        }
+
         return View(model);
+    }
+
+    private async Task<IReadOnlyList<WorkspaceMetricVm>> BuildRegistrarMetricsAsync(CancellationToken cancellationToken)
+    {
+        var localToday = _dateTime.UtcNow.ToLocalTime().Date;
+        var todayStartUtc = DateTime.SpecifyKind(localToday, DateTimeKind.Local).ToUniversalTime();
+        var tomorrowStartUtc = todayStartUtc.AddDays(1);
+
+        var orders = _context.Orders
+            .AsNoTracking()
+            .Where(order => !order.IsAnnulled);
+
+        if (_currentUser.BranchId is Guid branchId)
+        {
+            orders = orders.Where(order => order.BranchId == branchId);
+        }
+
+        var acceptedToday = await orders.CountAsync(
+            order => (order.RegisteredAtUtc ?? order.CreatedAtUtc) >= todayStartUtc
+                && (order.RegisteredAtUtc ?? order.CreatedAtUtc) < tomorrowStartUtc,
+            cancellationToken);
+
+        var documents = _context.OrderDocuments
+            .AsNoTracking()
+            .Where(document => !document.IsAnnulled && document.Status == OrderDocumentStatus.Pending);
+
+        if (_currentUser.BranchId is Guid documentBranchId)
+        {
+            documents = documents.Where(document => document.Order.BranchId == documentBranchId);
+        }
+
+        var pendingDocuments = await documents.CountAsync(cancellationToken);
+
+        var ordersInWorkflow = await orders.CountAsync(
+            order => order.OrderDocuments.Any(document =>
+                !document.IsAnnulled && document.Status != OrderDocumentStatus.ResultsEntered),
+            cancellationToken);
+
+        return
+        [
+            new WorkspaceMetricVm
+            {
+                Label = "Сьогодні прийнято",
+                Value = acceptedToday.ToString("N0"),
+                Description = "зареєстрованих проб",
+                IconClass = "bi-calendar2-check"
+            },
+            new WorkspaceMetricVm
+            {
+                Label = "Очікують передачі",
+                Value = pendingDocuments.ToString("N0"),
+                Description = "PDF-направлень",
+                IconClass = "bi-hourglass-split"
+            },
+            new WorkspaceMetricVm
+            {
+                Label = "В роботі",
+                Value = ordersInWorkflow.ToString("N0"),
+                Description = "активних справ",
+                IconClass = "bi-activity"
+            }
+        ];
     }
 
     [HttpGet]

@@ -37,6 +37,25 @@
     </a>
 }
 
+@if (Model.Metrics.Count > 0)
+{
+    <div class="lims-workspace-metrics" aria-label="Показники кабінету">
+        @foreach (var metric in Model.Metrics)
+        {
+            <div class="lims-workspace-metric" style="--workspace-accent: @Model.AccentColor">
+                <div class="lims-workspace-metric__icon" aria-hidden="true">
+                    <i class="bi @metric.IconClass"></i>
+                </div>
+                <div>
+                    <div class="lims-workspace-metric__label">@metric.Label</div>
+                    <div class="lims-workspace-metric__value">@metric.Value</div>
+                    <div class="lims-workspace-metric__desc">@metric.Description</div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
 <h2 class="lims-section-title">Швидкий доступ</h2>
 
 <div class="lims-workspace-quicklinks">
