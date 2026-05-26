@@ -9,13 +9,38 @@
 <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
     <div>
         <h1 class="h3 mb-1">PDF Workspace</h1>
-        <p class="text-muted mb-0">Режим заповнення — оберіть версію PDF-шаблону.</p>
+        <p class="text-muted mb-0">
+            @if (Model.IsRegistrarMode)
+            {
+                <text>Допоміжний режим для перевірки та ручного заповнення опублікованих PDF-бланків.</text>
+            }
+            else
+            {
+                <text>Режим заповнення — оберіть версію PDF-шаблону.</text>
+            }
+        </p>
     </div>
+    @if (Model.IsRegistrarMode)
+    {
+        <a class="btn btn-sm btn-primary" asp-controller="Orders" asp-action="Create">
+            <i class="bi bi-clipboard2-plus me-1"></i>
+            Прийняти нову пробу
+        </a>
+    }
 </div>
 
 @if (!Model.Versions.Any())
 {
-    <div class="alert alert-warning">PDF-версії шаблонів не знайдено.</div>
+    <div class="alert alert-warning">
+        @if (Model.IsRegistrarMode)
+        {
+            <text>Опубліковані PDF-бланки для реєстратора не знайдено. Опублікуйте шаблон або почніть прийом проби через реєстр.</text>
+        }
+        else
+        {
+            <text>PDF-версії шаблонів не знайдено.</text>
+        }
+    </div>
 }
 else
 {

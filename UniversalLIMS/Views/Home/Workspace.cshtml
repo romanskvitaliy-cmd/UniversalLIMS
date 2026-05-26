@@ -1,16 +1,9 @@
 @model WorkspaceViewModel
+@using UniversalLIMS.Application.Security
 @{
     Layout = "_LayoutWorkspace";
     ViewData["Title"] = $"Кабінет — {Model.RoleDisplayName}";
-}
-
-@if (Model.IsDemoMode)
-{
-    <div class="alert alert-warning py-2 px-3 small mb-3">
-        <strong>Режим демонстрації (Development).</strong>
-        Доступні журнал проб і реєстр замовлень для всіх ролей.
-        Для повної демонстрації лабораторії оберіть роль <strong>Лаборант</strong> через «Змінити роль».
-    </div>
+    var isRegistrar = Model.RoleCode == LimsRoles.Registrar;
 }
 
 <div class="lims-workspace-welcome" style="--workspace-accent: @Model.AccentColor">
@@ -23,6 +16,26 @@
         Оберіть розділ нижче або скористайтеся меню зверху.
     </p>
 </div>
+
+@if (isRegistrar)
+{
+    <a class="lims-workspace-primary-action" href="/Orders/Create" style="--workspace-accent: @Model.AccentColor">
+        <span class="lims-workspace-primary-action__icon" aria-hidden="true">
+            <i class="bi bi-clipboard2-plus"></i>
+        </span>
+        <span class="lims-workspace-primary-action__body">
+            <span class="lims-workspace-primary-action__eyebrow">Головна дія реєстратора</span>
+            <span class="lims-workspace-primary-action__title">Прийняти нову пробу</span>
+            <span class="lims-workspace-primary-action__desc">
+                Зареєструвати замовника, пробу, дослідження, бланки та направлення.
+            </span>
+        </span>
+        <span class="lims-workspace-primary-action__cta">
+            Почати
+            <i class="bi bi-arrow-right-short"></i>
+        </span>
+    </a>
+}
 
 <h2 class="lims-section-title">Швидкий доступ</h2>
 

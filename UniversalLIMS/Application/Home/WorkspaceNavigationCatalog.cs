@@ -17,15 +17,11 @@ public static class WorkspaceNavigationCatalog
             LimsRoles.Registrar =>
             [
                 new("Кабінет", "Home", "Workspace", "bi-house-door"),
-                new("Замовлення", "Orders", "Index", "bi-journal-plus"),
+                new("Нова проба", "Orders", "Create", "bi-plus-circle"),
+                new("Реєстр", "Orders", "Index", "bi-journal-plus"),
                 new("PDF Workspace", "PdfWorkspace", "Index", "bi-file-earmark-pdf"),
             ],
             LimsRoles.LaboratoryTechnician =>
-            [
-                new("Кабінет", "Home", "Workspace", "bi-house-door"),
-                new("Журнал проб", "Laboratory", "Index", "bi-droplet-half"),
-            ],
-            LimsRoles.Specialist when isDevelopment =>
             [
                 new("Кабінет", "Home", "Workspace", "bi-house-door"),
                 new("Журнал проб", "Laboratory", "Index", "bi-droplet-half"),
@@ -40,14 +36,23 @@ public static class WorkspaceNavigationCatalog
     public static IReadOnlyList<WorkspaceQuickLinkVm> GetQuickLinks(string roleCode, bool isDevelopment = false) =>
         roleCode switch
         {
-            LimsRoles.SystemAdministrator => BuildAdminQuickLinks(isDevelopment),
+            LimsRoles.SystemAdministrator =>
+            [
+                Link("Шаблони документів", "Створення та публікація шаблонів", "bi-layout-text-window-reverse",
+                    "/Templates", true),
+                Link("PDF Workspace", "Заповнення PDF-полів замовлення", "bi-file-earmark-pdf",
+                    "/PdfWorkspace", true),
+                Link("Перевірка фундаменту", "Діагностика системи (розробка)", "bi-tools",
+                    "/Diagnostics/Foundation", true),
+            ],
             LimsRoles.Registrar =>
             [
-                Link("PDF Workspace", "Прийом проб і заповнення направлень", "bi-file-earmark-pdf",
-                    "/PdfWorkspace", true),
-                Link("Замовлення", "Реєстр замовлень і направлень", "bi-journal-plus",
+                Link("Прийом проб", "Створити замовлення, пробу, направлення та обрати бланки", "bi-clipboard2-plus",
+                    "/Orders/Create", true),
+                Link("Реєстр замовлень", "Пошук, статуси, маршрути та направлення", "bi-journal-plus",
                     "/Orders", true),
-                ..BuildLaboratoryDemoQuickLinks(isDevelopment)
+                Link("PDF Workspace", "Перевірка та ручне заповнення PDF-бланків", "bi-file-earmark-pdf",
+                    "/PdfWorkspace", true),
             ],
             LimsRoles.LaboratoryTechnician =>
             [
@@ -55,17 +60,6 @@ public static class WorkspaceNavigationCatalog
                     "/Laboratory", true),
                 Link("Результати", "Оберіть пробу в журналі → PDF або показники", "bi-clipboard2-pulse",
                     "/Laboratory", true),
-            ],
-            LimsRoles.Specialist when isDevelopment =>
-            [
-                Link("Лабораторний журнал", "Демо: перегляд проб філії (режим розробки)", "bi-droplet-half",
-                    "/Laboratory", true),
-                Link("Замовлення", "Демо: реєстр замовлень (режим розробки)", "bi-journal-plus",
-                    "/Orders", true),
-                Link("Протоколи", "Перегляд протоколів (незабаром)", "bi-clipboard2-check",
-                    null, false),
-                Link("Висновки", "Затвердження висновків (незабаром)", "bi-patch-check",
-                    null, false),
             ],
             LimsRoles.Specialist =>
             [
@@ -93,37 +87,6 @@ public static class WorkspaceNavigationCatalog
         }
 
         return items;
-    }
-
-    private static IReadOnlyList<WorkspaceQuickLinkVm> BuildAdminQuickLinks(bool isDevelopment)
-    {
-        var links = new List<WorkspaceQuickLinkVm>
-        {
-            Link("Шаблони документів", "Створення та публікація шаблонів", "bi-layout-text-window-reverse",
-                "/Templates", true),
-            Link("PDF Workspace", "Заповнення PDF-полів замовлення", "bi-file-earmark-pdf",
-                "/PdfWorkspace", true),
-            Link("Перевірка фундаменту", "Діагностика системи (розробка)", "bi-tools",
-                "/Diagnostics/Foundation", true),
-        };
-
-        links.AddRange(BuildLaboratoryDemoQuickLinks(isDevelopment));
-        return links;
-    }
-
-    private static IEnumerable<WorkspaceQuickLinkVm> BuildLaboratoryDemoQuickLinks(bool isDevelopment)
-    {
-        if (!isDevelopment)
-        {
-            yield break;
-        }
-
-        yield return Link(
-            "Лабораторний журнал",
-            "Демо: список проб філії",
-            "bi-droplet-half",
-            "/Laboratory",
-            true);
     }
 
     private static WorkspaceQuickLinkVm Link(

@@ -24,19 +24,9 @@ public sealed class WorkspaceNavigationCatalogTests
     }
 
     [Fact]
-    public void Specialist_InDevelopment_HasLaboratoryDemoQuickLink()
+    public void Specialist_HasOnlyComingSoonLinks()
     {
-        var quickLinks = WorkspaceNavigationCatalog.GetQuickLinks(LimsRoles.Specialist, isDevelopment: true);
-
-        var journalLink = Assert.Single(quickLinks, link => link.Title == "Лабораторний журнал");
-        Assert.True(journalLink.IsAvailable);
-        Assert.Equal("/Laboratory", journalLink.Url);
-    }
-
-    [Fact]
-    public void Specialist_InProduction_HasOnlyComingSoonLinks()
-    {
-        var quickLinks = WorkspaceNavigationCatalog.GetQuickLinks(LimsRoles.Specialist, isDevelopment: false);
+        var quickLinks = WorkspaceNavigationCatalog.GetQuickLinks(LimsRoles.Specialist);
 
         Assert.Equal(2, quickLinks.Count);
         Assert.All(quickLinks, link => Assert.False(link.IsAvailable));

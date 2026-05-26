@@ -55,6 +55,17 @@ public sealed class ResultFieldPermissionService : IResultFieldPermissionService
             return false;
         }
 
+        var hasPublishedTemplates = await (
+            from link in _context.InvestigationTypeTemplates.AsNoTracking()
+            join version in _context.TemplateVersions.AsNoTracking()
+                on link.TemplateId equals version.TemplateId
+            where link.InvestigationTypeId == investigationTypeId
+                  && link.IsActive
+                  && version.Status == TemplateVersionStatus.Published
+                  && !version.IsAnnulled
+            select version.Id)
+            .AnyAsync(cancellationToken);
+
         var templateFieldIds = await (
             from link in _context.InvestigationTypeTemplates.AsNoTracking()
             join version in _context.TemplateVersions.AsNoTracking()
@@ -73,7 +84,9 @@ public sealed class ResultFieldPermissionService : IResultFieldPermissionService
 
         if (templateFieldIds.Count == 0)
         {
-            return true;
+            // Backward-compatible fallback: allow writes when no published templates
+            // are linked for the investigation type yet.
+            return !hasPublishedTemplates;
         }
 
         return await _context.TemplateFieldPermissions

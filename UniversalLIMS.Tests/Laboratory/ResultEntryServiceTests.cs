@@ -231,6 +231,34 @@ public sealed class ResultEntryServiceTests
         Assert.Equal(SampleStatus.Registered, sample!.Status);
     }
 
+    [Fact]
+    public async Task GetResultEntryFormAsync_WhenTemplateHasLinkedResultFields_ReturnsOnlyLinkedFields()
+    {
+        var branchId = Guid.NewGuid();
+        await using var context = CreateContext();
+        await SeedBranchAsync(context, branchId);
+        var investigationTypeId = await SeedInvestigationTypeAsync(context);
+        var customer = await SeedCustomerAsync(context, "Клієнт шаблон");
+        await SeedEquipmentAsync(context, branchId);
+        var linkedFieldId = await SeedResultDataFieldAsync(context, "Result.Linked", "Показник шаблону");
+        await SeedResultDataFieldAsync(context, "Result.Generic", "Загальний показник");
+        var sampleId = await SeedSampleAsync(
+            context,
+            customer.Id,
+            branchId,
+            investigationTypeId,
+            "SMP-LINKED-00001");
+        await SeedPublishedTemplateFieldAsync(context, investigationTypeId, linkedFieldId);
+
+        var service = CreateService(context, branchId, LimsRoles.LaboratoryTechnician);
+        var form = await service.GetResultEntryFormAsync(sampleId);
+
+        Assert.NotNull(form);
+        var field = Assert.Single(form.Fields);
+        Assert.Equal(linkedFieldId, field.DataFieldId);
+        Assert.Equal("Result.Linked", field.Key);
+    }
+
     private static ResultEntryService CreateService(
         ApplicationDbContext context,
         Guid branchId,
@@ -350,6 +378,58 @@ public sealed class ResultEntryServiceTests
         context.Samples.Add(sample);
         await context.SaveChangesAsync();
         return sample.Id;
+    }
+
+    private static async Task SeedPublishedTemplateFieldAsync(
+        ApplicationDbContext context,
+        Guid investigationTypeId,
+        Guid dataFieldId)
+    {
+        var templateId = Guid.NewGuid();
+        var versionId = Guid.NewGuid();
+
+        context.Templates.Add(new Template
+        {
+            Id = templateId,
+            Code = "LAB-DEMO",
+            NameUk = "Лабораторний демо-шаблон",
+            Status = TemplateStatus.Active,
+            CurrentPublishedVersionId = versionId
+        });
+
+        context.TemplateVersions.Add(new TemplateVersion
+        {
+            Id = versionId,
+            TemplateId = templateId,
+            VersionNumber = 1,
+            Status = TemplateVersionStatus.Published,
+            DocumentFormat = TemplateDocumentFormat.Pdf,
+            OriginalFileName = "lab-demo.pdf",
+            StorageKey = "lab-demo",
+            ContentType = "application/pdf",
+            FileSizeBytes = 1,
+            Sha256Hash = new string('b', 64),
+            UploadedAtUtc = DateTime.UtcNow
+        });
+
+        context.TemplateFields.Add(new TemplateField
+        {
+            TemplateVersionId = versionId,
+            Tag = "Result.Linked",
+            Title = "Показник шаблону",
+            SortOrder = 1,
+            DataFieldId = dataFieldId
+        });
+
+        context.InvestigationTypeTemplates.Add(new InvestigationTypeTemplate
+        {
+            InvestigationTypeId = investigationTypeId,
+            TemplateId = templateId,
+            IsActive = true,
+            SortOrder = 1
+        });
+
+        await context.SaveChangesAsync();
     }
 
     private sealed class TestCurrentUser : ICurrentUserService

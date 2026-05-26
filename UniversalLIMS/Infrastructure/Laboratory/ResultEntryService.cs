@@ -43,12 +43,7 @@ public sealed class ResultEntryService : IResultEntryService
             return null;
         }
 
-        var dataFields = await _context.DataFields
-            .AsNoTracking()
-            .Where(field => field.Scope == DataFieldScope.Result && field.IsActive && !field.IsAnnulled)
-            .OrderBy(field => field.DescriptionUk)
-            .ThenBy(field => field.Key)
-            .ToListAsync(cancellationToken);
+        var dataFields = await LoadResultDataFieldsAsync(sample.InvestigationTypeId, cancellationToken);
 
         var currentValues = await _context.SampleResultValues
             .AsNoTracking()
@@ -282,6 +277,57 @@ public sealed class ResultEntryService : IResultEntryService
         }
 
         return orderBranchId == branchId;
+    }
+
+    private async Task<IReadOnlyList<DataField>> LoadResultDataFieldsAsync(
+        Guid investigationTypeId,
+        CancellationToken cancellationToken)
+    {
+        var linkedRows = await (
+            from link in _context.InvestigationTypeTemplates.AsNoTracking()
+            join version in _context.TemplateVersions.AsNoTracking()
+                on link.TemplateId equals version.TemplateId
+            join templateField in _context.TemplateFields.AsNoTracking()
+                on version.Id equals templateField.TemplateVersionId
+            join dataField in _context.DataFields.AsNoTracking()
+                on templateField.DataFieldId equals dataField.Id
+            where link.InvestigationTypeId == investigationTypeId
+                  && link.IsActive
+                  && version.Status == TemplateVersionStatus.Published
+                  && !version.IsAnnulled
+                  && !templateField.IsAnnulled
+                  && dataField.Scope == DataFieldScope.Result
+                  && dataField.IsActive
+                  && !dataField.IsAnnulled
+            orderby templateField.SortOrder, dataField.DisplayNameUk
+            select new
+            {
+                Field = dataField,
+                templateField.SortOrder
+            })
+            .ToListAsync(cancellationToken);
+
+        if (linkedRows.Count > 0)
+        {
+            return linkedRows
+                .GroupBy(row => row.Field.Id)
+                .Select(group => group.OrderBy(row => row.SortOrder).First())
+                .OrderBy(row => row.SortOrder)
+                .ThenBy(row => row.Field.DisplayNameUk)
+                .Select(row => row.Field)
+                .ToList();
+        }
+
+        return await _context.DataFields
+            .AsNoTracking()
+            .Where(field =>
+                field.Scope == DataFieldScope.Result
+                && field.IsSystem
+                && field.IsActive
+                && !field.IsAnnulled)
+            .OrderBy(field => field.DescriptionUk)
+            .ThenBy(field => field.Key)
+            .ToListAsync(cancellationToken);
     }
 
     private async Task<IReadOnlyList<ResultEquipmentOptionDto>> LoadEquipmentOptionsAsync(

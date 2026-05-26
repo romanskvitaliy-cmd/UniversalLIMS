@@ -5,6 +5,8 @@ namespace UniversalLIMS.ViewModels.PdfWorkspace;
 public sealed class PdfWorkspaceVersionListViewModel
 {
     public List<PdfWorkspaceVersionListItemViewModel> Versions { get; set; } = [];
+
+    public bool IsRegistrarMode { get; set; }
 }
 
 public sealed class PdfWorkspaceVersionListItemViewModel

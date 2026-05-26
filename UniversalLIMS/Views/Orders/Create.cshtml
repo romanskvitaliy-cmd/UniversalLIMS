@@ -3,7 +3,7 @@
 
 @{
     Layout = "_LayoutWorkspace";
-    ViewData["Title"] = "Нове замовлення";
+    ViewData["Title"] = "Прийом нової проби";
     var templateOptionsJson = JsonSerializer.Serialize(Model.Form.TemplateOptions);
     var branchesJson = JsonSerializer.Serialize(Model.Form.Branches);
     var defaultBranchId = Model.Form.DefaultBranchId?.ToString("D") ?? "";
@@ -11,10 +11,41 @@
 
 <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
     <div>
-        <h1 class="h3 mb-1">Нове замовлення</h1>
-        <p class="text-muted mb-0">Замовник, тип дослідження, один або кілька PDF-бланків і маршрут по філіях.</p>
+        <h1 class="h3 mb-1">Прийом нової проби</h1>
+        <p class="text-muted mb-0">Замовник, зразок, тип дослідження, PDF-бланки та маршрут по філіях.</p>
     </div>
     <a class="btn btn-sm btn-outline-secondary" asp-action="Index">← До реєстру</a>
+</div>
+
+<div class="row g-2 mb-3">
+    <div class="col-md-3">
+        <div class="border rounded-3 bg-light p-3 h-100">
+            <div class="small text-muted fw-semibold text-uppercase mb-1">Крок 1</div>
+            <div class="fw-semibold">Замовник</div>
+            <div class="small text-muted">Існуючий або новий клієнт.</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="border rounded-3 bg-light p-3 h-100">
+            <div class="small text-muted fw-semibold text-uppercase mb-1">Крок 2</div>
+            <div class="fw-semibold">Проба і бланки</div>
+            <div class="small text-muted">Тип дослідження, PDF-шаблони, філії.</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="border rounded-3 bg-light p-3 h-100">
+            <div class="small text-muted fw-semibold text-uppercase mb-1">Крок 3</div>
+            <div class="fw-semibold">Мапінг</div>
+            <div class="small text-muted">Для кількох бланків об’єднайте спільні поля.</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="border rounded-3 bg-light p-3 h-100">
+            <div class="small text-muted fw-semibold text-uppercase mb-1">Крок 4</div>
+            <div class="fw-semibold">PDF і лабораторія</div>
+            <div class="small text-muted">Перевірка направлень та передача в роботу.</div>
+        </div>
+    </div>
 </div>
 
 <form asp-action="Create" method="post" class="card" id="orderCreateForm">
@@ -100,7 +131,7 @@
         </div>
 
         <div class="d-flex flex-wrap gap-2">
-            <button type="submit" class="btn btn-primary" id="btnCreateOrder">Створити замовлення</button>
+            <button type="submit" class="btn btn-primary" id="btnCreateOrder">Зареєструвати пробу</button>
             <button type="submit"
                     class="btn btn-outline-primary d-none"
                     id="btnPrepareFieldMapping"

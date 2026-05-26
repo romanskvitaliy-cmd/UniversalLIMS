@@ -95,27 +95,16 @@ namespace UniversalLIMS
             builder.Services.AddScoped<IPdfWorkspaceFillService, PdfWorkspaceFillService>();
             builder.Services.AddScoped<IFieldTextLibraryService, FieldTextLibraryService>();
             builder.Services.AddScoped<ITemplateFieldPermissionService, TemplateFieldPermissionService>();
-            var isDevelopment = builder.Environment.IsDevelopment();
             builder.Services.AddAuthorization(options =>
             {
                 options.AddPolicy(LimsPolicies.ManageSystem, policy =>
                     policy.RequireRole(LimsRoles.SystemAdministrator));
 
-                if (isDevelopment)
-                {
-                    // Локальна демонстрація: будь-яка LIMS-роль може відкрити реєстратуру та журнал проб.
-                    options.AddPolicy(LimsPolicies.RegisterSamples, policy =>
-                        policy.RequireRole(LimsRoles.All));
-                    options.AddPolicy(LimsPolicies.EnterLaboratoryResults, policy =>
-                        policy.RequireRole(LimsRoles.All));
-                }
-                else
-                {
-                    options.AddPolicy(LimsPolicies.RegisterSamples, policy =>
-                        policy.RequireRole(LimsRoles.SystemAdministrator, LimsRoles.Registrar));
-                    options.AddPolicy(LimsPolicies.EnterLaboratoryResults, policy =>
-                        policy.RequireRole(LimsRoles.SystemAdministrator, LimsRoles.LaboratoryTechnician));
-                }
+                options.AddPolicy(LimsPolicies.RegisterSamples, policy =>
+                    policy.RequireRole(LimsRoles.SystemAdministrator, LimsRoles.Registrar));
+
+                options.AddPolicy(LimsPolicies.EnterLaboratoryResults, policy =>
+                    policy.RequireRole(LimsRoles.SystemAdministrator, LimsRoles.LaboratoryTechnician));
 
                 options.AddPolicy(LimsPolicies.ApproveConclusions, policy =>
                     policy.RequireRole(LimsRoles.SystemAdministrator, LimsRoles.Specialist));

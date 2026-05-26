@@ -5,6 +5,7 @@
     Layout = "_LayoutWorkspace";
     ViewData["Title"] = $"Результати — {Model.Form.SampleNumber}";
     var fields = Model.Form.Fields;
+    var writableCount = fields.Count(field => field.CanWrite);
 }
 
 <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
@@ -46,6 +47,14 @@
 }
 else
 {
+    @if (writableCount == 0)
+    {
+        <div class="alert alert-warning">
+            Для поточної ролі немає прав <strong>Write</strong> на показники цієї проби.
+            Перевірте права полів у шаблоні або оберіть роль лаборанта для демо.
+        </div>
+    }
+
     <form method="post" asp-action="ResultEntry" asp-route-sampleId="@Model.Form.SampleId">
         <div class="card">
             <div class="card-body p-0">
@@ -179,7 +188,7 @@ else
                         Позначити пробу як «Результати внесено»
                     </label>
                 </div>
-                <button type="submit" class="btn btn-primary btn-sm">Зберегти результати</button>
+                <button type="submit" class="btn btn-primary btn-sm" disabled="@(writableCount == 0)">Зберегти результати</button>
             </div>
         </div>
     </form>

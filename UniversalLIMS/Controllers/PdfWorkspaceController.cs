@@ -49,10 +49,20 @@ public sealed class PdfWorkspaceController : Controller
     [HttpGet]
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
-        var versions = await _context.TemplateVersions
+        var activeRole = _activeRole.ResolveActiveRole(User);
+        var isRegistrarMode = activeRole == LimsRoles.Registrar;
+
+        var versionsQuery = _context.TemplateVersions
             .AsNoTracking()
             .Include(version => version.Template)
-            .Where(version => version.DocumentFormat == TemplateDocumentFormat.Pdf && !version.IsAnnulled)
+            .Where(version => version.DocumentFormat == TemplateDocumentFormat.Pdf && !version.IsAnnulled);
+
+        if (isRegistrarMode)
+        {
+            versionsQuery = versionsQuery.Where(version => version.Status == TemplateVersionStatus.Published);
+        }
+
+        var versions = await versionsQuery
             .OrderByDescending(version => version.CreatedAtUtc)
             .Take(100)
             .Select(version => new PdfWorkspaceVersionListItemViewModel
@@ -65,7 +75,11 @@ public sealed class PdfWorkspaceController : Controller
             })
             .ToListAsync(cancellationToken);
 
-        return View(new PdfWorkspaceVersionListViewModel { Versions = versions });
+        return View(new PdfWorkspaceVersionListViewModel
+        {
+            Versions = versions,
+            IsRegistrarMode = isRegistrarMode
+        });
     }
 
     [HttpGet("PdfWorkspace/Fill/{templateVersionId:guid}")]
