@@ -39,9 +39,17 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
         _allowImplicitOrderCreation = hostEnvironment.IsDevelopment();
     }
 
+    public Task<PdfWorkspaceSaveResult> SaveValuesAsync(
+        Guid templateVersionId,
+        Guid? orderId,
+        IReadOnlyList<PdfWorkspaceFieldValueDto> values,
+        CancellationToken cancellationToken = default) =>
+        SaveValuesAsync(templateVersionId, orderId, null, values, cancellationToken);
+
     public async Task<PdfWorkspaceSaveResult> SaveValuesAsync(
         Guid templateVersionId,
         Guid? orderId,
+        Guid? orderDocumentId,
         IReadOnlyList<PdfWorkspaceFieldValueDto> values,
         CancellationToken cancellationToken = default)
     {
@@ -61,7 +69,9 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
         await EnsureTemplateVersionExistsAsync(templateVersionId, cancellationToken);
 
         var order = await EnsureOrderAsync(orderId, templateVersionId, cancellationToken);
-        await EnsureOrderDocumentAsync(order, templateVersionId, cancellationToken);
+        var sampleId = orderDocumentId.HasValue
+            ? (Guid?)(await ResolveOrderDocumentAsync(order, templateVersionId, orderDocumentId, cancellationToken)).SampleId
+            : null;
 
         var accessByFieldId = await _fieldPermissions.GetFieldAccessLevelsForVersionAsync(
             templateVersionId,
@@ -103,7 +113,7 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
             ? []
             : await _context.OrderFieldValues
                 .Where(fieldValue => fieldValue.OrderId == order.Id &&
-                                     fieldValue.SampleId == null &&
+                                     fieldValue.SampleId == sampleId &&
                                      workspaceDataFieldIds.Contains(fieldValue.DataFieldId))
                 .ToListAsync(cancellationToken);
 
@@ -192,7 +202,7 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
                 var created = new OrderFieldValue
                 {
                     OrderId = order.Id,
-                    SampleId = null,
+                    SampleId = sampleId,
                     DataFieldId = dataFieldId,
                     StoredValue = trimmedValue
                 };
@@ -260,6 +270,7 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
     public async Task<byte[]> GenerateFilledPdfAsync(
         Guid templateVersionId,
         Guid orderId,
+        Guid? orderDocumentId = null,
         CancellationToken cancellationToken = default)
     {
         var version = await _context.TemplateVersions
@@ -280,6 +291,7 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
         var (segments, valuesByDataFieldId) = await LoadOverlayRenderDataAsync(
             templateVersionId,
             orderId,
+            orderDocumentId,
             cancellationToken);
 
         await using var originalPdfStream = await _templateDocumentStorage.OpenReadAsync(
@@ -969,6 +981,7 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
     public async Task<IReadOnlyDictionary<string, string?>> GetSavedValuesByKeyAsync(
         Guid orderId,
         Guid templateVersionId,
+        Guid? orderDocumentId = null,
         CancellationToken cancellationToken = default)
     {
         var templateFields = await _context.TemplateFields
@@ -1015,10 +1028,19 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
             return new Dictionary<string, string?>(StringComparer.Ordinal);
         }
 
+        var sampleId = orderDocumentId.HasValue
+            ? await ResolveOrderDocumentSampleIdAsync(
+                orderId,
+                templateVersionId,
+                orderDocumentId,
+                cancellationToken)
+            : (Guid?)null;
+
         var storedByDataFieldId = OrderFieldValueSelection.ResolveByDataFieldId(
             await _context.OrderFieldValues
                 .AsNoTracking()
                 .Where(fieldValue => fieldValue.OrderId == orderId &&
+                                     (!sampleId.HasValue || fieldValue.SampleId == null || fieldValue.SampleId == sampleId) &&
                                      dataFieldIds.Contains(fieldValue.DataFieldId))
                 .Select(fieldValue => new OrderFieldValueCandidate(
                     fieldValue.DataFieldId,
@@ -1026,7 +1048,8 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
                     fieldValue.StoredValue,
                     fieldValue.UpdatedAtUtc,
                     fieldValue.CreatedAtUtc))
-                .ToListAsync(cancellationToken));
+                .ToListAsync(cancellationToken),
+            sampleId);
 
         var result = new Dictionary<string, string?>(StringComparer.Ordinal);
         foreach (var field in templateFields)
@@ -1322,26 +1345,29 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
         return sample;
     }
 
-    private async Task EnsureOrderDocumentAsync(
+    private async Task<OrderDocument> EnsureOrderDocumentAsync(
         Order order,
         Guid templateVersionId,
         CancellationToken cancellationToken)
     {
-        if (order.OrderDocuments.Any(document => document.TemplateVersionId == templateVersionId && !document.IsAnnulled))
+        var existingDocument = order.OrderDocuments
+            .FirstOrDefault(document => document.TemplateVersionId == templateVersionId && !document.IsAnnulled);
+        if (existingDocument is not null)
         {
-            return;
+            return existingDocument;
         }
 
         var linked = await _context.OrderDocuments
-            .AnyAsync(
+            .FirstOrDefaultAsync(
                 document => document.OrderId == order.Id &&
                             document.TemplateVersionId == templateVersionId &&
                             !document.IsAnnulled,
                 cancellationToken);
 
-        if (linked)
+        if (linked is not null)
         {
-            return;
+            order.OrderDocuments.Add(linked);
+            return linked;
         }
 
         var version = await _context.TemplateVersions
@@ -1350,7 +1376,7 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
 
         var sample = await EnsureSampleAsync(order, cancellationToken);
 
-        _context.OrderDocuments.Add(new OrderDocument
+        var created = new OrderDocument
         {
             OrderId = order.Id,
             SampleId = sample.Id,
@@ -1358,15 +1384,76 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
             TemplateVersionId = version.Id,
             TargetBranchId = order.BranchId,
             Status = OrderDocumentStatus.Pending
-        });
+        };
 
+        _context.OrderDocuments.Add(created);
         await _context.SaveChangesAsync(cancellationToken);
+        return created;
+    }
+
+    private async Task<OrderDocument> ResolveOrderDocumentAsync(
+        Order order,
+        Guid templateVersionId,
+        Guid? orderDocumentId,
+        CancellationToken cancellationToken)
+    {
+        if (orderDocumentId is Guid documentId)
+        {
+            var document = order.OrderDocuments
+                .FirstOrDefault(item => item.Id == documentId && !item.IsAnnulled)
+                ?? await _context.OrderDocuments
+                    .FirstOrDefaultAsync(
+                        item => item.Id == documentId &&
+                                item.OrderId == order.Id &&
+                                !item.IsAnnulled,
+                        cancellationToken);
+
+            if (document is null || document.TemplateVersionId != templateVersionId)
+            {
+                throw new InvalidOperationException("PDF-документ не належить цьому замовленню або шаблону.");
+            }
+
+            return document;
+        }
+
+        var matchingDocuments = order.OrderDocuments
+            .Where(document => document.TemplateVersionId == templateVersionId && !document.IsAnnulled)
+            .GroupBy(document => document.Id)
+            .Select(group => group.First())
+            .ToList();
+        if (matchingDocuments.Count == 1)
+        {
+            return matchingDocuments[0];
+        }
+
+        if (matchingDocuments.Count > 1)
+        {
+            throw new InvalidOperationException("Для цього шаблону в замовленні є кілька документів. Відкрийте конкретний документ зі сторінки справи.");
+        }
+
+        return await EnsureOrderDocumentAsync(order, templateVersionId, cancellationToken);
+    }
+
+    private async Task<Guid> ResolveOrderDocumentSampleIdAsync(
+        Guid orderId,
+        Guid templateVersionId,
+        Guid? orderDocumentId,
+        CancellationToken cancellationToken)
+    {
+        var order = await _context.Orders
+            .Include(item => item.OrderDocuments)
+            .FirstOrDefaultAsync(item => item.Id == orderId && !item.IsAnnulled, cancellationToken)
+            ?? throw new InvalidOperationException("Замовлення не знайдено.");
+
+        var document = await ResolveOrderDocumentAsync(order, templateVersionId, orderDocumentId, cancellationToken);
+        return document.SampleId;
     }
 
     private async Task<(IReadOnlyList<ReferralOverlaySegment> Segments, Dictionary<Guid, string?> ValuesByDataFieldId)>
         LoadOverlayRenderDataAsync(
             Guid templateVersionId,
             Guid orderId,
+            Guid? orderDocumentId,
             CancellationToken cancellationToken)
     {
         var layoutRows = await (
@@ -1434,10 +1521,19 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
             .Distinct()
             .ToList();
 
+        var sampleId = orderDocumentId.HasValue
+            ? await ResolveOrderDocumentSampleIdAsync(
+                orderId,
+                templateVersionId,
+                orderDocumentId,
+                cancellationToken)
+            : (Guid?)null;
+
         var valuesByDataFieldId = OrderFieldValueSelection.ResolveByDataFieldId(
             await _context.OrderFieldValues
                 .AsNoTracking()
                 .Where(fieldValue => fieldValue.OrderId == orderId &&
+                                     (!sampleId.HasValue || fieldValue.SampleId == null || fieldValue.SampleId == sampleId) &&
                                      dataFieldIds.Contains(fieldValue.DataFieldId))
                 .Select(fieldValue => new OrderFieldValueCandidate(
                     fieldValue.DataFieldId,
@@ -1445,7 +1541,8 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
                     fieldValue.StoredValue,
                     fieldValue.UpdatedAtUtc,
                     fieldValue.CreatedAtUtc))
-                .ToListAsync(cancellationToken));
+                .ToListAsync(cancellationToken),
+            sampleId);
 
         if (valuesByDataFieldId.Count == 0)
         {

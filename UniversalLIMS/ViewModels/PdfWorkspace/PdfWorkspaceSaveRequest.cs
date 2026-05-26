@@ -7,6 +7,9 @@ public sealed class PdfWorkspaceSaveRequest
     [JsonPropertyName("orderId")]
     public Guid? OrderId { get; set; }
 
+    [JsonPropertyName("orderDocumentId")]
+    public Guid? OrderDocumentId { get; set; }
+
     [JsonPropertyName("values")]
     public List<PdfWorkspaceSaveFieldRequest>? Values { get; set; }
 

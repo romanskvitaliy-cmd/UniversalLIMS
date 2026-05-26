@@ -34,6 +34,8 @@ public sealed class PdfWorkspaceFillViewModel
 
     public Guid? OrderId { get; set; }
 
+    public Guid? OrderDocumentId { get; set; }
+
     public string? PdfPreviewUrl { get; set; }
 
     public Dictionary<string, string?> SavedValuesByKey { get; set; } = new(StringComparer.Ordinal);

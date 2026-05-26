@@ -5,17 +5,20 @@ public interface IPdfWorkspaceFillService
     Task<PdfWorkspaceSaveResult> SaveValuesAsync(
         Guid templateVersionId,
         Guid? orderId,
+        Guid? orderDocumentId,
         IReadOnlyList<PdfWorkspaceFieldValueDto> values,
         CancellationToken cancellationToken = default);
 
     Task<byte[]> GenerateFilledPdfAsync(
         Guid templateVersionId,
         Guid orderId,
+        Guid? orderDocumentId = null,
         CancellationToken cancellationToken = default);
 
     Task<IReadOnlyDictionary<string, string?>> GetSavedValuesByKeyAsync(
         Guid orderId,
         Guid templateVersionId,
+        Guid? orderDocumentId = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>

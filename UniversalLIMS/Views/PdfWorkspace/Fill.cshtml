@@ -474,6 +474,7 @@ else
                     pdfPreviewUrl = Model.PdfPreviewUrl,
                     templateVersionId = Model.TemplateVersionId,
                     orderId = Model.OrderId,
+                    orderDocumentId = Model.OrderDocumentId,
                     saveUrl = $"/PdfWorkspace/Fill/{Model.TemplateVersionId}/values",
                     layoutSaveUrl = $"/PdfWorkspace/Fill/{Model.TemplateVersionId}/layout",
                     libraryUrl = $"/PdfWorkspace/Fill/{Model.TemplateVersionId}/library",
@@ -481,7 +482,12 @@ else
                     finalPdfUrlTemplate = Url.Action(
                         "FinalPdf",
                         "PdfWorkspace",
-                        new { templateVersionId = Model.TemplateVersionId, orderId = "__ORDER_ID__" })!
+                        new
+                        {
+                            templateVersionId = Model.TemplateVersionId,
+                            orderId = "__ORDER_ID__",
+                            orderDocumentId = Model.OrderDocumentId
+                        })!
                         .Replace("__ORDER_ID__", "{orderId}", StringComparison.Ordinal),
                     savedValues = Model.SavedValuesByKey,
                     expectedSegmentCount = Model.Segments.Count,

@@ -86,9 +86,10 @@ public sealed class PdfWorkspaceController : Controller
     public async Task<IActionResult> Fill(
         Guid templateVersionId,
         Guid? orderId,
+        Guid? orderDocumentId,
         CancellationToken cancellationToken)
     {
-        var model = await BuildFillViewModelAsync(templateVersionId, orderId, cancellationToken);
+        var model = await BuildFillViewModelAsync(templateVersionId, orderId, orderDocumentId, cancellationToken);
         if (model is null)
         {
             return NotFound();
@@ -148,6 +149,7 @@ public sealed class PdfWorkspaceController : Controller
             var result = await _fillService.SaveValuesAsync(
                 templateVersionId,
                 request.OrderId,
+                request.OrderDocumentId,
                 values,
                 cancellationToken);
 
@@ -207,6 +209,7 @@ public sealed class PdfWorkspaceController : Controller
             return Json(new
             {
                 orderId = result.OrderId,
+                orderDocumentId = request.OrderDocumentId,
                 received = result.Received,
                 mapped = result.Mapped,
                 saved = result.Saved,
@@ -413,12 +416,17 @@ public sealed class PdfWorkspaceController : Controller
     public async Task<IActionResult> FinalPdf(
         Guid templateVersionId,
         Guid orderId,
+        Guid? orderDocumentId,
         bool download = false,
         CancellationToken cancellationToken = default)
     {
         try
         {
-            var pdfBytes = await _fillService.GenerateFilledPdfAsync(templateVersionId, orderId, cancellationToken);
+            var pdfBytes = await _fillService.GenerateFilledPdfAsync(
+                templateVersionId,
+                orderId,
+                orderDocumentId,
+                cancellationToken);
             var version = await _context.TemplateVersions
                 .AsNoTracking()
                 .Include(item => item.Template)
@@ -442,6 +450,7 @@ public sealed class PdfWorkspaceController : Controller
     private async Task<PdfWorkspaceFillViewModel?> BuildFillViewModelAsync(
         Guid templateVersionId,
         Guid? orderId,
+        Guid? orderDocumentId,
         CancellationToken cancellationToken)
     {
         var version = await _context.TemplateVersions
@@ -493,7 +502,11 @@ public sealed class PdfWorkspaceController : Controller
         if (orderId.HasValue)
         {
             savedValues = new Dictionary<string, string?>(
-                await _fillService.GetSavedValuesByKeyAsync(orderId.Value, templateVersionId, cancellationToken),
+                await _fillService.GetSavedValuesByKeyAsync(
+                    orderId.Value,
+                    templateVersionId,
+                    orderDocumentId,
+                    cancellationToken),
                 StringComparer.Ordinal);
         }
 
@@ -507,6 +520,7 @@ public sealed class PdfWorkspaceController : Controller
             TemplateNameUk = version.Template.NameUk,
             VersionNumber = version.VersionNumber,
             OrderId = orderId,
+            OrderDocumentId = orderDocumentId,
             PdfPreviewUrl = BuildOpenOriginalLink(version.Id),
             SavedValuesByKey = savedValues,
             Segments = segments,

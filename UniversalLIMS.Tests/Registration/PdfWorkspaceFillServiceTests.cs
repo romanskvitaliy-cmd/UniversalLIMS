@@ -144,6 +144,164 @@ public sealed class PdfWorkspaceFillServiceTests
     }
 
     [Fact]
+    public async Task SaveValuesAsync_ScopesValuesToOrderDocumentSample()
+    {
+        await using var context = CreateContext();
+        var branchId = Guid.NewGuid();
+        var customerId = Guid.NewGuid();
+        var investigationTypeId = Guid.NewGuid();
+        var templateId = Guid.NewGuid();
+        var versionId = Guid.NewGuid();
+        var dataFieldId = Guid.NewGuid();
+        var templateFieldId = Guid.NewGuid();
+
+        context.Branches.Add(new Branch
+        {
+            Id = branchId,
+            Code = "BR-DOC",
+            Name = "Document branch",
+            City = "Zhytomyr",
+            IsActive = true
+        });
+        context.Customers.Add(new Customer
+        {
+            Id = customerId,
+            Kind = CustomerKind.Individual,
+            FullName = "Multi sample customer"
+        });
+        context.InvestigationTypes.Add(new InvestigationType
+        {
+            Id = investigationTypeId,
+            Code = "INV-DOC",
+            NameUk = "Document scoped investigation",
+            SortOrder = 1,
+            IsActive = true
+        });
+        context.DataFields.Add(new DataField
+        {
+            Id = dataFieldId,
+            Key = "Sample.DocumentScopedValue",
+            DisplayNameUk = "Значення документа",
+            FieldType = DataFieldType.Text,
+            Scope = DataFieldScope.Sample,
+            IsActive = true
+        });
+        context.Templates.Add(new Template
+        {
+            Id = templateId,
+            Code = "PDF-DOC",
+            NameUk = "Document scoped PDF",
+            Status = TemplateStatus.Draft
+        });
+        context.TemplateVersions.Add(new TemplateVersion
+        {
+            Id = versionId,
+            TemplateId = templateId,
+            VersionNumber = 1,
+            Status = TemplateVersionStatus.Draft,
+            DocumentFormat = TemplateDocumentFormat.Pdf,
+            OriginalFileName = "template.pdf",
+            StorageKey = "templates/template.pdf",
+            ContentType = "application/pdf",
+            FileSizeBytes = 1,
+            Sha256Hash = new string('b', 64),
+            UploadedAtUtc = DateTime.UtcNow,
+            Fields =
+            [
+                new TemplateField
+                {
+                    Id = templateFieldId,
+                    TemplateVersionId = versionId,
+                    Tag = "DocumentScopedValue",
+                    Title = "Значення документа",
+                    DataFieldId = dataFieldId,
+                    SortOrder = 1
+                }
+            ]
+        });
+
+        var order = new Order
+        {
+            CustomerId = customerId,
+            BranchId = branchId,
+            Status = OrderStatus.Registered,
+            ReferralNumber = "REF-DOC-SCOPE"
+        };
+        var sampleA = new Sample
+        {
+            OrderId = order.Id,
+            InvestigationTypeId = investigationTypeId,
+            Number = "S-A",
+            RegisteredAt = DateTime.UtcNow,
+            Status = SampleStatus.Registered
+        };
+        var sampleB = new Sample
+        {
+            OrderId = order.Id,
+            InvestigationTypeId = investigationTypeId,
+            Number = "S-B",
+            RegisteredAt = DateTime.UtcNow,
+            Status = SampleStatus.Registered
+        };
+        var documentA = new OrderDocument
+        {
+            OrderId = order.Id,
+            SampleId = sampleA.Id,
+            TemplateId = templateId,
+            TemplateVersionId = versionId,
+            TargetBranchId = branchId,
+            Status = OrderDocumentStatus.Pending
+        };
+        var documentB = new OrderDocument
+        {
+            OrderId = order.Id,
+            SampleId = sampleB.Id,
+            TemplateId = templateId,
+            TemplateVersionId = versionId,
+            TargetBranchId = branchId,
+            Status = OrderDocumentStatus.Pending
+        };
+
+        context.Orders.Add(order);
+        context.Samples.AddRange(sampleA, sampleB);
+        context.OrderDocuments.AddRange(documentA, documentB);
+        await context.SaveChangesAsync();
+
+        var service = new PdfWorkspaceFillService(
+            context,
+            new FakeTemplateDocumentStorage(),
+            new OrderFieldValueService(context),
+            new AllowAllTemplateFieldPermissionService(context),
+            NullLogger<PdfWorkspaceFillService>.Instance,
+            NullLogger<ReferralPdfOverlayRenderer>.Instance,
+            TestHostEnvironment.Development);
+
+        await service.SaveValuesAsync(
+            versionId,
+            order.Id,
+            documentA.Id,
+            [new PdfWorkspaceFieldValueDto { TemplateFieldId = templateFieldId, Value = "value A" }]);
+        await service.SaveValuesAsync(
+            versionId,
+            order.Id,
+            documentB.Id,
+            [new PdfWorkspaceFieldValueDto { TemplateFieldId = templateFieldId, Value = "value B" }]);
+
+        var storedValues = await context.OrderFieldValues
+            .Where(value => value.OrderId == order.Id && value.DataFieldId == dataFieldId)
+            .ToListAsync();
+        Assert.Equal(2, storedValues.Count);
+        Assert.Contains(storedValues, value => value.SampleId == sampleA.Id && value.StoredValue == "value A");
+        Assert.Contains(storedValues, value => value.SampleId == sampleB.Id && value.StoredValue == "value B");
+
+        var savedA = await service.GetSavedValuesByKeyAsync(order.Id, versionId, documentA.Id);
+        var savedB = await service.GetSavedValuesByKeyAsync(order.Id, versionId, documentB.Id);
+
+        Assert.Equal("value A", savedA["DocumentScopedValue"]);
+        Assert.Equal("value B", savedB["DocumentScopedValue"]);
+    }
+
+    [Fact]
     public async Task SaveValuesAsync_CreatesWorkspaceDataFieldsPerTemplateFieldId()
     {
         await using var context = CreateContext();

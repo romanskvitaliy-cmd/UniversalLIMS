@@ -83,6 +83,7 @@
             pdfJsWorkerSrc: window.__pdfJsWorkerSrc,
             pdfPreviewUrl: window.__pdfPreviewUrl,
             orderId: window.__pdfFillOrderId,
+            orderDocumentId: window.__pdfFillOrderDocumentId,
             saveUrl: window.__pdfFillSaveUrl,
             finalPdfUrlTemplate: window.__pdfFillFinalPdfUrlTemplate,
             savedValues: window.__pdfFillSavedValues,
@@ -102,6 +103,7 @@
         : {};
 
     let currentOrderId = clientConfig.orderId || null;
+    let currentOrderDocumentId = clientConfig.orderDocumentId || null;
     let isSaving = false;
     let focusSegmentId = null;
     let selectedSegmentId = null;
@@ -1511,7 +1513,7 @@
     };
 
     console.info(
-        `[PdfWorkspace Fill] init: segments=${segments.length}, fields=${segmentsByTemplateFieldId.size}, orderId=${currentOrderId || "(new)"}`
+        `[PdfWorkspace Fill] init: segments=${segments.length}, fields=${segmentsByTemplateFieldId.size}, orderId=${currentOrderId || "(new)"}, orderDocumentId=${currentOrderDocumentId || "(none)"}`
     );
 
     const showPreviewError = (message) => {
@@ -2071,7 +2073,7 @@
         }
 
         const libraryAdditions = buildLibraryAdditionsPayload();
-        const requestBody = { orderId: currentOrderId, values: payload, libraryAdditions };
+        const requestBody = { orderId: currentOrderId, orderDocumentId: currentOrderDocumentId, values: payload, libraryAdditions };
         console.info("[PdfWorkspace Fill] save payload:", {
             orderId: currentOrderId,
             fields: payload.length,
@@ -2104,6 +2106,7 @@
             }
 
             currentOrderId = body.orderId ?? body.OrderId ?? currentOrderId;
+            currentOrderDocumentId = body.orderDocumentId ?? body.OrderDocumentId ?? currentOrderDocumentId;
             window.__pdfFillOrderId = currentOrderId;
 
             const received = body.received ?? body.Received ?? payload.length;
