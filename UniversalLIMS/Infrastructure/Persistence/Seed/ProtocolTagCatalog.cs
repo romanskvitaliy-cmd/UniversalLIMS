@@ -67,6 +67,33 @@ public static class ProtocolTagCatalog
         new("Food_ComplianceMark", "Відмітка про відповідність", DataFieldScope.Conclusion),
     ];
 
-    /// <summary>Усі теги каталогу (після <see cref="F327"/> та <see cref="Food"/>).</summary>
-    public static IReadOnlyList<TagDefinition> All { get; } = [.. F327, .. Food];
+    public static IReadOnlyList<TagDefinition> F345 { get; } =
+    [
+        new("f345_ProductName", "Назва страви, напівфабрикату", DataFieldScope.Sample),
+        new("f345_ObjectAddress", "Назва об'єкта, адреса", DataFieldScope.Sample),
+        new("f345_Weight", "Вага порції в грамах", DataFieldScope.Result, DataFieldType.Number),
+        new("f345_ChemicalComposition", "Хімічний склад в одиницях виміру", DataFieldScope.Result),
+        new("f345_MineralComposition", "Мінеральний склад в одиницях виміру", DataFieldScope.Result),
+        new("f345_CaloricValue", "Калорійність", DataFieldScope.Result),
+        new("f345_OrganolepticIndicators", "Органолептичні показники", DataFieldScope.Result),
+        new("f345_CoefficientImplementation", "Коефіцієнт виконання", DataFieldScope.Result, DataFieldType.Number),
+        new("f345_PercentageDeviation", "% відхилення", DataFieldScope.Result),
+        new("f345_Norm", "Норма", DataFieldScope.Result),
+        new("f345_ResultValue", "Отримане значення", DataFieldScope.Result),
+        new("f345_MethodND", "НД на метод випробувань", DataFieldScope.Result),
+        new("f345_ComplianceMark", "Відмітка про відповідність", DataFieldScope.Conclusion),
+    ];
+
+    public static IReadOnlyList<TagDefinition> F343 { get; } =
+    [
+        new("f343_ProductName", "Назва показників інгредієнтів та інше", DataFieldScope.Result),
+        new("f343_DetectedConcentration", "Виявлена концентрація", DataFieldScope.Result),
+        new("f343_Unit", "Одиниці вимірювання", DataFieldScope.Result),
+        new("f343_Norm", "Норма по НТД", DataFieldScope.Result),
+        new("f343_MethodND", "НТД на методи досліджень", DataFieldScope.Result),
+        new("f343_ComplianceMark", "Відмітка про відповідність", DataFieldScope.Conclusion),
+    ];
+
+    /// <summary>Усі теги каталогу (після протокольних списків).</summary>
+    public static IReadOnlyList<TagDefinition> All { get; } = [.. F327, .. Food, .. F345, .. F343];
 }

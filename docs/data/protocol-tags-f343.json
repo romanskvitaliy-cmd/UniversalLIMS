@@ -1,0 +1,33 @@
+{
+  "protocolCode": "f343",
+  "protocolNameUk": "Форма 343 — харчові продукти (концентрації)",
+  "tagPrefix": "f343_",
+  "groups": [
+    {
+      "name": "Глобальні (семантичні ключі — мапінг у реєстратурі, без префікса)",
+      "tags": [
+        { "key": "Global.ProtocolNumber", "titleUk": "ПРОТОКОЛ №" },
+        { "key": "Sample.RegistrationNumber", "titleUk": "Реєстраційний номер зразка" },
+        { "key": "Sample.SampleName", "titleUk": "Назва проби" },
+        { "key": "Sample.ObjectName", "titleUk": "Назва об'єкта, адреса" },
+        { "key": "Sample.SamplingDate", "titleUk": "Час відбору проб" },
+        { "key": "Sample.PartySize", "titleUk": "Величина партії" },
+        { "key": "Sample.Customer", "titleUk": "Замовник" },
+        { "key": "Sample.PerformerSignature", "titleUk": "Підпис особи, яка проводила дослідження" },
+        { "key": "Sample.Conclusion", "titleUk": "Висновок лікаря" },
+        { "key": "Sample.IssueDate", "titleUk": "Дата видачі результатів" }
+      ]
+    },
+    {
+      "name": "Локальні (префікс f343_)",
+      "tags": [
+        { "key": "f343_ProductName", "titleUk": "Назва показників інгредієнтів та інше" },
+        { "key": "f343_DetectedConcentration", "titleUk": "Виявлена концентрація" },
+        { "key": "f343_Unit", "titleUk": "Одиниці вимірювання" },
+        { "key": "f343_Norm", "titleUk": "Норма по НТД" },
+        { "key": "f343_MethodND", "titleUk": "НТД на методи досліджень" },
+        { "key": "f343_ComplianceMark", "titleUk": "Відмітка про відповідність" }
+      ]
+    }
+  ]
+}

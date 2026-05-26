@@ -1,0 +1,42 @@
+{
+  "protocolCode": "f345",
+  "protocolNameUk": "Форма 345 — харчові продукти (калорійність, склад)",
+  "tagPrefix": "f345_",
+  "groups": [
+    {
+      "name": "Глобальні (семантичні ключі — мапінг у реєстратурі, без префікса)",
+      "tags": [
+        { "key": "Global.ProtocolNumber", "titleUk": "ПРОТОКОЛ №" },
+        { "key": "Sample.RegistrationNumber", "titleUk": "Реєстраційний номер зразка" },
+        { "key": "Sample.SampleName", "titleUk": "Назва страви, напівфабрикату" },
+        { "key": "Sample.ObjectName", "titleUk": "Назва об'єкта, адреса" },
+        { "key": "Sample.SamplingDate", "titleUk": "Дата і час відбору" },
+        { "key": "Sample.DeliveryDate", "titleUk": "Дата і час доставки" },
+        { "key": "Sample.AnalysisDate", "titleUk": "Дата і час дослідження" },
+        { "key": "Sample.Customer", "titleUk": "Замовник" },
+        { "key": "Sample.PerformerSignature", "titleUk": "Підпис виконання" },
+        { "key": "Sample.SanitaryDoctor", "titleUk": "Санітарний лікар (підпис)" },
+        { "key": "Sample.Conclusion", "titleUk": "Висновок лікаря з загальної гігієни" },
+        { "key": "Sample.IssueDate", "titleUk": "Дата видачі результатів" }
+      ]
+    },
+    {
+      "name": "Локальні (префікс f345_)",
+      "tags": [
+        { "key": "f345_ProductName", "titleUk": "Назва страви, напівфабрикату" },
+        { "key": "f345_ObjectAddress", "titleUk": "Назва об'єкта, адреса" },
+        { "key": "f345_Weight", "titleUk": "Вага порції в грамах" },
+        { "key": "f345_ChemicalComposition", "titleUk": "Хімічний склад в одиницях виміру" },
+        { "key": "f345_MineralComposition", "titleUk": "Мінеральний склад в одиницях виміру" },
+        { "key": "f345_CaloricValue", "titleUk": "Калорійність" },
+        { "key": "f345_OrganolepticIndicators", "titleUk": "Органолептичні показники" },
+        { "key": "f345_CoefficientImplementation", "titleUk": "Коефіцієнт виконання" },
+        { "key": "f345_PercentageDeviation", "titleUk": "% відхилення" },
+        { "key": "f345_Norm", "titleUk": "Норма" },
+        { "key": "f345_ResultValue", "titleUk": "Отримане значення" },
+        { "key": "f345_MethodND", "titleUk": "НД на метод випробувань" },
+        { "key": "f345_ComplianceMark", "titleUk": "Відмітка про відповідність" }
+      ]
+    }
+  ]
+}
