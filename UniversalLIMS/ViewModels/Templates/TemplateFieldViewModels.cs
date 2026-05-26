@@ -97,7 +97,11 @@ public sealed class TemplateFieldPermissionMatrixViewModel
 
     public int VersionNumber { get; set; }
 
+    public TemplateVersionStatus Status { get; set; }
+
     public bool IsEditable { get; set; }
+
+    public bool IsPublishedVersion => Status == TemplateVersionStatus.Published;
 
     public List<TemplateFieldPermissionRowViewModel> Fields { get; set; } = [];
 }

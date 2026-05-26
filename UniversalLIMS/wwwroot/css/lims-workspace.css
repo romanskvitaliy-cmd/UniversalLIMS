@@ -443,6 +443,104 @@ a.lims-workspace-quicklink:hover {
     border: 1px solid #fde68a;
 }
 
+/* Таблиці workspace: завжди темний текст у комірках (не table-dark / не білий badge) */
+.lims-workspace-body .lims-workspace-table,
+.lims-workspace-body .table {
+    color: var(--ws-text);
+}
+
+.lims-workspace-body .lims-workspace-table td,
+.lims-workspace-body .lims-workspace-table th,
+.lims-workspace-body .table.table-hover tbody td,
+.lims-workspace-body .table.table-hover thead th {
+    color: var(--ws-text);
+}
+
+.lims-workspace-body .table .text-muted {
+    color: var(--ws-muted) !important;
+}
+
+/* Bootstrap 5.1: .badge { color:#fff } — скидання для всіх badge, крім кольорових bg і ролі в шапці */
+.lims-workspace-body .badge:not(.lims-workspace-role-badge):not(.bg-primary):not(.bg-secondary):not(.bg-success):not(.bg-danger):not(.bg-warning):not(.bg-info):not(.bg-dark) {
+    color: #334155 !important;
+    background-color: #e2e8f0 !important;
+    border: 1px solid #cbd5e1;
+    font-weight: 600;
+}
+
+.lims-workspace-body .badge.lims-version-badge {
+    color: #1e3a5f !important;
+    background-color: #e0e7ff !important;
+    border-color: #a5b4fc !important;
+    font-size: 0.8125rem;
+    font-weight: 700;
+}
+
+.lims-workspace-body .badge.bg-success:not(.text-dark) {
+    color: #fff !important;
+}
+
+.lims-workspace-body .badge.bg-warning.text-dark {
+    color: #92400e !important;
+}
+
+/* Статуси замовлень/документів/шаблонів */
+.lims-workspace-body .badge.lims-status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.55rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.2;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    color: #334155 !important;
+    background-color: #f1f5f9 !important;
+    vertical-align: baseline;
+}
+
+.lims-workspace-body .badge.lims-status-badge--registered {
+    color: #1e40af !important;
+    background-color: #dbeafe !important;
+    border-color: #93c5fd !important;
+}
+
+.lims-workspace-body .badge.lims-status-badge--draft {
+    color: #92400e !important;
+    background-color: #fef3c7 !important;
+    border-color: #fde68a !important;
+}
+
+.lims-workspace-body .badge.lims-status-badge--pending {
+    color: #9a3412 !important;
+    background-color: #ffedd5 !important;
+    border-color: #fdba74 !important;
+}
+
+.lims-workspace-body .badge.lims-status-badge--sent {
+    color: #166534 !important;
+    background-color: #dcfce7 !important;
+    border-color: #86efac !important;
+}
+
+.lims-workspace-body .badge.lims-status-badge--progress {
+    color: #6b21a8 !important;
+    background-color: #f3e8ff !important;
+    border-color: #d8b4fe !important;
+}
+
+.lims-workspace-body .badge.lims-status-badge--done {
+    color: #0f766e !important;
+    background-color: #ccfbf1 !important;
+    border-color: #5eead4 !important;
+}
+
+.lims-workspace-body .badge.lims-status-badge--neutral {
+    color: #475569 !important;
+    background-color: #f1f5f9 !important;
+    border-color: #cbd5e1 !important;
+}
+
 .lims-btn {
     display: inline-flex;
     align-items: center;
@@ -493,4 +591,246 @@ a.lims-workspace-quicklink:hover {
 .lims-btn--sm {
     padding: 0.4rem 0.85rem;
     font-size: 0.8125rem;
+}
+
+/* PDF Workspace — бічна панель заповнення */
+.pdf-fill-layout {
+    display: flex;
+    align-items: stretch;
+    gap: 12px;
+}
+
+.pdf-fill-layout__main {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.pdf-fill-panel {
+    flex: 0 0 300px;
+    display: flex;
+    flex-direction: column;
+    max-height: 80vh;
+    padding: 0.5rem 0.55rem 0.55rem;
+    border: 1px solid var(--ws-border, #e2e8f0);
+    border-radius: 12px;
+    background: linear-gradient(165deg, #f8fbff 0%, var(--ws-surface, #fff) 55%);
+    box-shadow: var(--ws-shadow, 0 4px 24px rgba(15, 23, 42, 0.06));
+    font-size: 0.8125rem;
+}
+
+.pdf-fill-panel__head {
+    margin-bottom: 0.35rem;
+}
+
+.pdf-fill-panel__title {
+    font-weight: 700;
+    font-size: 0.875rem;
+    color: var(--ws-text, #0f172a);
+    line-height: 1.2;
+}
+
+.pdf-fill-panel__editing {
+    margin: 0.15rem 0 0;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--workspace-accent, #0f766e);
+    line-height: 1.3;
+    word-break: break-word;
+}
+
+.pdf-fill-panel__editing:empty {
+    display: none;
+}
+
+.pdf-fill-panel__hint {
+    margin: 0 0 0.35rem;
+    font-size: 0.72rem;
+    color: var(--ws-muted, #64748b);
+    line-height: 1.25;
+}
+
+.pdf-fill-panel__hint.is-hidden {
+    display: none;
+}
+
+.pdf-fill-panel__save-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-top: 0.25rem;
+    padding: 0.15rem 0.45rem;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+.pdf-fill-panel__save-badge--saved {
+    color: #166534;
+    background: #dcfce7;
+}
+
+.pdf-fill-panel__save-badge--dirty {
+    color: #9a3412;
+    background: #ffedd5;
+}
+
+.pdf-fill-panel__save-badge--saving {
+    color: #1e40af;
+    background: #dbeafe;
+}
+
+.pdf-fill-panel__tabs {
+    display: flex;
+    gap: 2px;
+    margin-bottom: 0.35rem;
+    border-bottom: 1px solid var(--ws-border, #e2e8f0);
+}
+
+.pdf-fill-panel__tab {
+    flex: 1;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    padding: 0.25rem 0.2rem;
+    background: transparent;
+    color: var(--ws-muted, #64748b);
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.pdf-fill-panel__tab.active {
+    color: #0d6efd;
+    border-bottom-color: #0d6efd;
+}
+
+.pdf-fill-panel__body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.pdf-fill-panel__pane {
+    display: none;
+}
+
+.pdf-fill-panel__pane.active {
+    display: block;
+}
+
+.pdf-fill-panel__value-input {
+    min-height: 7rem;
+    font-size: 0.8125rem;
+    resize: vertical;
+}
+
+.pdf-fill-panel__meta {
+    margin-top: 0.35rem;
+    font-size: 0.68rem;
+    color: var(--ws-muted, #64748b);
+}
+
+.pdf-fill-panel__field-list {
+    max-height: 14rem;
+    overflow-y: auto;
+    border: 1px solid var(--ws-border, #e2e8f0);
+    border-radius: 8px;
+    background: var(--ws-surface, #fff);
+}
+
+.pdf-fill-panel__field-item {
+    display: block;
+    width: 100%;
+    padding: 0.35rem 0.45rem;
+    border: none;
+    border-bottom: 1px solid #f1f5f9;
+    background: transparent;
+    text-align: left;
+    font-size: 0.75rem;
+    cursor: pointer;
+}
+
+.pdf-fill-panel__field-item:last-child {
+    border-bottom: none;
+}
+
+.pdf-fill-panel__field-item:hover {
+    background: color-mix(in srgb, var(--workspace-accent, #0f766e) 6%, #fff);
+}
+
+.pdf-fill-panel__field-item.is-active {
+    background: color-mix(in srgb, #0d6efd 10%, #fff);
+    font-weight: 600;
+}
+
+.pdf-fill-panel__field-item.is-filled .pdf-fill-panel__field-dot {
+    background: #22c55e;
+}
+
+.pdf-fill-panel__field-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin-right: 0.35rem;
+    border-radius: 50%;
+    background: #cbd5e1;
+    vertical-align: middle;
+}
+
+.pdf-fill-panel__footer {
+    flex: 0 0 auto;
+    margin-top: 0.45rem;
+    padding-top: 0.4rem;
+    border-top: 1px solid var(--ws-border, #e2e8f0);
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.pdf-fill-field-box.is-panel-selected {
+    border-color: rgba(15, 118, 110, 0.95);
+    background: rgba(15, 118, 110, 0.1);
+    box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.25);
+}
+
+.pdf-fill-cal-group {
+    margin-bottom: 0.4rem;
+}
+
+.pdf-fill-cal-group--inline {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.pdf-fill-cal-label {
+    flex: 0 0 auto;
+    min-width: 4.2rem;
+    margin: 0;
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--ws-muted, #64748b);
+}
+
+.pdf-fill-cal-group--inline .pdf-fill-cal-label {
+    margin-bottom: 0;
+}
+
+.pdf-fill-shift-btns .btn {
+    min-width: 2.1rem;
+    padding-left: 0.2rem;
+    padding-right: 0.2rem;
+}
+
+@media (max-width: 991.98px) {
+    .pdf-fill-layout {
+        flex-direction: column;
+    }
+
+    .pdf-fill-panel {
+        flex: none;
+        max-height: none;
+        width: 100%;
+    }
 }

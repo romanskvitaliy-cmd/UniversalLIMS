@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using UniversalLIMS.Application.Laboratory;
 using UniversalLIMS.Application.Laboratory.Abstractions;
 using UniversalLIMS.Application.Security;
 using UniversalLIMS.Infrastructure.Filters;
+using UniversalLIMS.Infrastructure.Persistence;
 using UniversalLIMS.ViewModels.Laboratory;
 
 namespace UniversalLIMS.Controllers;
@@ -13,14 +15,17 @@ namespace UniversalLIMS.Controllers;
 public sealed class LaboratoryController : Controller
 {
     private readonly ILaboratoryJournalService _journal;
-    private readonly IResultEntryService _resultEntry;
+    private readonly ILaboratoryPdfFillService _pdfFill;
+    private readonly ApplicationDbContext _context;
 
     public LaboratoryController(
         ILaboratoryJournalService journal,
-        IResultEntryService resultEntry)
+        ILaboratoryPdfFillService pdfFill,
+        ApplicationDbContext context)
     {
         _journal = journal;
-        _resultEntry = resultEntry;
+        _pdfFill = pdfFill;
+        _context = context;
     }
 
     [HttpGet]
@@ -37,64 +42,49 @@ public sealed class LaboratoryController : Controller
         });
     }
 
+    /// <summary>Відкриває PDF Workspace замість табличного внесення результатів.</summary>
     [HttpGet]
     public async Task<IActionResult> Results(Guid sampleId, CancellationToken cancellationToken)
     {
-        var form = await _resultEntry.GetResultEntryFormAsync(sampleId, cancellationToken);
-        if (form is null)
+        var sampleMeta = await _context.Samples
+            .AsNoTracking()
+            .Where(sample => sample.Id == sampleId && !sample.IsAnnulled)
+            .Select(sample => new
+            {
+                sample.Number,
+                sample.InvestigationType.NameUk
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (sampleMeta is null)
         {
             return NotFound();
         }
 
-        return View(new LaboratoryResultsViewModel
+        var targets = await _pdfFill.GetFillTargetsAsync(sampleId, cancellationToken);
+        if (targets.Count == 0)
         {
-            Form = form,
-            Input = BuildInputFromForm(form)
-        });
-    }
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Results(
-        Guid sampleId,
-        LaboratoryResultsViewModel model,
-        CancellationToken cancellationToken)
-    {
-        var form = await _resultEntry.GetResultEntryFormAsync(sampleId, cancellationToken);
-        if (form is null)
-        {
-            return NotFound();
+            TempData["LaboratoryWarning"] =
+                "Для цієї проби немає PDF-документів у статусі «У лабораторії» / «В роботі» і не знайдено опублікованого PDF-шаблону типу дослідження.";
+            return RedirectToAction(nameof(Index));
         }
 
-        var saveResult = await _resultEntry.SaveResultValuesAsync(
-            sampleId,
-            model.Input ?? new SaveResultEntryRequest(),
-            cancellationToken);
-
-        form = await _resultEntry.GetResultEntryFormAsync(sampleId, cancellationToken) ?? form;
-
-        return View(new LaboratoryResultsViewModel
+        if (targets.Count == 1)
         {
-            Form = form,
-            Input = model.Input ?? BuildInputFromForm(form),
-            StatusMessage = saveResult.Message,
-            StatusType = saveResult.Success ? "success" : "danger"
-        });
-    }
+            var target = targets[0];
+            return RedirectToAction(
+                "Fill",
+                "PdfWorkspace",
+                new { templateVersionId = target.TemplateVersionId, orderId = target.OrderId });
+        }
 
-    private static SaveResultEntryRequest BuildInputFromForm(ResultEntryFormDto form)
-    {
-        return new SaveResultEntryRequest
-        {
-            Values = form.Fields
-                .Select(field => new SaveResultEntryFieldRequest
-                {
-                    DataFieldId = field.DataFieldId,
-                    Value = field.CurrentValue,
-                    Uncertainty = field.CurrentUncertainty,
-                    EquipmentId = field.CurrentEquipmentId
-                })
-                .ToList()
-        };
+        return View(
+            "ChooseDocument",
+            new LaboratoryChooseDocumentViewModel
+            {
+                SampleNumber = sampleMeta.Number,
+                InvestigationTypeName = sampleMeta.NameUk,
+                Targets = targets
+            });
     }
 }

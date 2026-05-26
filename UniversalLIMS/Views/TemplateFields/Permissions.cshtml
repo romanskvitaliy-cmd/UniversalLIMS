@@ -8,9 +8,16 @@
 <h1 class="h3">Права доступу до полів шаблону</h1>
 <p class="text-muted">@Model.TemplateNameUk · v@(Model.VersionNumber)</p>
 
-@if (!Model.IsEditable)
+@if (Model.IsPublishedVersion && Model.IsEditable)
 {
-    <div class="alert alert-info">Опубліковану або замінену версію змінювати заборонено.</div>
+    <div class="alert alert-warning">
+        Версія <strong>опублікована</strong>. Тут можна змінювати лише <strong>права доступу до полів</strong>
+        (розміщення полів на PDF — у <a asp-action="Map" asp-route-templateVersionId="@Model.TemplateVersionId">Map</a> — для чернетки).
+    </div>
+}
+else if (!Model.IsEditable)
+{
+    <div class="alert alert-info">Замінену або анульовану версію змінювати заборонено.</div>
 }
 
 <form asp-action="Permissions" method="post">

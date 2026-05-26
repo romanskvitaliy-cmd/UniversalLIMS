@@ -10,6 +10,12 @@ namespace UniversalLIMS.Infrastructure.Templates;
 
 public sealed class TemplateVersionService : ITemplateVersionService
 {
+    /// <summary>
+    /// Sequences at or above this value are temporary staging slots used while saving overlay layout.
+    /// They must not be copied into a new template version.
+    /// </summary>
+    private const int SegmentSequenceStagingThreshold = 100_000;
+
     private readonly ApplicationDbContext _context;
     private readonly ICurrentUserService _currentUserService;
     private readonly IDateTimeProvider _dateTimeProvider;
@@ -443,13 +449,20 @@ public sealed class TemplateVersionService : ITemplateVersionService
             var clonedFieldId = Guid.NewGuid();
             var clonedSegments = new List<TemplateFieldSegment>();
 
-            foreach (var sourceSegment in sourceField.Segments.OrderBy(segment => segment.Sequence))
+            var sourceSegments = sourceField.Segments
+                .Where(segment => segment.Sequence < SegmentSequenceStagingThreshold)
+                .OrderBy(segment => segment.Sequence)
+                .ThenBy(segment => segment.Id)
+                .ToList();
+
+            for (var segmentIndex = 0; segmentIndex < sourceSegments.Count; segmentIndex++)
             {
+                var sourceSegment = sourceSegments[segmentIndex];
                 clonedSegments.Add(new TemplateFieldSegment
                 {
                     Id = Guid.NewGuid(),
                     TemplateFieldId = clonedFieldId,
-                    Sequence = sourceSegment.Sequence,
+                    Sequence = segmentIndex + 1,
                     PageNumber = sourceSegment.PageNumber,
                     PositionX = sourceSegment.PositionX,
                     PositionY = sourceSegment.PositionY,
@@ -465,6 +478,7 @@ public sealed class TemplateVersionService : ITemplateVersionService
                     SvgPathData = sourceSegment.SvgPathData
                 });
             }
+
 
             if (clonedSegments.Count == 0)
             {

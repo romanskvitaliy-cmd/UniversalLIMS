@@ -19,6 +19,18 @@ public interface IPdfWorkspaceFillService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Сегменти для Fill UI: лише поля з доступом Read+ для активної ролі (TemplateFieldPermission).
+    /// </summary>
+    Task<IReadOnlyList<PdfWorkspaceFillSegmentDto>> GetFillSegmentsAsync(
+        Guid templateVersionId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Кількість сегментів у layout версії (без фільтра RBAC).</summary>
+    Task<int> GetLayoutSegmentCountAsync(
+        Guid templateVersionId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// PDF preview калібрування: WYSIWYG лише з <see cref="PreviewCalibrationRequest.Fields"/>.
     /// Layout і текст з БД не читаються.
     /// </summary>

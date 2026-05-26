@@ -11,7 +11,7 @@
         <h1 class="h3 mb-1">Внесення результатів</h1>
         <p class="text-muted mb-0">
             Проба <strong>@Model.Form.SampleNumber</strong> · @Model.Form.InvestigationTypeName ·
-            <span class="badge text-bg-light border">@SampleStatusDisplay.ToUk(Model.Form.Status)</span>
+            <span class="badge lims-status-badge @SampleStatusDisplay.BadgeClass(Model.Form.Status)">@SampleStatusDisplay.ToUk(Model.Form.Status)</span>
         </p>
         <p class="small text-muted mb-0">
             Замовник: @Model.Form.CustomerFullName

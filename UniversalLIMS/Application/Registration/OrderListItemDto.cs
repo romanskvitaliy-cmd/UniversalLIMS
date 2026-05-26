@@ -22,4 +22,8 @@ public sealed class OrderListItemDto
 
     /// <summary>Останній активний документ замовлення для посилання в PDF Workspace.</summary>
     public Guid? PrimaryTemplateVersionId { get; init; }
+
+    public int DocumentCount { get; init; }
+
+    public required string WorkflowSummaryUk { get; init; }
 }

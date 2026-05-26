@@ -164,6 +164,127 @@ public sealed class TemplateVersionServiceCloneTests
     }
 
     [Fact]
+    public async Task CopyFieldsFromVersionAsync_IgnoresStagingSequencesAndRenumbersActiveSegments()
+    {
+        var templateId = Guid.NewGuid();
+        var sourceVersionId = Guid.NewGuid();
+        var targetVersionId = Guid.NewGuid();
+        var sourceFieldId = Guid.NewGuid();
+
+        await using var context = CreateContext();
+        context.Templates.Add(new Template
+        {
+            Id = templateId,
+            Code = "T-STAGING",
+            NameUk = "Staging sequence copy",
+            Status = TemplateStatus.Draft
+        });
+
+        context.TemplateVersions.Add(new TemplateVersion
+        {
+            Id = sourceVersionId,
+            TemplateId = templateId,
+            VersionNumber = 32,
+            Status = TemplateVersionStatus.Published,
+            DocumentFormat = TemplateDocumentFormat.Pdf,
+            OriginalFileName = "source.pdf",
+            StorageKey = "templates/source.pdf",
+            ContentType = "application/pdf",
+            FileSizeBytes = 128,
+            Sha256Hash = new string('d', 64),
+            UploadedAtUtc = DateTime.UtcNow,
+            Fields =
+            [
+                new TemplateField
+                {
+                    Id = sourceFieldId,
+                    TemplateVersionId = sourceVersionId,
+                    Tag = "AirSample",
+                    NormalizedTag = "AIRSAMPLE",
+                    Title = "Air sample",
+                    SortOrder = 1,
+                    DetectedAtUtc = DateTime.UtcNow,
+                    Segments =
+                    [
+                        new TemplateFieldSegment
+                        {
+                            Id = Guid.NewGuid(),
+                            TemplateFieldId = sourceFieldId,
+                            Sequence = 1,
+                            PageNumber = 1,
+                            PositionX = 10,
+                            PositionY = 20,
+                            Width = 100,
+                            Height = 30,
+                            IsPrimary = true
+                        },
+                        new TemplateFieldSegment
+                        {
+                            Id = Guid.NewGuid(),
+                            TemplateFieldId = sourceFieldId,
+                            Sequence = 3,
+                            PageNumber = 2,
+                            PositionX = 60,
+                            PositionY = 70,
+                            Width = 140,
+                            Height = 34,
+                            IsPrimary = false
+                        },
+                        new TemplateFieldSegment
+                        {
+                            Id = Guid.NewGuid(),
+                            TemplateFieldId = sourceFieldId,
+                            Sequence = 200_001,
+                            PageNumber = 1,
+                            PositionX = 40,
+                            PositionY = 50,
+                            Width = 120,
+                            Height = 32,
+                            IsPrimary = false
+                        }
+                    ]
+                }
+            ]
+        });
+
+        context.TemplateVersions.Add(new TemplateVersion
+        {
+            Id = targetVersionId,
+            TemplateId = templateId,
+            VersionNumber = 33,
+            Status = TemplateVersionStatus.Draft,
+            DocumentFormat = TemplateDocumentFormat.Pdf,
+            OriginalFileName = "revised.pdf",
+            StorageKey = "templates/revised.pdf",
+            ContentType = "application/pdf",
+            FileSizeBytes = 256,
+            Sha256Hash = new string('e', 64),
+            UploadedAtUtc = DateTime.UtcNow
+        });
+
+        await context.SaveChangesAsync();
+
+        var service = new TemplateVersionService(
+            context,
+            new TestCurrentUserService(),
+            new TestDateTimeProvider(DateTime.UtcNow),
+            new TestDocxContentControlReader(),
+            new TestTemplateDocumentStorage(),
+            new TestWordToPdfDocumentConverter(),
+            new TestTemplatePublicationValidator());
+
+        await service.CopyFieldsFromVersionAsync(targetVersionId, sourceVersionId);
+
+        var copiedField = await context.TemplateFields
+            .Include(field => field.Segments)
+            .SingleAsync(field => field.TemplateVersionId == targetVersionId);
+
+        Assert.Equal(2, copiedField.Segments.Count);
+        Assert.Equal([1, 2], copiedField.Segments.OrderBy(segment => segment.Sequence).Select(segment => segment.Sequence).ToArray());
+        Assert.Equal(2, copiedField.Segments.Single(segment => segment.Sequence == 2).PageNumber);
+    }
+
+    [Fact]
     public async Task CreateNewVersionAsync_CopiesFieldsAndSegmentsWithNewIdentifiers()
     {
         var templateId = Guid.NewGuid();

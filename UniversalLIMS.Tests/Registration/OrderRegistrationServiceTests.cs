@@ -167,6 +167,99 @@ public sealed class OrderRegistrationServiceTests
     }
 
     [Fact]
+    public async Task CreateOrderAsync_CreatesMultipleOrderDocumentsWithBranches()
+    {
+        var branchA = Guid.NewGuid();
+        var branchB = Guid.NewGuid();
+        await using var context = CreateContext();
+        await SeedBranchesAsync(context, branchA, branchB);
+        var (investigationTypeId, versionId1, versionId2) = await SeedInvestigationTypeWithTwoPdfTemplatesAsync(context);
+
+        var customer = await SeedCustomerAsync(context, "Мультидок Клієнт");
+        var service = CreateService(context, branchA);
+
+        var result = await service.CreateOrderAsync(new CreateOrderRequest
+        {
+            CustomerId = customer.Id,
+            InvestigationTypeId = investigationTypeId,
+            Documents =
+            [
+                new CreateOrderDocumentRequest { TemplateVersionId = versionId1, TargetBranchId = branchA },
+                new CreateOrderDocumentRequest { TemplateVersionId = versionId2, TargetBranchId = branchB }
+            ]
+        });
+
+        Assert.Equal(2, result.Documents.Count);
+
+        var documents = await context.OrderDocuments
+            .Where(document => document.OrderId == result.OrderId && !document.IsAnnulled)
+            .ToListAsync();
+
+        Assert.Equal(2, documents.Count);
+        Assert.Contains(documents, document => document.TemplateVersionId == versionId1 && document.TargetBranchId == branchA);
+        Assert.Contains(documents, document => document.TemplateVersionId == versionId2 && document.TargetBranchId == branchB);
+        Assert.All(documents, document => Assert.Equal(OrderDocumentStatus.Pending, document.Status));
+    }
+
+    [Fact]
+    public async Task SendDocumentsToLabAsync_UpdatesDocumentAndSampleStatus()
+    {
+        var branchId = Guid.NewGuid();
+        await using var context = CreateContext();
+        await SeedBranchesAsync(context, branchId);
+        var investigationTypeId = await SeedInvestigationTypeWithPdfTemplateAsync(context);
+        var customer = await SeedCustomerAsync(context, "Відправка");
+        var service = CreateService(context, branchId);
+
+        var created = await service.CreateOrderAsync(new CreateOrderRequest
+        {
+            CustomerId = customer.Id,
+            InvestigationTypeId = investigationTypeId
+        });
+
+        var documentId = created.Documents[0].OrderDocumentId;
+
+        await service.SendDocumentsToLabAsync(
+            new SendOrderDocumentsRequest
+            {
+                OrderId = created.OrderId,
+                OrderDocumentIds = [documentId]
+            });
+
+        var document = await context.OrderDocuments.SingleAsync(item => item.Id == documentId);
+        var sample = await context.Samples.SingleAsync(item => item.Id == created.SampleId);
+
+        Assert.Equal(OrderDocumentStatus.SentToLab, document.Status);
+        Assert.NotNull(document.SentToLabAtUtc);
+        Assert.Equal(SampleStatus.Routed, sample.Status);
+        Assert.NotNull(sample.RoutedAtUtc);
+    }
+
+    [Fact]
+    public async Task GetOrderDetailAsync_ReturnsDocumentsForOrder()
+    {
+        var branchId = Guid.NewGuid();
+        await using var context = CreateContext();
+        await SeedBranchesAsync(context, branchId);
+        var investigationTypeId = await SeedInvestigationTypeWithPdfTemplateAsync(context);
+        var customer = await SeedCustomerAsync(context, "Деталі");
+        var service = CreateService(context, branchId);
+
+        var created = await service.CreateOrderAsync(new CreateOrderRequest
+        {
+            CustomerId = customer.Id,
+            InvestigationTypeId = investigationTypeId
+        });
+
+        var detail = await service.GetOrderDetailAsync(created.OrderId);
+
+        Assert.NotNull(detail);
+        Assert.Single(detail!.Documents);
+        Assert.True(detail.Documents[0].CanFill);
+        Assert.True(detail.Documents[0].CanSendToLab);
+    }
+
+    [Fact]
     public async Task GetOrdersAsync_FiltersByReferralNumber()
     {
         var branchId = Guid.NewGuid();
@@ -224,6 +317,47 @@ public sealed class OrderRegistrationServiceTests
         context.Orders.Add(order);
         await context.SaveChangesAsync();
         return order.Id;
+    }
+
+    private static async Task<(Guid InvestigationTypeId, Guid VersionId1, Guid VersionId2)>
+        SeedInvestigationTypeWithTwoPdfTemplatesAsync(ApplicationDbContext context)
+    {
+        var investigationTypeId = await SeedInvestigationTypeWithPdfTemplateAsync(context);
+
+        var versionId1 = await (
+                from link in context.InvestigationTypeTemplates.AsNoTracking()
+                join template in context.Templates.AsNoTracking() on link.TemplateId equals template.Id
+                where link.InvestigationTypeId == investigationTypeId
+                select template.CurrentPublishedVersionId!.Value)
+            .FirstAsync();
+
+        var template2 = new Template
+        {
+            Code = "TST-TPL-2",
+            NameUk = "Другий шаблон"
+        };
+        context.Templates.Add(template2);
+
+        var version2 = new TemplateVersion
+        {
+            TemplateId = template2.Id,
+            VersionNumber = 1,
+            Status = TemplateVersionStatus.Published,
+            DocumentFormat = TemplateDocumentFormat.Pdf,
+            StorageKey = "test2.pdf"
+        };
+        context.TemplateVersions.Add(version2);
+        template2.CurrentPublishedVersionId = version2.Id;
+
+        context.InvestigationTypeTemplates.Add(new InvestigationTypeTemplate
+        {
+            InvestigationTypeId = investigationTypeId,
+            TemplateId = template2.Id,
+            SortOrder = 2
+        });
+
+        await context.SaveChangesAsync();
+        return (investigationTypeId, versionId1, version2.Id);
     }
 
     private static async Task<Guid> SeedInvestigationTypeWithPdfTemplateAsync(ApplicationDbContext context)

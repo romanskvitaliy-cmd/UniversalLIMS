@@ -13,4 +13,14 @@ public static class SampleStatusDisplay
             SampleStatus.ResultsEntered => "Результати внесено",
             _ => status.ToString()
         };
+
+    public static string BadgeClass(SampleStatus status) =>
+        status switch
+        {
+            SampleStatus.Registered => "lims-status-badge--registered",
+            SampleStatus.Routed => "lims-status-badge--sent",
+            SampleStatus.InProgress => "lims-status-badge--progress",
+            SampleStatus.ResultsEntered => "lims-status-badge--done",
+            _ => "lims-status-badge--neutral"
+        };
 }

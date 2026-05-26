@@ -16,6 +16,7 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
     private readonly ApplicationDbContext _context;
     private readonly ITemplateDocumentStorage _templateDocumentStorage;
     private readonly IOrderFieldValueService _orderFieldValueService;
+    private readonly ITemplateFieldPermissionService _fieldPermissions;
     private readonly ReferralPdfOverlayRenderer _overlayRenderer;
     private readonly ILogger<PdfWorkspaceFillService> _logger;
     private readonly bool _allowImplicitOrderCreation;
@@ -24,6 +25,7 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
         ApplicationDbContext context,
         ITemplateDocumentStorage templateDocumentStorage,
         IOrderFieldValueService orderFieldValueService,
+        ITemplateFieldPermissionService fieldPermissions,
         ILogger<PdfWorkspaceFillService> logger,
         ILogger<ReferralPdfOverlayRenderer> overlayLogger,
         IHostEnvironment hostEnvironment)
@@ -31,6 +33,7 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
         _context = context;
         _templateDocumentStorage = templateDocumentStorage;
         _orderFieldValueService = orderFieldValueService;
+        _fieldPermissions = fieldPermissions;
         _logger = logger;
         _overlayRenderer = new ReferralPdfOverlayRenderer(overlayLogger);
         _allowImplicitOrderCreation = hostEnvironment.IsDevelopment();
@@ -59,6 +62,10 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
 
         var order = await EnsureOrderAsync(orderId, templateVersionId, cancellationToken);
         await EnsureOrderDocumentAsync(order, templateVersionId, cancellationToken);
+
+        var accessByFieldId = await _fieldPermissions.GetFieldAccessLevelsForVersionAsync(
+            templateVersionId,
+            cancellationToken);
 
         var templateFieldIds = values
             .Where(item => item.TemplateFieldId.HasValue)
@@ -126,6 +133,22 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
                 _logger.LogWarning(
                     "PdfWorkspaceFill skip: template field not found {TemplateFieldId}",
                     templateFieldId);
+                continue;
+            }
+
+            if (!accessByFieldId.TryGetValue(templateFieldId, out var accessLevel)
+                || accessLevel < FieldAccessLevel.Write)
+            {
+                skippedUnmapped++;
+                failures.Add(new PdfWorkspaceSaveFieldFailure
+                {
+                    TemplateFieldId = templateFieldId,
+                    Reason = "Немає права на запис у це поле для активної ролі."
+                });
+                _logger.LogWarning(
+                    "PdfWorkspaceFill skip: write denied for {TemplateFieldId}, access={Access}",
+                    templateFieldId,
+                    accessByFieldId.GetValueOrDefault(templateFieldId, FieldAccessLevel.None));
                 continue;
             }
 
@@ -866,6 +889,81 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
             "right" => TextAlignment.Right,
             _ => TextAlignment.Left
         };
+
+    public async Task<int> GetLayoutSegmentCountAsync(
+        Guid templateVersionId,
+        CancellationToken cancellationToken = default)
+    {
+        return await (
+                from segment in _context.TemplateFieldSegments.AsNoTracking()
+                join field in _context.TemplateFields.AsNoTracking() on segment.TemplateFieldId equals field.Id
+                where field.TemplateVersionId == templateVersionId
+                      && !field.IsAnnulled
+                      && !segment.IsAnnulled
+                select segment.Id)
+            .CountAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<PdfWorkspaceFillSegmentDto>> GetFillSegmentsAsync(
+        Guid templateVersionId,
+        CancellationToken cancellationToken = default)
+    {
+        await EnsureTemplateVersionExistsAsync(templateVersionId, cancellationToken);
+
+        var accessByFieldId = await _fieldPermissions.GetFieldAccessLevelsForVersionAsync(
+            templateVersionId,
+            cancellationToken);
+
+        var rows = await (
+                from segment in _context.TemplateFieldSegments.AsNoTracking()
+                join field in _context.TemplateFields.AsNoTracking() on segment.TemplateFieldId equals field.Id
+                join dataField in _context.DataFields.AsNoTracking()
+                    on field.DataFieldId equals dataField.Id into dataFieldGroup
+                from dataField in dataFieldGroup.DefaultIfEmpty()
+                where field.TemplateVersionId == templateVersionId
+                      && !field.IsAnnulled
+                      && !segment.IsAnnulled
+                orderby field.SortOrder, segment.Sequence
+                select new
+                {
+                    Segment = segment,
+                    Field = field,
+                    DataFieldKey = dataField != null ? dataField.Key : null
+                })
+            .ToListAsync(cancellationToken);
+
+        return rows
+            .Where(row => accessByFieldId.TryGetValue(row.Field.Id, out var accessLevel)
+                          && accessLevel >= FieldAccessLevel.Read)
+            .Select(row => new PdfWorkspaceFillSegmentDto
+            {
+                SegmentId = row.Segment.Id,
+                TemplateFieldId = row.Field.Id,
+                Tag = row.Field.Tag,
+                Title = row.Field.Title,
+                DataFieldKey = row.DataFieldKey ?? row.Field.Tag,
+                Sequence = row.Segment.Sequence,
+                PageNumber = row.Segment.PageNumber,
+                PositionX = row.Segment.PositionX,
+                PositionY = row.Segment.PositionY,
+                Width = row.Segment.Width,
+                Height = row.Segment.Height,
+                AllowMultiline = row.Field.AllowMultiline,
+                TextOffsetX = row.Field.TextOffsetX,
+                TextOffsetY = row.Field.TextOffsetY,
+                FontSize = row.Segment.FontSize,
+                FontName = row.Segment.FontName,
+                HorizontalAlignment = row.Segment.HorizontalAlignment ?? row.Segment.TextAlignment.ToString(),
+                VerticalAlignment = row.Segment.VerticalAlignment,
+                TextAlignment = row.Segment.TextAlignment.ToString(),
+                LineHeight = row.Segment.LineHeight,
+                SvgPathData = row.Segment.SvgPathData,
+                IsPrimary = row.Segment.IsPrimary,
+                SegmentRowVersion = row.Segment.RowVersion,
+                AccessLevel = accessByFieldId[row.Field.Id]
+            })
+            .ToList();
+    }
 
     public async Task<IReadOnlyDictionary<string, string?>> GetSavedValuesByKeyAsync(
         Guid orderId,

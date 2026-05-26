@@ -10,7 +10,10 @@ public sealed class CreateOrderRequest
 
     public Guid InvestigationTypeId { get; init; }
 
+    /// <summary>Застарілий одиночний вибір; якщо <see cref="Documents"/> порожній — використовується це поле.</summary>
     public Guid? TemplateVersionId { get; init; }
+
+    public IReadOnlyList<CreateOrderDocumentRequest> Documents { get; init; } = [];
 }
 
 public sealed class CreateOrderResult
@@ -24,6 +27,8 @@ public sealed class CreateOrderResult
     public required string ReferralNumber { get; init; }
 
     public required string SampleNumber { get; init; }
+
+    public IReadOnlyList<CreatedOrderDocumentDto> Documents { get; init; } = [];
 }
 
 public sealed class InvestigationTypeOptionDto
@@ -53,4 +58,8 @@ public sealed class OrderCreateFormDto
     public required IReadOnlyList<InvestigationTypeOptionDto> InvestigationTypes { get; init; }
 
     public required IReadOnlyList<OrderTemplateOptionDto> TemplateOptions { get; init; }
+
+    public required IReadOnlyList<BranchOptionDto> Branches { get; init; }
+
+    public Guid? DefaultBranchId { get; init; }
 }

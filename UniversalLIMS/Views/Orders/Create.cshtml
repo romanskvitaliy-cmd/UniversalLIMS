@@ -5,12 +5,14 @@
     Layout = "_LayoutWorkspace";
     ViewData["Title"] = "Нове замовлення";
     var templateOptionsJson = JsonSerializer.Serialize(Model.Form.TemplateOptions);
+    var branchesJson = JsonSerializer.Serialize(Model.Form.Branches);
+    var defaultBranchId = Model.Form.DefaultBranchId?.ToString("D") ?? "";
 }
 
 <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
     <div>
         <h1 class="h3 mb-1">Нове замовлення</h1>
-        <p class="text-muted mb-0">Замовник (SSOT), тип дослідження, нумерація проби та направлення.</p>
+        <p class="text-muted mb-0">Замовник, тип дослідження, один або кілька PDF-бланків і маршрут по філіях.</p>
     </div>
     <a class="btn btn-sm btn-outline-secondary" asp-action="Index">← До реєстру</a>
 </div>
@@ -71,7 +73,7 @@
             </div>
         </div>
 
-        <h2 class="h6 text-muted text-uppercase mb-3">Дослідження</h2>
+        <h2 class="h6 text-muted text-uppercase mb-3">Дослідження та бланки</h2>
         <div class="row g-2 mb-3">
             <div class="col-md-6">
                 <label class="form-label small text-muted" asp-for="Input.InvestigationTypeId">Тип дослідження</label>
@@ -81,18 +83,19 @@
                 </select>
                 <span asp-validation-for="Input.InvestigationTypeId" class="text-danger small"></span>
             </div>
-            <div class="col-md-6">
-                <label class="form-label small text-muted" asp-for="Input.TemplateVersionId">PDF-шаблон</label>
-                <select asp-for="Input.TemplateVersionId" class="form-select form-select-sm" id="templateVersionId">
-                    <option value="">— за замовчуванням —</option>
-                </select>
-            </div>
         </div>
+
+        <p class="small text-muted mb-2">Оберіть один або кілька PDF-шаблонів і для кожного вкажіть філію лабораторії.</p>
+        <div id="templateDocumentsPanel" class="border rounded p-2 mb-3 bg-light">
+            <p class="small text-muted mb-0" id="templateDocumentsPlaceholder">Спочатку оберіть тип дослідження.</p>
+            <div id="templateDocumentsList" class="d-none"></div>
+        </div>
+        <span asp-validation-for="Input.SelectedTemplateVersionIds" class="text-danger small d-block mb-2"></span>
 
         <div class="form-check mb-3">
             <input asp-for="Input.OpenPdfAfterCreate" class="form-check-input" />
             <label class="form-check-label small" asp-for="Input.OpenPdfAfterCreate">
-                Відкрити PDF Workspace після створення
+                Відкрити PDF Workspace після створення (якщо обрано один бланк)
             </label>
         </div>
 
@@ -104,6 +107,8 @@
     <partial name="_ValidationScriptsPartial" />
     <script>
         window.__orderCreateTemplateOptions = @Html.Raw(templateOptionsJson);
+        window.__orderCreateBranches = @Html.Raw(branchesJson);
+        window.__orderCreateDefaultBranchId = @Html.Raw(JsonSerializer.Serialize(defaultBranchId));
     </script>
     <script src="~/js/order-create.js" asp-append-version="true"></script>
 }

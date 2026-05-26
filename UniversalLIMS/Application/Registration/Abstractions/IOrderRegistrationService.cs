@@ -13,4 +13,16 @@ public interface IOrderRegistrationService
     Task<CreateOrderResult> CreateOrderAsync(
         CreateOrderRequest request,
         CancellationToken cancellationToken = default);
+
+    Task<OrderDetailDto?> GetOrderDetailAsync(
+        Guid orderId,
+        CancellationToken cancellationToken = default);
+
+    Task SendDocumentsToLabAsync(
+        SendOrderDocumentsRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task UpdateDocumentRoutingAsync(
+        UpdateOrderDocumentRoutingRequest request,
+        CancellationToken cancellationToken = default);
 }

@@ -2,10 +2,13 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using UniversalLIMS.Application.Home;
+using UniversalLIMS.Application.Registration;
 using UniversalLIMS.Application.Registration.Abstractions;
 using UniversalLIMS.Application.Security;
 using UniversalLIMS.Application.Templates.Abstractions;
 using UniversalLIMS.Domain.Templates;
+using UniversalLIMS.Infrastructure.Security;
 using UniversalLIMS.Infrastructure.Filters;
 using UniversalLIMS.Infrastructure.Persistence;
 using UniversalLIMS.Infrastructure.Registration;
@@ -13,24 +16,30 @@ using UniversalLIMS.ViewModels.PdfWorkspace;
 
 namespace UniversalLIMS.Controllers;
 
-[Authorize(Policy = LimsPolicies.RegisterSamples)]
+[Authorize(Policy = LimsPolicies.FillPdfWorkspace)]
 [RequireActiveLimsRole]
 public sealed class PdfWorkspaceController : Controller
 {
     private readonly ApplicationDbContext _context;
     private readonly ITemplateOriginalOpenTokenIssuer _openTokenIssuer;
     private readonly IPdfWorkspaceFillService _fillService;
+    private readonly ITemplateFieldMappingService _fieldMapping;
+    private readonly IActiveLimsRoleService _activeRole;
     private readonly ILogger<PdfWorkspaceController> _logger;
 
     public PdfWorkspaceController(
         ApplicationDbContext context,
         ITemplateOriginalOpenTokenIssuer openTokenIssuer,
         IPdfWorkspaceFillService fillService,
+        ITemplateFieldMappingService fieldMapping,
+        IActiveLimsRoleService activeRole,
         ILogger<PdfWorkspaceController> logger)
     {
         _context = context;
         _openTokenIssuer = openTokenIssuer;
         _fillService = fillService;
+        _fieldMapping = fieldMapping;
+        _activeRole = activeRole;
         _logger = logger;
     }
 
@@ -49,7 +58,7 @@ public sealed class PdfWorkspaceController : Controller
                 TemplateId = version.TemplateId,
                 TemplateNameUk = version.Template.NameUk,
                 VersionNumber = version.VersionNumber,
-                Status = version.Status.ToString()
+                Status = version.Status
             })
             .ToListAsync(cancellationToken);
 
@@ -164,6 +173,33 @@ public sealed class PdfWorkspaceController : Controller
         }
     }
 
+    [HttpPost("PdfWorkspace/Fill/{templateVersionId:guid}/layout")]
+    [IgnoreAntiforgeryToken]
+    public async Task<IActionResult> SaveLayout(
+        Guid templateVersionId,
+        [FromBody] PdfWorkspaceFillLayoutSaveRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (request?.Fields is null || request.Fields.Count == 0)
+        {
+            return BadRequest(new { message = "Немає полів макету для збереження." });
+        }
+
+        try
+        {
+            var result = await _fieldMapping.SaveFillLayoutRefinementAsync(
+                templateVersionId,
+                request.Fields,
+                cancellationToken);
+
+            return Json(new { saved = result.Saved, message = result.Message });
+        }
+        catch (InvalidOperationException exception)
+        {
+            return BadRequest(new { message = exception.Message });
+        }
+    }
+
     [HttpGet("PdfWorkspace/Fill/{templateVersionId:guid}/final")]
     public async Task<IActionResult> FinalPdf(
         Guid templateVersionId,
@@ -202,10 +238,6 @@ public sealed class PdfWorkspaceController : Controller
         var version = await _context.TemplateVersions
             .AsNoTracking()
             .Include(item => item.Template)
-            .Include(item => item.Fields.Where(field => !field.IsAnnulled))
-                .ThenInclude(field => field.Segments.Where(segment => !segment.IsAnnulled))
-            .Include(item => item.Fields.Where(field => !field.IsAnnulled))
-                .ThenInclude(field => field.DataField)
             .FirstOrDefaultAsync(item => item.Id == templateVersionId, cancellationToken);
 
         if (version is null || version.DocumentFormat != TemplateDocumentFormat.Pdf)
@@ -213,31 +245,38 @@ public sealed class PdfWorkspaceController : Controller
             return null;
         }
 
-        var segments = version.Fields
-            .OrderBy(field => field.SortOrder)
-            .SelectMany(field => field.Segments
-                .OrderBy(segment => segment.Sequence)
-                .Select(segment => new PdfWorkspaceFillSegmentViewModel
-                {
-                    SegmentId = segment.Id,
-                    TemplateFieldId = field.Id,
-                    Tag = field.Tag,
-                    Title = field.Title,
-                    DataFieldKey = field.DataField?.Key ?? field.Tag,
-                    Sequence = segment.Sequence,
-                    PageNumber = segment.PageNumber,
-                    PositionX = segment.PositionX,
-                    PositionY = segment.PositionY,
-                    Width = segment.Width,
-                    Height = segment.Height,
-                    AllowMultiline = field.AllowMultiline,
-                    TextOffsetX = field.TextOffsetX,
-                    TextOffsetY = field.TextOffsetY,
-                    FontSize = segment.FontSize,
-                    FontName = segment.FontName,
-                    HorizontalAlignment = segment.HorizontalAlignment ?? segment.TextAlignment.ToString(),
-                    VerticalAlignment = segment.VerticalAlignment
-                }))
+        var layoutSegmentCount = await _fillService.GetLayoutSegmentCountAsync(templateVersionId, cancellationToken);
+        var segmentDtos = await _fillService.GetFillSegmentsAsync(templateVersionId, cancellationToken);
+        var segments = segmentDtos
+            .Select(segment => new PdfWorkspaceFillSegmentViewModel
+            {
+                SegmentId = segment.SegmentId,
+                TemplateFieldId = segment.TemplateFieldId,
+                Tag = segment.Tag,
+                Title = segment.Title,
+                DataFieldKey = segment.DataFieldKey,
+                Sequence = segment.Sequence,
+                PageNumber = segment.PageNumber,
+                PositionX = segment.PositionX,
+                PositionY = segment.PositionY,
+                Width = segment.Width,
+                Height = segment.Height,
+                AllowMultiline = segment.AllowMultiline,
+                TextOffsetX = segment.TextOffsetX,
+                TextOffsetY = segment.TextOffsetY,
+                FontSize = segment.FontSize,
+                FontName = segment.FontName,
+                HorizontalAlignment = segment.HorizontalAlignment,
+                VerticalAlignment = segment.VerticalAlignment,
+                TextAlignment = segment.TextAlignment,
+                LineHeight = segment.LineHeight,
+                SvgPathData = segment.SvgPathData,
+                IsPrimary = segment.IsPrimary,
+                SegmentRowVersionBase64 = segment.SegmentRowVersion is { Length: > 0 }
+                    ? Convert.ToBase64String(segment.SegmentRowVersion)
+                    : null,
+                AccessLevel = segment.AccessLevel
+            })
             .ToList();
 
         Dictionary<string, string?> savedValues = new(StringComparer.Ordinal);
@@ -248,6 +287,9 @@ public sealed class PdfWorkspaceController : Controller
                 StringComparer.Ordinal);
         }
 
+        var activeRole = _activeRole.ResolveActiveRole(User);
+        var roleDisplay = RolePortalCatalog.FindByRoleCode(activeRole)?.DisplayName ?? activeRole;
+
         return new PdfWorkspaceFillViewModel
         {
             TemplateVersionId = version.Id,
@@ -257,7 +299,16 @@ public sealed class PdfWorkspaceController : Controller
             OrderId = orderId,
             PdfPreviewUrl = BuildOpenOriginalLink(version.Id),
             SavedValuesByKey = savedValues,
-            Segments = segments
+            Segments = segments,
+            ActiveRoleCode = activeRole,
+            ActiveRoleDisplayName = roleDisplay,
+            LayoutSegmentCount = layoutSegmentCount,
+            WritableFieldCount = segments.Count(segment => segment.CanWrite),
+            ReadOnlyFieldCount = segments.Count(segment => !segment.CanWrite),
+            FieldPermissionsUrl = Url.Action(
+                "Permissions",
+                "TemplateFields",
+                new { templateVersionId = version.Id })
         };
     }
 

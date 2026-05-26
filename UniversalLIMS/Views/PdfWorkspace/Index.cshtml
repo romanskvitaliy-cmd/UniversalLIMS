@@ -1,4 +1,5 @@
 @model PdfWorkspaceVersionListViewModel
+@using UniversalLIMS.Application.Templates
 
 @{
     Layout = "_LayoutWorkspace";
@@ -19,7 +20,7 @@
 else
 {
     <div class="table-responsive">
-        <table class="table table-sm table-hover align-middle">
+        <table class="table table-sm table-hover align-middle lims-workspace-table">
             <thead>
                 <tr>
                     <th>Шаблон</th>
@@ -32,9 +33,15 @@ else
                 @foreach (var version in Model.Versions)
                 {
                     <tr>
-                        <td>@version.TemplateNameUk</td>
-                        <td><span class="badge text-bg-secondary">v@(version.VersionNumber)</span></td>
-                        <td class="text-muted small">@version.Status</td>
+                        <td class="fw-semibold">@version.TemplateNameUk</td>
+                        <td>
+                            <span class="badge lims-version-badge">v@(version.VersionNumber)</span>
+                        </td>
+                        <td>
+                            <span class="badge lims-status-badge @TemplateVersionStatusDisplay.BadgeClass(version.Status)">
+                                @TemplateVersionStatusDisplay.ToUk(version.Status)
+                            </span>
+                        </td>
                         <td class="text-end">
                             <a class="btn btn-sm btn-primary"
                                asp-action="Fill"

@@ -754,7 +754,8 @@ public sealed class TemplateFieldsController : Controller
             TemplateId = version.TemplateId,
             TemplateNameUk = version.Template.NameUk,
             VersionNumber = version.VersionNumber,
-            IsEditable = IsEditable(version),
+            Status = version.Status,
+            IsEditable = ArePermissionsEditable(version),
             Fields = version.Fields
                 .OrderBy(field => field.SortOrder)
                 .Select(field => new TemplateFieldPermissionRowViewModel
@@ -779,6 +780,14 @@ public sealed class TemplateFieldsController : Controller
     private static bool IsEditable(TemplateVersion version)
     {
         return version.Status is TemplateVersionStatus.Draft or TemplateVersionStatus.ReadyForPublication;
+    }
+
+    /// <summary>Матрицю прав адміністратор може змінювати й для опублікованої версії (layout — ні).</summary>
+    private static bool ArePermissionsEditable(TemplateVersion version)
+    {
+        return version.Status is TemplateVersionStatus.Draft
+            or TemplateVersionStatus.ReadyForPublication
+            or TemplateVersionStatus.Published;
     }
 
     private bool WantsMapJsonResponse()

@@ -43,5 +43,11 @@ public sealed class OrderCreateInputModel
 
     public Guid? TemplateVersionId { get; set; }
 
+    /// <summary>Обрані PDF-шаблони (версії) для справи.</summary>
+    public List<Guid> SelectedTemplateVersionIds { get; set; } = [];
+
+    /// <summary>Паралельний список філій призначення (індекс = SelectedTemplateVersionIds).</summary>
+    public List<Guid> DocumentTargetBranchIds { get; set; } = [];
+
     public bool OpenPdfAfterCreate { get; set; } = true;
 }

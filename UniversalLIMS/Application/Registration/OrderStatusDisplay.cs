@@ -11,4 +11,12 @@ public static class OrderStatusDisplay
             OrderStatus.Registered => "Зареєстровано",
             _ => status.ToString()
         };
+
+    public static string BadgeClass(OrderStatus status) =>
+        status switch
+        {
+            OrderStatus.Draft => "lims-status-badge--draft",
+            OrderStatus.Registered => "lims-status-badge--registered",
+            _ => "lims-status-badge--neutral"
+        };
 }

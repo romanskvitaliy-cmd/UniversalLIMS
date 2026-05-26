@@ -1,3 +1,4 @@
+using UniversalLIMS.Application.Registration;
 using UniversalLIMS.Domain.Templates;
 
 namespace UniversalLIMS.Application.Templates.Abstractions;
@@ -63,5 +64,13 @@ public interface ITemplateFieldMappingService
         Guid templateVersionId,
         string tag,
         string? title,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Уточнення макету під час Fill: offset, шрифт, вирівнювання для поточної версії (у т.ч. Published).
+    /// </summary>
+    Task<PdfWorkspaceFillLayoutSaveResult> SaveFillLayoutRefinementAsync(
+        Guid templateVersionId,
+        IReadOnlyList<PdfWorkspaceFillLayoutFieldUpdate> updates,
         CancellationToken cancellationToken = default);
 }

@@ -19,7 +19,7 @@
         background: linear-gradient(180deg, #fafcff 0%, #ffffff 100%);
     }
 
-    #pdfFillWorkspaceRoot {
+    .pdf-fill-layout__main #pdfFillWorkspaceRoot {
         overflow: auto;
         max-width: 100%;
         height: 80vh;
@@ -51,10 +51,10 @@
         display: flex;
         margin: 0;
         padding: 0;
-        border: 1px dashed rgba(0, 123, 255, 0.45);
+        border: 1px dashed rgba(0, 123, 255, 0.65);
         overflow: hidden;
         pointer-events: auto;
-        background: rgba(255, 255, 255, 0.35);
+        background: rgba(255, 255, 255, 0.55);
         cursor: text;
         z-index: 20;
     }
@@ -117,6 +117,23 @@
         box-shadow: none;
     }
 
+    .pdf-fill-field-box.is-readonly {
+        border-style: solid;
+        border-color: rgba(108, 117, 125, 0.45);
+        background: rgba(248, 249, 250, 0.75);
+        cursor: default;
+    }
+
+    .pdf-fill-field-box.is-readonly:hover {
+        border-color: rgba(108, 117, 125, 0.55);
+        background: rgba(248, 249, 250, 0.85);
+    }
+
+    .pdf-fill-field-box.is-readonly .pdf-field-input {
+        cursor: default;
+        color: #495057;
+    }
+
     .pdf-fill-field-box .pdf-field-input.is-empty:not(:focus) {
         min-height: 1em;
     }
@@ -135,7 +152,11 @@
     <div>
         <h1 class="h4 mb-1">PDF Workspace — заповнення</h1>
         <p class="text-muted mb-0">@Model.TemplateNameUk · v@(Model.VersionNumber)</p>
-        <p class="small text-muted mb-0">Клікніть поле на PDF і вводьте текст прямо на бланку (без модалок).</p>
+        @if (!string.IsNullOrWhiteSpace(Model.ActiveRoleCode))
+        {
+            <p class="small text-muted mb-0">Активна роль: <span class="fw-semibold">@(Model.ActiveRoleDisplayName ?? Model.ActiveRoleCode)</span></p>
+        }
+        <p class="small text-muted mb-0">Клікніть поле на PDF або оберіть у списку справа — текст можна редагувати на бланку або в панелі.</p>
     </div>
     <div class="d-flex flex-wrap gap-2 justify-content-end">
         <a class="btn btn-outline-secondary btn-sm" asp-action="Index">Список версій</a>
@@ -143,7 +164,8 @@
         {
             <a class="btn btn-outline-secondary btn-sm" href="@Model.PdfPreviewUrl" target="_blank" rel="noopener">Оригінал PDF</a>
         }
-        <button id="pdfFillSaveButton" type="button" class="btn btn-primary btn-sm">Зберегти значення</button>
+        <button id="pdfFillSaveButton" type="button" class="btn btn-primary btn-sm"
+                @(Model.Segments.Any(segment => segment.CanWrite) ? "" : "disabled")>Зберегти значення</button>
         <a id="pdfFillPreviewFinalButton"
            class="btn btn-success btn-sm @(Model.OrderId.HasValue ? "" : "d-none")"
            href="@(Model.OrderId.HasValue ? Url.Action("FinalPdf", "PdfWorkspace", new { templateVersionId = Model.TemplateVersionId, orderId = Model.OrderId }) : "#")"
@@ -170,67 +192,281 @@
 {
     <div class="alert alert-warning">Preview URL для PDF не згенеровано.</div>
 }
-else if (!Model.Segments.Any())
-{
-    <div class="alert alert-info">У цій версії ще немає розміщених полів (сегментів).</div>
-}
 else
 {
-    <div class="row g-2 align-items-center mb-2">
-        <div class="col-auto">
-            <label class="form-label mb-0 small" for="pdfFillZoomSlider">Масштаб</label>
+    @if (Model.IsBlockedByPermissions)
+    {
+        <div class="alert alert-warning mb-2">
+            У шаблоні розміщено <strong>@Model.LayoutSegmentCount</strong> полів на PDF, але для ролі
+            <strong>@(Model.ActiveRoleDisplayName ?? Model.ActiveRoleCode ?? "поточна")</strong>
+            не налаштовано доступу (Read або Write) жодного поля.
+            <span class="d-block small mt-1">
+                Налаштуйте матрицю «Права доступу до полів» для цієї версії
+                @if (!string.IsNullOrWhiteSpace(Model.FieldPermissionsUrl))
+                {
+                    <a href="@Model.FieldPermissionsUrl">у конструкторі шаблону</a>
+                }
+                — колонка <code>LaboratoryTechnician</code> для лаборанта, <code>Registrar</code> для реєстратора.
+            </span>
         </div>
-        <div class="col-md-4">
-            <input id="pdfFillZoomSlider" class="form-range" type="range" min="75" max="300" step="5" value="100" />
+    }
+    else if (Model.HasNoLayout)
+    {
+        <div class="alert alert-info mb-2">
+            У цій версії ще немає розміщених полів (сегментів). Відкрийте
+            <a asp-controller="TemplateFields" asp-action="Map" asp-route-templateVersionId="@Model.TemplateVersionId">карту полів (Map)</a>
+            і розмістіть поля на PDF.
         </div>
-        <div class="col-auto small text-muted"><span id="pdfFillZoomValue">100%</span></div>
-        <div class="col-auto small text-muted ms-auto">Полів: @Model.Segments.Count</div>
-    </div>
+    }
 
-    <div id="pdfFillWorkspaceRoot" class="p-2" data-pdf-preview-url="@Model.PdfPreviewUrl">
-        <div id="pdfFillZoomContainer">
-            <div id="pdfFillPagesHost"></div>
+    @if (Model.Segments.Any() && Model.WritableFieldCount == 0)
+    {
+        <div class="alert alert-warning mb-2">
+            Поля видимі лише для перегляду: для ролі
+            <strong>@(Model.ActiveRoleDisplayName ?? Model.ActiveRoleCode ?? "поточна")</strong>
+            не налаштовано права <strong>Write</strong>.
+            @if (!string.IsNullOrWhiteSpace(Model.FieldPermissionsUrl))
+            {
+                <span class="d-block small mt-1">
+                    Увімкніть <code>Write</code> для колонки <code>Registrar</code> (або вашої ролі) у
+                    <a href="@Model.FieldPermissionsUrl">матриці прав полів</a>.
+                </span>
+            }
         </div>
-        <div id="pdfFillPreviewError" class="alert alert-warning m-2" style="display:none;"></div>
+    }
+
+    @if (Model.Segments.Any())
+    {
+        <div class="row g-2 align-items-center mb-2">
+            <div class="col-auto">
+                <label class="form-label mb-0 small" for="pdfFillZoomSlider">Масштаб</label>
+            </div>
+            <div class="col-md-4">
+                <input id="pdfFillZoomSlider" class="form-range" type="range" min="75" max="300" step="5" value="100" />
+            </div>
+            <div class="col-auto small text-muted"><span id="pdfFillZoomValue">100%</span></div>
+            <div class="col-auto small text-muted ms-auto">
+                Полів: @Model.Segments.Count
+                @if (Model.Segments.Select(segment => segment.PageNumber).Distinct().Count() > 1)
+                {
+                    <span>· поля для вводу на сторінці @(Model.Segments.Min(segment => segment.PageNumber))</span>
+                }
+                @if (Model.ReadOnlyFieldCount > 0)
+                {
+                    <span>· редагування: @Model.WritableFieldCount, лише перегляд: @Model.ReadOnlyFieldCount</span>
+                }
+            </div>
+        </div>
+    }
+
+    <div class="pdf-fill-layout" id="pdfFillLayout">
+        <div class="pdf-fill-layout__main">
+            <div id="pdfFillWorkspaceRoot" class="p-2" data-pdf-preview-url="@Model.PdfPreviewUrl">
+                <div id="pdfFillZoomContainer">
+                    <div id="pdfFillPagesHost"></div>
+                </div>
+                <div id="pdfFillPreviewError" class="alert alert-warning m-2" style="display:none;"></div>
+            </div>
+        </div>
+        @if (Model.Segments.Any())
+        {
+            <aside id="pdfFillSidePanel" class="pdf-fill-panel" aria-label="Панель заповнення полів">
+                <div class="pdf-fill-panel__head">
+                    <div class="pdf-fill-panel__title">Заповнення поля</div>
+                    <p id="pdfFillPanelEditing" class="pdf-fill-panel__editing" aria-live="polite"></p>
+                    <span id="pdfFillSaveBadge" class="pdf-fill-panel__save-badge pdf-fill-panel__save-badge--saved">Збережено</span>
+                </div>
+                <p id="pdfFillPanelHint" class="pdf-fill-panel__hint">Клікніть поле на PDF — тут з’явиться редактор.</p>
+                <div class="pdf-fill-panel__tabs" role="tablist">
+                    <button type="button" class="pdf-fill-panel__tab active" data-fill-tab="text" role="tab">Текст</button>
+                    <button type="button" class="pdf-fill-panel__tab" data-fill-tab="position" role="tab">Позиція</button>
+                    <button type="button" class="pdf-fill-panel__tab" data-fill-tab="fields" role="tab">Поля</button>
+                    <button type="button" class="pdf-fill-panel__tab" data-fill-tab="actions" role="tab">Дії</button>
+                </div>
+                <div class="pdf-fill-panel__body">
+                    <div class="pdf-fill-panel__pane active" data-fill-pane="text" role="tabpanel">
+                        <label for="pdfFillPanelValue" class="form-label small mb-1">Значення (замовлення)</label>
+                        <textarea id="pdfFillPanelValue" class="form-control pdf-fill-panel__value-input" rows="4"
+                                  placeholder="Оберіть поле на PDF…" disabled spellcheck="false"></textarea>
+                        <p id="pdfFillPanelReadonlyNote" class="pdf-fill-panel__meta d-none mb-0">
+                            Це поле лише для перегляду (немає права Write).
+                        </p>
+                        <p id="pdfFillPanelCharCount" class="pdf-fill-panel__meta mb-2"></p>
+                        <div class="pdf-fill-cal-group">
+                            <label class="pdf-fill-cal-label" for="pdfFillFontFamily">Шрифт</label>
+                            <select id="pdfFillFontFamily" class="form-select form-select-sm" disabled>
+                                <option value="">Arial (за замовч.)</option>
+                                <option value="Arial">Arial</option>
+                                <option value="Times New Roman">Times New Roman</option>
+                                <option value="Georgia">Georgia</option>
+                                <option value="Verdana">Verdana</option>
+                            </select>
+                        </div>
+                        <div class="pdf-fill-cal-group pdf-fill-cal-group--inline">
+                            <label class="pdf-fill-cal-label" for="pdfFillFontSize">Розмір</label>
+                            <div class="input-group input-group-sm">
+                                <button type="button" class="btn btn-outline-secondary" id="pdfFillFontSizeMinus" disabled>−</button>
+                                <input id="pdfFillFontSize" type="number" class="form-control" min="6" max="72" step="0.5" disabled />
+                                <button type="button" class="btn btn-outline-secondary" id="pdfFillFontSizePlus" disabled>+</button>
+                            </div>
+                        </div>
+                        <div class="pdf-fill-cal-group">
+                            <span class="pdf-fill-cal-label">Стиль</span>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" class="btn btn-outline-secondary" id="pdfFillBold" disabled aria-pressed="false">B</button>
+                                <button type="button" class="btn btn-outline-secondary" id="pdfFillItalic" disabled aria-pressed="false"><em>I</em></button>
+                                <button type="button" class="btn btn-outline-secondary" id="pdfFillUnderline" disabled aria-pressed="false"><u>U</u></button>
+                            </div>
+                        </div>
+                        <div class="pdf-fill-cal-group pdf-fill-cal-group--inline">
+                            <label class="pdf-fill-cal-label" for="pdfFillLineHeight">Line-height</label>
+                            <input id="pdfFillLineHeight" type="number" class="form-control form-control-sm" min="0.8" max="3" step="0.05" disabled />
+                        </div>
+                    </div>
+                    <div class="pdf-fill-panel__pane" data-fill-pane="position" role="tabpanel">
+                        <div class="pdf-fill-cal-group pdf-fill-cal-group--inline">
+                            <label class="pdf-fill-cal-label" for="pdfFillOffsetX">Offset X</label>
+                            <div class="input-group input-group-sm">
+                                <button type="button" class="btn btn-outline-secondary pdf-fill-offset-step" data-axis="x" data-delta="-1" disabled>−</button>
+                                <input id="pdfFillOffsetX" type="number" step="0.1" class="form-control" disabled />
+                                <button type="button" class="btn btn-outline-secondary pdf-fill-offset-step" data-axis="x" data-delta="1" disabled>+</button>
+                            </div>
+                        </div>
+                        <div class="pdf-fill-shift-btns mb-2">
+                            <span class="pdf-fill-cal-label d-block mb-1">Зсув X (px)</span>
+                            <div class="d-flex flex-wrap gap-1">
+                                @foreach (var dx in new[] { -5, -2, -1, -0.5, 0.5, 1, 2, 5 })
+                                {
+                                    <button type="button" class="btn btn-sm btn-outline-secondary pdf-fill-shift" data-axis="x" data-delta="@dx" disabled>@($"{(dx > 0 ? "+" : "")}{dx}")</button>
+                                }
+                            </div>
+                        </div>
+                        <div class="pdf-fill-cal-group pdf-fill-cal-group--inline">
+                            <label class="pdf-fill-cal-label" for="pdfFillOffsetY">Offset Y</label>
+                            <div class="input-group input-group-sm">
+                                <button type="button" class="btn btn-outline-secondary pdf-fill-offset-step" data-axis="y" data-delta="-1" disabled>−</button>
+                                <input id="pdfFillOffsetY" type="number" step="0.1" class="form-control" disabled />
+                                <button type="button" class="btn btn-outline-secondary pdf-fill-offset-step" data-axis="y" data-delta="1" disabled>+</button>
+                            </div>
+                        </div>
+                        <div class="pdf-fill-shift-btns mb-2">
+                            <span class="pdf-fill-cal-label d-block mb-1">Зсув Y (px)</span>
+                            <div class="d-flex flex-wrap gap-1">
+                                @foreach (var dy in new[] { -5, -2, -1, -0.5, 0.5, 1, 2, 5 })
+                                {
+                                    <button type="button" class="btn btn-sm btn-outline-secondary pdf-fill-shift" data-axis="y" data-delta="@dy" disabled>@($"{(dy > 0 ? "+" : "")}{dy}")</button>
+                                }
+                            </div>
+                        </div>
+                        <div class="pdf-fill-cal-group">
+                            <span class="pdf-fill-cal-label">Гориз.</span>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" class="btn btn-outline-secondary pdf-fill-h-align" data-align="Left" disabled title="Ліворуч">⬅</button>
+                                <button type="button" class="btn btn-outline-secondary pdf-fill-h-align" data-align="Center" disabled title="Центр">☰</button>
+                                <button type="button" class="btn btn-outline-secondary pdf-fill-h-align" data-align="Right" disabled title="Праворуч">➡</button>
+                            </div>
+                        </div>
+                        <div class="pdf-fill-cal-group">
+                            <span class="pdf-fill-cal-label">Верт.</span>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" class="btn btn-outline-secondary pdf-fill-v-align" data-align="Top" disabled title="Верх">⤒</button>
+                                <button type="button" class="btn btn-outline-secondary pdf-fill-v-align" data-align="Middle" disabled title="Середина">☰</button>
+                                <button type="button" class="btn btn-outline-secondary pdf-fill-v-align" data-align="Bottom" disabled title="Низ">⤓</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="pdf-fill-panel__pane" data-fill-pane="fields" role="tabpanel">
+                        <input id="pdfFillFieldSearch" class="form-control form-control-sm mb-2" type="search"
+                               placeholder="Пошук поля…" autocomplete="off" />
+                        <div id="pdfFillFieldList" class="pdf-fill-panel__field-list" role="list"></div>
+                    </div>
+                    <div class="pdf-fill-panel__pane" data-fill-pane="actions" role="tabpanel">
+                        <p class="small text-muted mb-2">
+                            <strong>Значення</strong> — лише для цього замовлення (автозбереження, Ctrl+S).<br />
+                            <strong>Макет</strong> — позиція та шрифт для всіх майбутніх заповнень <strong>цієї версії</strong> шаблону.
+                        </p>
+                        <span id="pdfFillLayoutBadge" class="pdf-fill-panel__save-badge pdf-fill-panel__save-badge--saved mb-2">Макет збережено</span>
+                        <label class="form-check form-check-sm mb-2">
+                            <input class="form-check-input" type="checkbox" id="pdfFillAutoSaveToggle" checked />
+                            <span class="form-check-label small">Автозбереження значень</span>
+                        </label>
+                        <button type="button" id="pdfFillPanelSaveButton" class="btn btn-primary btn-sm w-100 mb-2"
+                                @(Model.Segments.Any(segment => segment.CanWrite) ? "" : "disabled")>
+                            Зберегти значення (замовлення)
+                        </button>
+                        <button type="button" id="pdfFillSaveLayoutButton" class="btn btn-outline-primary btn-sm w-100">
+                            Зберегти макет у шаблон
+                        </button>
+                        <p class="pdf-fill-panel__meta mb-0 mt-2">v@(Model.VersionNumber) · застосується до нових замовлень з цим бланком.</p>
+                    </div>
+                </div>
+                <div class="pdf-fill-panel__footer">
+                    <button type="button" id="pdfFillPanelNextField" class="btn btn-outline-secondary btn-sm w-100" disabled>
+                        Наступне поле →
+                    </button>
+                </div>
+            </aside>
+        }
     </div>
 }
 
 @section Scripts {
     @if (!string.IsNullOrWhiteSpace(Model.PdfPreviewUrl))
     {
+        var pdfFillClientConfigJson = JsonSerializer.Serialize(
+                new
+                {
+                    pdfJsWorkerSrc = Url.Content("~/lib/pdfjs/pdf.worker.min.js"),
+                    pdfPreviewUrl = Model.PdfPreviewUrl,
+                    templateVersionId = Model.TemplateVersionId,
+                    orderId = Model.OrderId,
+                    saveUrl = $"/PdfWorkspace/Fill/{Model.TemplateVersionId}/values",
+                    layoutSaveUrl = $"/PdfWorkspace/Fill/{Model.TemplateVersionId}/layout",
+                    versionNumber = Model.VersionNumber,
+                    finalPdfUrlTemplate = Url.Action(
+                        "FinalPdf",
+                        "PdfWorkspace",
+                        new { templateVersionId = Model.TemplateVersionId, orderId = "__ORDER_ID__" })!
+                        .Replace("__ORDER_ID__", "{orderId}", StringComparison.Ordinal),
+                    savedValues = Model.SavedValuesByKey,
+                    expectedSegmentCount = Model.Segments.Count,
+                    firstFieldPage = Model.Segments.Count > 0
+                        ? Model.Segments.Min(segment => segment.PageNumber)
+                        : 1,
+                    segments = Model.Segments.Select(segment => new
+                    {
+                        segmentId = segment.SegmentId,
+                        templateFieldId = segment.TemplateFieldId,
+                        tag = segment.Tag,
+                        title = segment.Title,
+                        dataFieldKey = segment.DataFieldKey,
+                        sequence = segment.Sequence,
+                        page = segment.PageNumber,
+                        x = segment.PositionX,
+                        y = segment.PositionY,
+                        width = segment.Width,
+                        height = segment.Height,
+                        allowMultiline = segment.AllowMultiline,
+                        textOffsetX = segment.TextOffsetX,
+                        textOffsetY = segment.TextOffsetY,
+                        fontSize = segment.FontSize,
+                        fontName = segment.FontName,
+                        horizontalAlignment = segment.HorizontalAlignment,
+                        verticalAlignment = segment.VerticalAlignment,
+                        textAlignment = segment.TextAlignment,
+                        lineHeight = segment.LineHeight,
+                        svgPathData = segment.SvgPathData,
+                        isPrimary = segment.IsPrimary,
+                        rowVersionBase64 = segment.SegmentRowVersionBase64,
+                        accessLevel = segment.AccessLevel.ToString(),
+                        canWrite = segment.CanWrite
+                    })
+                },
+                new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+
         <script src="~/lib/pdfjs/pdf.min.js" asp-append-version="true"></script>
         <script src="~/js/pdf-overlay-text-layout.js" asp-append-version="true"></script>
-        <script>
-            window.__pdfJsWorkerSrc = @Html.Raw(JsonSerializer.Serialize(Url.Content("~/lib/pdfjs/pdf.worker.min.js")));
-            window.__pdfPreviewUrl = @Html.Raw(JsonSerializer.Serialize(Model.PdfPreviewUrl));
-            window.__templateVersionId = "@Model.TemplateVersionId";
-            window.__pdfFillOrderId = @(Model.OrderId.HasValue ? $"\"{Model.OrderId}\"" : "null");
-            window.__pdfFillSaveUrl = "@($"/PdfWorkspace/Fill/{Model.TemplateVersionId}/values")";
-            window.__pdfFillFinalPdfUrlTemplate = "@Url.Action("FinalPdf", "PdfWorkspace", new { templateVersionId = Model.TemplateVersionId, orderId = "__ORDER_ID__" })".replace("__ORDER_ID__", "{orderId}");
-            window.__pdfFillSavedValues = @Html.Raw(JsonSerializer.Serialize(Model.SavedValuesByKey));
-            window.__pdfFillSegments = @Html.Raw(JsonSerializer.Serialize(
-                Model.Segments.Select(segment => new
-                {
-                    segmentId = segment.SegmentId,
-                    templateFieldId = segment.TemplateFieldId,
-                    tag = segment.Tag,
-                    title = segment.Title,
-                    dataFieldKey = segment.DataFieldKey,
-                    sequence = segment.Sequence,
-                    page = segment.PageNumber,
-                    x = segment.PositionX,
-                    y = segment.PositionY,
-                    width = segment.Width,
-                    height = segment.Height,
-                    allowMultiline = segment.AllowMultiline,
-                    textOffsetX = segment.TextOffsetX,
-                    textOffsetY = segment.TextOffsetY,
-                    fontSize = segment.FontSize,
-                    fontName = segment.FontName,
-                    horizontalAlignment = segment.HorizontalAlignment,
-                    verticalAlignment = segment.VerticalAlignment
-                })));
-        </script>
+        <script type="application/json" id="pdfFillConfig">@Html.Raw(pdfFillClientConfigJson)</script>
         <script src="~/js/pdf-workspace-fill.js" asp-append-version="true"></script>
     }
 }

@@ -1,6 +1,6 @@
 # Handoff для наступного агента — UniversalLIMS
 
-> Оновлено: 2026-05-25  
+> Оновлено: 2026-05-25 (додано PDF Fill panel + lifecycle версій)  
 > Мова UI і доменних назв: **українська**.
 
 ---
@@ -13,6 +13,7 @@
 | PDF Workspace + конструктор шаблонів (адмін/реєстратор) | ✅ Працює |
 | **PR-1** — Реєстр замовлень (read-only) | ✅ Реалізовано, **не закомічено** |
 | **PR-2** — Створення Order/Sample + PDF redirect | ✅ Реалізовано, **не закомічено** |
+| **PDF Fill — панель + макет шаблону + layout API** | ✅ Реалізовано локально (див. **`handoff-pdf-fill-panel-and-template-lifecycle.md`**) |
 | **Спринт 3** — Лабораторний журнал | ⏳ **Наступний пріоритет** (див. `handoff-stage-2-laboratory.md`) |
 
 **Рішення продукту:** спочатку реєстратура (A) — зроблено; далі лабораторія (B).
@@ -138,10 +139,14 @@ feat(registration): order registry, create flow, and customer search API
 - [ ] Редагування клієнта з реєстру
 - [ ] Оновлення claims філії при логіні (без циклу DI)
 
-### PDF Workspace (`docs/handoff-pdf-workspace-fill.md`)
+### PDF Workspace
+- Детально: **`docs/handoff-pdf-fill-panel-and-template-lifecycle.md`** (панель, layout save, версії)
+- Значення замовлення: `docs/handoff-pdf-workspace-fill.md`
 - [ ] `savedCount` = реально збережені записи (не `Received`)
 - [ ] Прибрати тимчасові `Console.WriteLine` / debug log
-- [ ] Прогін на шаблоні «Повітря закритих приміщень v32»
+- [ ] **Republish** — знову зробити активною версію Superseded (зараз лише Draft→Publish)
+- [ ] **Дві дати публікації** — `FirstPublishedAtUtc` + `RepublishedAtUtc` (зараз одне `PublishedAtUtc` перезаписується)
+- [ ] Unit-тест `SaveFillLayoutRefinementAsync` для Published
 
 ### UI / дрібниці
 - [ ] Логотип ЦКПХ у hero порталу
@@ -182,13 +187,15 @@ taskkill /F /IM UniversalLIMS.exe
 ## 9. Стартовий prompt для агента
 
 ```text
-Проєкт UniversalLIMS (.NET 8 MVC). Прочитай docs/handoff-next-agent.md та docs/handoff-stage-2-laboratory.md.
+Проєкт UniversalLIMS (.NET 8 MVC). Прочитай:
+1) docs/handoff-next-agent.md
+2) docs/handoff-pdf-fill-panel-and-template-lifecycle.md — якщо задача про PDF Fill / шаблони / публікацію
+3) docs/handoff-stage-2-laboratory.md — якщо задача про лабораторію
 
-Контекст: PR-1/PR-2 реєстратури реалізовані локально (Orders, Create, API). НЕ інжектуй ApplicationDbContext в CurrentUserService.
+Контекст: PR-1/PR-2 + PDF Fill panel/layout реалізовані локально. НЕ інжектуй ApplicationDbContext в CurrentUserService.
 
-Задача: PR-3a — лабораторний журнал проб (read-only) для LaboratoryTechnician.
-Дотримуйся SSOT, ICurrentUserService.BranchId, LimsPolicies.EnterLaboratoryResults.
-Почни з ILaboratoryJournalService + тести, потім Controller/View.
+Задача: [уточнити]. Два збереження Fill: values (замовлення) vs layout (версія шаблону).
+Беклог: Republish Superseded, дві дати публікації.
 ```
 
 ---
@@ -202,4 +209,4 @@ taskkill /F /IM UniversalLIMS.exe
 | Security | `LimsPolicies.cs`, `RequireActiveLimsRoleAttribute`, `ApplicationUserClaimsPrincipalFactory` |
 | Seed | `DataSeeder.cs` |
 | Навігація | `WorkspaceNavigationCatalog.cs` |
-| Доки | `handoff-stage-1-registration.md`, `handoff-stage-2-laboratory.md`, `handoff-pdf-workspace-fill.md` |
+| Доки | `handoff-pdf-fill-panel-and-template-lifecycle.md`, `handoff-pdf-workspace-fill.md`, `handoff-stage-1-registration.md`, `handoff-stage-2-laboratory.md` |

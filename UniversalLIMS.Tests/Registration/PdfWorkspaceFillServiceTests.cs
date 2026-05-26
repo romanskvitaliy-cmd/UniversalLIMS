@@ -4,11 +4,14 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using Syncfusion.Pdf;
 using Syncfusion.Pdf.Graphics;
+using UniversalLIMS.Application.Registration;
 using UniversalLIMS.Application.Registration.Abstractions;
+using UniversalLIMS.Application.Templates.Abstractions;
 using UniversalLIMS.Domain.Organization;
 using UniversalLIMS.Domain.Registration;
 using UniversalLIMS.Domain.Templates;
 using UniversalLIMS.Infrastructure.Persistence;
+using UniversalLIMS.Application.Security;
 using UniversalLIMS.Infrastructure.Registration;
 
 namespace UniversalLIMS.Tests.Registration;
@@ -115,6 +118,7 @@ public sealed class PdfWorkspaceFillServiceTests
             context,
             new FakeTemplateDocumentStorage(),
             new OrderFieldValueService(context),
+            new AllowAllTemplateFieldPermissionService(context),
             NullLogger<PdfWorkspaceFillService>.Instance,
             NullLogger<ReferralPdfOverlayRenderer>.Instance,
             TestHostEnvironment.Development);
@@ -228,6 +232,7 @@ public sealed class PdfWorkspaceFillServiceTests
             context,
             new FakeTemplateDocumentStorage(),
             new OrderFieldValueService(context),
+            new AllowAllTemplateFieldPermissionService(context),
             NullLogger<PdfWorkspaceFillService>.Instance,
             NullLogger<ReferralPdfOverlayRenderer>.Instance,
             TestHostEnvironment.Development);
@@ -324,6 +329,7 @@ public sealed class PdfWorkspaceFillServiceTests
             context,
             new FakeTemplateDocumentStorage(CreateBlankPdf()),
             new OrderFieldValueService(context),
+            new AllowAllTemplateFieldPermissionService(context),
             NullLogger<PdfWorkspaceFillService>.Instance,
             NullLogger<ReferralPdfOverlayRenderer>.Instance,
             TestHostEnvironment.Development);
@@ -388,6 +394,7 @@ public sealed class PdfWorkspaceFillServiceTests
             context,
             new FakeTemplateDocumentStorage(CreateBlankPdf()),
             new OrderFieldValueService(context),
+            new AllowAllTemplateFieldPermissionService(context),
             NullLogger<PdfWorkspaceFillService>.Instance,
             NullLogger<ReferralPdfOverlayRenderer>.Instance,
             TestHostEnvironment.Development);
@@ -453,6 +460,7 @@ public sealed class PdfWorkspaceFillServiceTests
             context,
             new FakeTemplateDocumentStorage(CreateBlankPdf()),
             new OrderFieldValueService(context),
+            new AllowAllTemplateFieldPermissionService(context),
             NullLogger<PdfWorkspaceFillService>.Instance,
             NullLogger<ReferralPdfOverlayRenderer>.Instance,
             TestHostEnvironment.Development);
@@ -515,6 +523,7 @@ public sealed class PdfWorkspaceFillServiceTests
             context,
             new FakeTemplateDocumentStorage(CreateBlankPdf()),
             new OrderFieldValueService(context),
+            new AllowAllTemplateFieldPermissionService(context),
             NullLogger<PdfWorkspaceFillService>.Instance,
             NullLogger<ReferralPdfOverlayRenderer>.Instance,
             TestHostEnvironment.Development);
@@ -579,6 +588,7 @@ public sealed class PdfWorkspaceFillServiceTests
             context,
             new FakeTemplateDocumentStorage(CreateBlankPdf()),
             new OrderFieldValueService(context),
+            new AllowAllTemplateFieldPermissionService(context),
             NullLogger<PdfWorkspaceFillService>.Instance,
             NullLogger<ReferralPdfOverlayRenderer>.Instance,
             TestHostEnvironment.Development);
@@ -669,6 +679,7 @@ public sealed class PdfWorkspaceFillServiceTests
             context,
             new FakeTemplateDocumentStorage(CreateBlankPdf()),
             new OrderFieldValueService(context),
+            new AllowAllTemplateFieldPermissionService(context),
             NullLogger<PdfWorkspaceFillService>.Instance,
             NullLogger<ReferralPdfOverlayRenderer>.Instance,
             TestHostEnvironment.Development);
@@ -758,6 +769,7 @@ public sealed class PdfWorkspaceFillServiceTests
             context,
             new FakeTemplateDocumentStorage(CreateBlankPdf()),
             new OrderFieldValueService(context),
+            new AllowAllTemplateFieldPermissionService(context),
             NullLogger<PdfWorkspaceFillService>.Instance,
             NullLogger<ReferralPdfOverlayRenderer>.Instance,
             TestHostEnvironment.Development);
@@ -858,6 +870,7 @@ public sealed class PdfWorkspaceFillServiceTests
             context,
             new FakeTemplateDocumentStorage(CreateBlankPdf()),
             new OrderFieldValueService(context),
+            new AllowAllTemplateFieldPermissionService(context),
             NullLogger<PdfWorkspaceFillService>.Instance,
             NullLogger<ReferralPdfOverlayRenderer>.Instance,
             TestHostEnvironment.Development);
@@ -970,6 +983,7 @@ public sealed class PdfWorkspaceFillServiceTests
             context,
             new FakeTemplateDocumentStorage(CreateBlankPdf()),
             new OrderFieldValueService(context),
+            new AllowAllTemplateFieldPermissionService(context),
             NullLogger<PdfWorkspaceFillService>.Instance,
             NullLogger<ReferralPdfOverlayRenderer>.Instance,
             TestHostEnvironment.Development);
@@ -1120,6 +1134,7 @@ public sealed class PdfWorkspaceFillServiceTests
             context,
             new FakeTemplateDocumentStorage(CreateBlankPdf()),
             new OrderFieldValueService(context),
+            new AllowAllTemplateFieldPermissionService(context),
             NullLogger<PdfWorkspaceFillService>.Instance,
             NullLogger<ReferralPdfOverlayRenderer>.Instance,
             TestHostEnvironment.Development);
@@ -1261,6 +1276,7 @@ public sealed class PdfWorkspaceFillServiceTests
             context,
             new FakeTemplateDocumentStorage(CreateBlankPdf()),
             new OrderFieldValueService(context),
+            new AllowAllTemplateFieldPermissionService(context),
             NullLogger<PdfWorkspaceFillService>.Instance,
             NullLogger<ReferralPdfOverlayRenderer>.Instance,
             TestHostEnvironment.Development);
@@ -1400,6 +1416,7 @@ public sealed class PdfWorkspaceFillServiceTests
             context,
             new FakeTemplateDocumentStorage(),
             new OrderFieldValueService(context),
+            new AllowAllTemplateFieldPermissionService(context),
             NullLogger<PdfWorkspaceFillService>.Instance,
             NullLogger<ReferralPdfOverlayRenderer>.Instance,
             TestHostEnvironment.Development);
@@ -1414,6 +1431,203 @@ public sealed class PdfWorkspaceFillServiceTests
         Assert.Equal(1, result.SkippedEmpty);
         Assert.Empty(await context.OrderFieldValues.Where(fieldValue => fieldValue.OrderId == orderId).ToListAsync());
     }
+
+    [Fact]
+    public async Task GetFillSegmentsAsync_ReturnsOnlyFieldsWithReadOrWriteAccess()
+    {
+        await using var context = CreateContext();
+        var versionId = Guid.NewGuid();
+        var writableFieldId = Guid.NewGuid();
+        var hiddenFieldId = Guid.NewGuid();
+        var templateId = Guid.NewGuid();
+
+        context.Templates.Add(new Template
+        {
+            Id = templateId,
+            Code = "SEG-FILTER",
+            NameUk = "Segment filter",
+            Status = TemplateStatus.Draft
+        });
+
+        context.TemplateVersions.Add(new TemplateVersion
+        {
+            Id = versionId,
+            TemplateId = templateId,
+            VersionNumber = 1,
+            Status = TemplateVersionStatus.Published,
+            DocumentFormat = TemplateDocumentFormat.Pdf,
+            OriginalFileName = "template.pdf",
+            StorageKey = "templates/template.pdf",
+            ContentType = "application/pdf",
+            FileSizeBytes = 1,
+            Sha256Hash = new string('a', 64),
+            UploadedAtUtc = DateTime.UtcNow,
+            Fields =
+            [
+                CreateFieldWithSegment(writableFieldId, versionId, "Writable", 1),
+                CreateFieldWithSegment(hiddenFieldId, versionId, "Hidden", 2)
+            ]
+        });
+
+        await context.SaveChangesAsync();
+
+        var service = new PdfWorkspaceFillService(
+            context,
+            new FakeTemplateDocumentStorage(),
+            new OrderFieldValueService(context),
+            new FixedTemplateFieldPermissionService(
+                new Dictionary<Guid, FieldAccessLevel>
+                {
+                    [writableFieldId] = FieldAccessLevel.Write,
+                    [hiddenFieldId] = FieldAccessLevel.None
+                }),
+            NullLogger<PdfWorkspaceFillService>.Instance,
+            NullLogger<ReferralPdfOverlayRenderer>.Instance,
+            TestHostEnvironment.Development);
+
+        var segments = await service.GetFillSegmentsAsync(versionId);
+
+        Assert.Single(segments);
+        Assert.Equal(writableFieldId, segments[0].TemplateFieldId);
+        Assert.True(segments[0].CanWrite);
+    }
+
+    [Fact]
+    public async Task SaveValuesAsync_RejectsFieldWithoutWritePermission()
+    {
+        await using var context = CreateContext();
+        var branchId = Guid.NewGuid();
+        var customerId = Guid.NewGuid();
+        var versionId = Guid.NewGuid();
+        var templateFieldId = Guid.NewGuid();
+
+        context.Branches.Add(new Branch
+        {
+            Id = branchId,
+            Code = "BR-RBAC",
+            Name = "RBAC branch",
+            City = "Zhytomyr",
+            IsActive = true
+        });
+
+        context.Customers.Add(new Customer
+        {
+            Id = customerId,
+            Kind = CustomerKind.Individual,
+            FullName = "RBAC customer"
+        });
+
+        var templateId = Guid.NewGuid();
+        context.Templates.Add(new Template
+        {
+            Id = templateId,
+            Code = "RBAC",
+            NameUk = "RBAC template",
+            Status = TemplateStatus.Draft
+        });
+
+        context.InvestigationTypes.Add(new InvestigationType
+        {
+            Id = Guid.NewGuid(),
+            Code = "INV-RBAC",
+            NameUk = "RBAC investigation",
+            SortOrder = 1,
+            IsActive = true
+        });
+
+        context.TemplateVersions.Add(new TemplateVersion
+        {
+            Id = versionId,
+            TemplateId = templateId,
+            VersionNumber = 1,
+            Status = TemplateVersionStatus.Published,
+            DocumentFormat = TemplateDocumentFormat.Pdf,
+            OriginalFileName = "template.pdf",
+            StorageKey = "templates/template.pdf",
+            ContentType = "application/pdf",
+            FileSizeBytes = 1,
+            Sha256Hash = new string('c', 64),
+            UploadedAtUtc = DateTime.UtcNow,
+            Fields =
+            [
+                new TemplateField
+                {
+                    Id = templateFieldId,
+                    TemplateVersionId = versionId,
+                    Tag = "ReadOnlyField",
+                    Title = "Read only",
+                    SortOrder = 1,
+                    Permissions =
+                    [
+                        new TemplateFieldPermission
+                        {
+                            RoleName = LimsRoles.Registrar,
+                            AccessLevel = FieldAccessLevel.Read
+                        }
+                    ],
+                    Segments =
+                    [
+                        new TemplateFieldSegment
+                        {
+                            Id = Guid.NewGuid(),
+                            Sequence = 1,
+                            PageNumber = 1,
+                            PositionX = 10,
+                            PositionY = 20,
+                            Width = 100,
+                            Height = 20,
+                            IsPrimary = true
+                        }
+                    ]
+                }
+            ]
+        });
+
+        await context.SaveChangesAsync();
+
+        var service = new PdfWorkspaceFillService(
+            context,
+            new FakeTemplateDocumentStorage(),
+            new OrderFieldValueService(context),
+            new FixedTemplateFieldPermissionService(
+                new Dictionary<Guid, FieldAccessLevel> { [templateFieldId] = FieldAccessLevel.Read }),
+            NullLogger<PdfWorkspaceFillService>.Instance,
+            NullLogger<ReferralPdfOverlayRenderer>.Instance,
+            TestHostEnvironment.Development);
+
+        var result = await service.SaveValuesAsync(
+            versionId,
+            null,
+            [new PdfWorkspaceFieldValueDto { TemplateFieldId = templateFieldId, Value = "заборонено" }]);
+
+        Assert.Equal(0, result.Saved);
+        Assert.Single(result.FailedFields);
+        Assert.Contains("права", result.FailedFields[0].Reason, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static TemplateField CreateFieldWithSegment(Guid fieldId, Guid versionId, string tag, int sortOrder) =>
+        new()
+        {
+            Id = fieldId,
+            TemplateVersionId = versionId,
+            Tag = tag,
+            Title = tag,
+            SortOrder = sortOrder,
+            Segments =
+            [
+                new TemplateFieldSegment
+                {
+                    Id = Guid.NewGuid(),
+                    Sequence = 1,
+                    PageNumber = 1,
+                    PositionX = 10,
+                    PositionY = 20,
+                    Width = 100,
+                    Height = 20,
+                    IsPrimary = true
+                }
+            ]
+        };
 
     private static ApplicationDbContext CreateContext()
     {
@@ -1446,6 +1660,43 @@ public sealed class PdfWorkspaceFillServiceTests
 
         public IFileProvider ContentRootFileProvider { get; set; } =
             new PhysicalFileProvider(AppContext.BaseDirectory);
+    }
+
+    private sealed class AllowAllTemplateFieldPermissionService : ITemplateFieldPermissionService
+    {
+        private readonly ApplicationDbContext _context;
+
+        public AllowAllTemplateFieldPermissionService(ApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        public async Task<IReadOnlyDictionary<Guid, FieldAccessLevel>> GetFieldAccessLevelsForVersionAsync(
+            Guid templateVersionId,
+            CancellationToken cancellationToken = default)
+        {
+            var fieldIds = await _context.TemplateFields
+                .Where(field => field.TemplateVersionId == templateVersionId && !field.IsAnnulled)
+                .Select(field => field.Id)
+                .ToListAsync(cancellationToken);
+
+            return fieldIds.ToDictionary(id => id, _ => FieldAccessLevel.Write);
+        }
+    }
+
+    private sealed class FixedTemplateFieldPermissionService : ITemplateFieldPermissionService
+    {
+        private readonly IReadOnlyDictionary<Guid, FieldAccessLevel> _levels;
+
+        public FixedTemplateFieldPermissionService(IReadOnlyDictionary<Guid, FieldAccessLevel> levels)
+        {
+            _levels = levels;
+        }
+
+        public Task<IReadOnlyDictionary<Guid, FieldAccessLevel>> GetFieldAccessLevelsForVersionAsync(
+            Guid templateVersionId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(_levels);
     }
 
     private sealed class FakeTemplateDocumentStorage : Application.Templates.Abstractions.ITemplateDocumentStorage

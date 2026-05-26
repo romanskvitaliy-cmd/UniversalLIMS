@@ -9,7 +9,7 @@
 <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
     <div>
         <h1 class="h3 mb-1">Реєстр замовлень</h1>
-        <p class="text-muted mb-0">Список справ реєстратури. ПІБ замовника — з картки клієнта (SSOT).</p>
+        <p class="text-muted mb-0">Справи реєстратури: кілька PDF-документів, статус процесу, маршрут у філії.</p>
     </div>
     <a class="btn btn-sm btn-primary" asp-action="Create">
         <i class="bi bi-plus-lg me-1"></i>Нове замовлення
@@ -79,15 +79,16 @@
 else
 {
     <div class="table-responsive">
-        <table class="table table-sm table-hover align-middle">
+        <table class="table table-sm table-hover align-middle lims-workspace-table">
             <thead>
                 <tr>
                     <th>Направлення</th>
                     <th>Замовник</th>
                     <th>Дата</th>
                     <th>Статус</th>
-                    <th class="text-center">Проб</th>
-                    <th>Філія призначення</th>
+                    <th class="text-center">Док.</th>
+                    <th>В процесі</th>
+                    <th>Філії</th>
                     <th></th>
                 </tr>
             </thead>
@@ -98,24 +99,14 @@ else
                         <td>@(string.IsNullOrWhiteSpace(order.ReferralNumber) ? "—" : order.ReferralNumber)</td>
                         <td>@order.CustomerFullName</td>
                         <td class="text-nowrap">@order.OrderDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
-                        <td><span class="badge text-bg-light border">@OrderStatusDisplay.ToUk(order.Status)</span></td>
-                        <td class="text-center">@order.SampleCount</td>
-                        <td>@order.TargetBranchName</td>
+                        <td><span class="badge lims-status-badge @OrderStatusDisplay.BadgeClass(order.Status)">@OrderStatusDisplay.ToUk(order.Status)</span></td>
+                        <td class="text-center">@order.DocumentCount</td>
+                        <td><span class="small">@order.WorkflowSummaryUk</span></td>
+                        <td class="small">@order.TargetBranchName</td>
                         <td class="text-end text-nowrap">
-                            @if (order.PrimaryTemplateVersionId.HasValue)
-                            {
-                                <a class="btn btn-sm btn-outline-primary"
-                                   asp-controller="PdfWorkspace"
-                                   asp-action="Fill"
-                                   asp-route-templateVersionId="@order.PrimaryTemplateVersionId"
-                                   asp-route-orderId="@order.OrderId">
-                                    Відкрити PDF
-                                </a>
-                            }
-                            else
-                            {
-                                <span class="text-muted small" title="Немає прив’язаного документа шаблону">PDF —</span>
-                            }
+                            <a class="btn btn-sm btn-primary" asp-action="Details" asp-route-id="@order.OrderId">
+                                Справу
+                            </a>
                         </td>
                     </tr>
                 }

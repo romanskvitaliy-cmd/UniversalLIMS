@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using UniversalLIMS.Application.Abstractions;
+using UniversalLIMS.Application.Registration;
 using UniversalLIMS.Application.Security;
 using UniversalLIMS.Application.Templates.Abstractions;
 using UniversalLIMS.Domain.Templates;
@@ -478,9 +479,12 @@ public sealed class TemplateFieldMappingService : ITemplateFieldMappingService
             throw new InvalidOperationException("Версію шаблону не знайдено.");
         }
 
-        if (version.Status is not TemplateVersionStatus.Draft and not TemplateVersionStatus.ReadyForPublication)
+        if (!CanUpdatePermissions(version.Status))
         {
-            throw new InvalidOperationException("Опубліковану версію шаблону змінювати заборонено.");
+            throw new InvalidOperationException(
+                version.Status == TemplateVersionStatus.Superseded
+                    ? "Замінену версію шаблону змінювати заборонено."
+                    : "Права доступу для цієї версії шаблону змінювати заборонено.");
         }
 
         var validRoles = LimsRoles.All.ToHashSet(StringComparer.Ordinal);
@@ -797,6 +801,11 @@ public sealed class TemplateFieldMappingService : ITemplateFieldMappingService
         field.EstimatedCapacityChars ??= dataField.MaxLength;
     }
 
+    private static bool CanUpdatePermissions(TemplateVersionStatus status) =>
+        status is TemplateVersionStatus.Draft
+            or TemplateVersionStatus.ReadyForPublication
+            or TemplateVersionStatus.Published;
+
     private static void EnsureDraftVersion(TemplateVersion version)
     {
         if (version.Status is not TemplateVersionStatus.Draft and not TemplateVersionStatus.ReadyForPublication)
@@ -852,5 +861,142 @@ public sealed class TemplateFieldMappingService : ITemplateFieldMappingService
             "Bottom" => "Bottom",
             _ => null
         };
+    }
+
+    public async Task<PdfWorkspaceFillLayoutSaveResult> SaveFillLayoutRefinementAsync(
+        Guid templateVersionId,
+        IReadOnlyList<PdfWorkspaceFillLayoutFieldUpdate> updates,
+        CancellationToken cancellationToken = default)
+    {
+        if (updates.Count == 0)
+        {
+            return new PdfWorkspaceFillLayoutSaveResult
+            {
+                Saved = 0,
+                Message = "Немає змін макету для збереження."
+            };
+        }
+
+        var version = await _context.TemplateVersions
+            .AsNoTracking()
+            .FirstOrDefaultAsync(item => item.Id == templateVersionId, cancellationToken);
+
+        if (version is null)
+        {
+            throw new InvalidOperationException("Версію шаблону не знайдено.");
+        }
+
+        EnsureLayoutRefinableVersion(version);
+
+        var saved = 0;
+
+        foreach (var update in updates)
+        {
+            if (update.SegmentId == Guid.Empty || update.TemplateFieldId == Guid.Empty)
+            {
+                continue;
+            }
+
+            var segment = await _context.TemplateFieldSegments
+                .Include(item => item.TemplateField)
+                .FirstOrDefaultAsync(
+                    item => item.Id == update.SegmentId
+                            && item.TemplateFieldId == update.TemplateFieldId
+                            && !item.IsAnnulled,
+                    cancellationToken);
+
+            if (segment is null
+                || segment.TemplateField.IsAnnulled
+                || segment.TemplateField.TemplateVersionId != templateVersionId)
+            {
+                continue;
+            }
+
+            PrepareTrackedSegmentRowVersion(segment);
+
+            segment.PageNumber = Math.Max(1, update.PageNumber);
+            segment.PositionX = Math.Max(0, update.PositionX);
+            segment.PositionY = Math.Max(0, update.PositionY);
+            segment.Width = Math.Max(20, update.Width);
+            segment.Height = Math.Max(14, update.Height);
+            segment.IsPrimary = update.IsPrimary;
+
+            var layoutUpdate = new TemplateFieldSegmentLayoutUpdate(
+                segment.Id,
+                segment.TemplateFieldId,
+                $"fill-{segment.Id:N}",
+                segment.Sequence,
+                segment.PageNumber,
+                segment.PositionX,
+                segment.PositionY,
+                segment.Width,
+                segment.Height,
+                segment.IsPrimary,
+                update.TextAlignment,
+                update.FontSize,
+                update.FontName,
+                update.LineHeight,
+                update.HorizontalAlignment,
+                update.VerticalAlignment,
+                update.SvgPathData,
+                ResolveRowVersionFromBase64(update.RowVersionBase64));
+
+            ApplySegmentTypography(segment, layoutUpdate);
+
+            segment.TemplateField.TextOffsetX = update.TextOffsetX;
+            segment.TemplateField.TextOffsetY = update.TextOffsetY;
+            segment.UpdatedAtUtc = _dateTimeProvider.UtcNow;
+            saved++;
+        }
+
+        if (saved == 0)
+        {
+            return new PdfWorkspaceFillLayoutSaveResult
+            {
+                Saved = 0,
+                Message = "Жодне поле не оновлено (перевірте segmentId / templateFieldId)."
+            };
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return new PdfWorkspaceFillLayoutSaveResult
+        {
+            Saved = saved,
+            Message = $"Макет збережено для версії v{version.VersionNumber}: полів {saved}. Наступні замовлення отримають ці правки."
+        };
+    }
+
+    private static void EnsureLayoutRefinableVersion(TemplateVersion version)
+    {
+        if (version.IsAnnulled)
+        {
+            throw new InvalidOperationException("Анульовану версію шаблону змінювати заборонено.");
+        }
+
+        if (version.Status is not TemplateVersionStatus.Draft
+            and not TemplateVersionStatus.ReadyForPublication
+            and not TemplateVersionStatus.Published)
+        {
+            throw new InvalidOperationException(
+                "Макет можна уточнювати лише для чернетки, готової до публікації або опублікованої версії.");
+        }
+    }
+
+    private static byte[]? ResolveRowVersionFromBase64(string? rowVersionBase64)
+    {
+        if (string.IsNullOrWhiteSpace(rowVersionBase64))
+        {
+            return null;
+        }
+
+        try
+        {
+            return Convert.FromBase64String(rowVersionBase64.Trim());
+        }
+        catch (FormatException)
+        {
+            return null;
+        }
     }
 }
