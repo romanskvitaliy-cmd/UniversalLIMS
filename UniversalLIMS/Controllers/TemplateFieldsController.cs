@@ -779,7 +779,9 @@ public sealed class TemplateFieldsController : Controller
 
     private static bool IsEditable(TemplateVersion version)
     {
-        return version.Status is TemplateVersionStatus.Draft or TemplateVersionStatus.ReadyForPublication;
+        return version.Status is TemplateVersionStatus.Draft
+            or TemplateVersionStatus.ReadyForPublication
+            or TemplateVersionStatus.Published;
     }
 
     /// <summary>Матрицю прав адміністратор може змінювати й для опублікованої версії (layout — ні).</summary>

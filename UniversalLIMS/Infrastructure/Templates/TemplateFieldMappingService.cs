@@ -158,7 +158,7 @@ public sealed class TemplateFieldMappingService : ITemplateFieldMappingService
             throw new InvalidOperationException("Версію шаблону не знайдено.");
         }
 
-        EnsureDraftVersion(version);
+        EnsureWorkingVersion(version);
     }
 
     public async Task ProcessFieldSegmentsAsync(
@@ -624,7 +624,7 @@ public sealed class TemplateFieldMappingService : ITemplateFieldMappingService
             throw new InvalidOperationException("Поле шаблону не знайдено.");
         }
 
-        EnsureDraftVersion(field.TemplateVersion);
+        EnsureWorkingVersion(field.TemplateVersion);
 
         var key = field.Tag.Trim();
         var existingDataField = await _context.DataFields
@@ -780,7 +780,7 @@ public sealed class TemplateFieldMappingService : ITemplateFieldMappingService
             throw new InvalidOperationException("Версію шаблону не знайдено.");
         }
 
-        EnsureDraftVersion(version);
+        EnsureWorkingVersion(version);
         return version;
     }
 
@@ -806,11 +806,13 @@ public sealed class TemplateFieldMappingService : ITemplateFieldMappingService
             or TemplateVersionStatus.ReadyForPublication
             or TemplateVersionStatus.Published;
 
-    private static void EnsureDraftVersion(TemplateVersion version)
+    private static void EnsureWorkingVersion(TemplateVersion version)
     {
-        if (version.Status is not TemplateVersionStatus.Draft and not TemplateVersionStatus.ReadyForPublication)
+        if (version.Status is not TemplateVersionStatus.Draft
+            and not TemplateVersionStatus.ReadyForPublication
+            and not TemplateVersionStatus.Published)
         {
-            throw new InvalidOperationException("Опубліковану версію шаблону змінювати заборонено.");
+            throw new InvalidOperationException("Редагувати можна лише чернетку, готову до публікації або активну версію шаблону.");
         }
     }
 

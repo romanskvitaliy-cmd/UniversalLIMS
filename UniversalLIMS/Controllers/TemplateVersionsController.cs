@@ -370,8 +370,10 @@ public sealed class TemplateVersionsController : Controller
                 PermissionCount = field.Permissions.Count,
             })
             .ToList();
-        var isEditable = version.Status is TemplateVersionStatus.Draft or TemplateVersionStatus.ReadyForPublication;
-        var tagSourceVersions = fields.Count == 0 && isEditable
+        var canEditWorkingVersion = version.Status is TemplateVersionStatus.Draft
+            or TemplateVersionStatus.ReadyForPublication
+            or TemplateVersionStatus.Published;
+        var tagSourceVersions = fields.Count == 0 && canEditWorkingVersion
             ? await GetTagSourceVersionsAsync(
                 version.TemplateId,
                 version.DocumentFormat,
@@ -405,7 +407,7 @@ public sealed class TemplateVersionsController : Controller
                 : null,
             OpenOriginalUrl = BuildOpenOriginalLink(version.Id),
             CanRescanFields = version.DocumentFormat == TemplateDocumentFormat.DocxLegacy,
-            CanImportTags = fields.Count == 0 && isEditable && tagSourceVersions.Count > 0,
+            CanImportTags = fields.Count == 0 && canEditWorkingVersion && tagSourceVersions.Count > 0,
             TagSourceVersions = tagSourceVersions
         };
     }
