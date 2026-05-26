@@ -2,178 +2,204 @@
 @using UniversalLIMS.Application.Templates
 
 @{
+    Layout = "_LayoutWorkspace";
     ViewData["Title"] = $"{Model.TemplateNameUk} v{Model.VersionNumber}";
     var isEditable = Model.Status is TemplateVersionStatus.Draft or TemplateVersionStatus.ReadyForPublication;
     var isLegacyDocx = Model.DocumentFormat == TemplateDocumentFormat.DocxLegacy;
 }
 
-<div class="d-flex justify-content-between align-items-start mb-3">
-    <div>
-        <h1 class="h3 mb-1">@Model.TemplateNameUk · v@(Model.VersionNumber)</h1>
-        <div class="text-muted">
-            <span class="badge lims-status-badge @TemplateVersionStatusDisplay.BadgeClass(Model.Status)">
-                @TemplateVersionStatusDisplay.ToUk(Model.Status)
-            </span>
-            @if (Model.IsCurrentPublished)
+<section class="lims-page">
+    <header class="lims-page-header">
+        <div class="lims-page-header__text">
+            <h1 class="lims-page-header__title">@Model.TemplateNameUk</h1>
+            <div class="lims-page-header__meta">
+                <span class="badge lims-version-badge">v@(Model.VersionNumber)</span>
+                <span class="badge lims-status-badge @TemplateVersionStatusDisplay.BadgeClass(Model.Status)">
+                    @TemplateVersionStatusDisplay.ToUk(Model.Status)
+                </span>
+                @if (Model.IsCurrentPublished)
+                {
+                    <span class="badge lims-status-badge lims-status-badge--registered">Активний</span>
+                }
+                <span class="lims-data-table__muted">@Model.OriginalFileName</span>
+            </div>
+        </div>
+        <div class="lims-page-actions">
+            @if (!string.IsNullOrEmpty(Model.OpenInWordUri))
             {
-                <span class="badge @TemplateVersionStatusDisplay.ActiveBadgeClass ms-1">Активний</span>
+                <a class="lims-btn lims-btn--primary" href="@Model.OpenInWordUri">Відкрити в Word</a>
             }
-            · @Model.OriginalFileName
+            @if (!string.IsNullOrEmpty(Model.OpenOriginalUrl))
+            {
+                <a class="lims-btn lims-btn--outline" href="@Model.OpenOriginalUrl" target="_blank" rel="noopener">Показати оригінал</a>
+            }
+            <a class="lims-btn lims-btn--outline" asp-action="DownloadOriginal" asp-route-id="@Model.Id">Завантажити файл</a>
+            <a class="lims-btn lims-btn--outline" asp-controller="TemplateFields" asp-action="Map" asp-route-templateVersionId="@Model.Id">Поля і теги</a>
+            <a class="lims-btn lims-btn--outline" asp-controller="TemplateFields" asp-action="Permissions" asp-route-templateVersionId="@Model.Id">Права ролей</a>
+            <a class="lims-btn lims-btn--outline lims-btn--danger" asp-action="Annul" asp-route-id="@Model.Id">Анулювати</a>
+        </div>
+    </header>
+
+    @if (isLegacyDocx)
+    {
+        <div class="lims-callout">
+            <p class="lims-callout__title mb-1">Legacy редагування макету</p>
+            <p class="lims-callout__text mb-0">У встановленому Microsoft Word (Windows). Для нових версій рекомендовано PDF + overlay.</p>
+        </div>
+    }
+
+    @if (TempData["TemplateSuccess"] is string success)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @success
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Закрити"></button>
+        </div>
+    }
+
+    @if (TempData["TemplateWarning"] is string warning)
+    {
+        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+            @warning
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Закрити"></button>
+        </div>
+    }
+
+    @if (Model.ValidationErrors.Count > 0)
+    {
+        <div class="alert alert-danger" role="alert">
+            <strong>Публікацію заблоковано:</strong>
+            <ul class="mb-0 mt-2">
+                @foreach (var error in Model.ValidationErrors)
+                {
+                    <li>@error</li>
+                }
+            </ul>
+        </div>
+    }
+
+    <div class="lims-panel mb-4">
+        <div class="lims-panel__body">
+            <h2 class="lims-section-title">Метадані файлу</h2>
+            <dl class="lims-meta-grid">
+                <dt>Розмір</dt>
+                <dd>@Model.FileSizeBytes.ToString("N0") байт</dd>
+                <dt>Формат</dt>
+                <dd>@Model.DocumentFormat</dd>
+                <dt>SHA-256</dt>
+                <dd><code class="lims-meta-grid__hash">@Model.Sha256Hash</code></dd>
+                <dt>Завантажено UTC</dt>
+                <dd>@Model.UploadedAtUtc.ToString("g")</dd>
+                <dt>Перша публікація UTC</dt>
+                <dd>@(Model.FirstPublishedAtUtc?.ToString("g") ?? "—")</dd>
+                <dt>Повторна активація UTC</dt>
+                <dd>@(Model.RepublishedAtUtc?.ToString("g") ?? "—")</dd>
+                <dt>Остання активація UTC</dt>
+                <dd>@(Model.PublishedAtUtc?.ToString("g") ?? "—")</dd>
+            </dl>
         </div>
     </div>
-    <div class="btn-group">
-        @if (!string.IsNullOrEmpty(Model.OpenInWordUri))
-        {
-            <a class="btn btn-primary" href="@Model.OpenInWordUri">Відкрити в Word для редагування</a>
-        }
-        @if (!string.IsNullOrEmpty(Model.OpenOriginalUrl))
-        {
-            <a class="btn btn-outline-primary" href="@Model.OpenOriginalUrl" target="_blank" rel="noopener">Показати оригінал</a>
-        }
-        <a class="btn btn-outline-primary" asp-action="DownloadOriginal" asp-route-id="@Model.Id">Завантажити файл</a>
-        <a class="btn btn-outline-secondary" asp-controller="TemplateFields" asp-action="Map" asp-route-templateVersionId="@Model.Id">Поля і теги</a>
-        <a class="btn btn-outline-secondary" asp-controller="TemplateFields" asp-action="Permissions" asp-route-templateVersionId="@Model.Id">Права ролей</a>
-        <a class="btn btn-outline-danger" asp-action="Annul" asp-route-id="@Model.Id">Анулювати</a>
-    </div>
-</div>
 
-@if (isLegacyDocx)
-{
-    <div class="alert alert-light border mb-3">
-        <strong>Legacy редагування макету</strong> — у встановленому Microsoft Word (Windows). Для нових версій рекомендовано PDF + overlay.
-    </div>
-}
-
-@if (TempData["TemplateSuccess"] is string success)
-{
-    <div class="alert alert-success">@success</div>
-}
-
-@if (TempData["TemplateWarning"] is string warning)
-{
-    <div class="alert alert-warning">@warning</div>
-}
-
-@if (Model.ValidationErrors.Count > 0)
-{
-    <div class="alert alert-danger">
-        <strong>Публікацію заблоковано:</strong>
-        <ul class="mb-0">
-            @foreach (var error in Model.ValidationErrors)
-            {
-                <li>@error</li>
-            }
-        </ul>
-    </div>
-}
-
-<dl class="row">
-    <dt class="col-sm-3">Розмір</dt>
-    <dd class="col-sm-9">@Model.FileSizeBytes байт</dd>
-    <dt class="col-sm-3">Формат</dt>
-    <dd class="col-sm-9">@Model.DocumentFormat</dd>
-    <dt class="col-sm-3">SHA-256</dt>
-    <dd class="col-sm-9"><code>@Model.Sha256Hash</code></dd>
-    <dt class="col-sm-3">Завантажено UTC</dt>
-    <dd class="col-sm-9">@Model.UploadedAtUtc</dd>
-    <dt class="col-sm-3">Перша публікація UTC</dt>
-    <dd class="col-sm-9">@(Model.FirstPublishedAtUtc?.ToString() ?? "—")</dd>
-    <dt class="col-sm-3">Повторна активація UTC</dt>
-    <dd class="col-sm-9">@(Model.RepublishedAtUtc?.ToString() ?? "—")</dd>
-    <dt class="col-sm-3">Остання активація UTC</dt>
-    <dd class="col-sm-9">@(Model.PublishedAtUtc?.ToString() ?? "—")</dd>
-</dl>
-
-@if (Model.CanImportTags)
-{
-    <div class="alert alert-light border mb-3">
-        <div class="fw-semibold mb-2">Імпорт тегів у цю версію</div>
-        <p class="small text-muted mb-2">
-            Версія завантажена без тегів. Можна скопіювати overlay з попередньої версії з тими самими координатами.
-        </p>
-        <form asp-action="ImportTags" asp-route-id="@Model.Id" method="post" class="d-flex flex-wrap gap-2 align-items-center">
-            <select name="sourceVersionId" class="form-select" style="min-width: 320px;" required>
-                <option value="">Оберіть версію-джерело</option>
-                @foreach (var sourceVersion in Model.TagSourceVersions)
-                {
-                    <option value="@sourceVersion.Id">
-                        v@(sourceVersion.VersionNumber) — @sourceVersion.FieldCount тег(ів), @sourceVersion.OriginalFileName
-                    </option>
-                }
-            </select>
-            <button type="submit" class="btn btn-outline-primary">Скопіювати теги</button>
-        </form>
-    </div>
-}
-
-@if (isEditable)
-{
-    <div class="d-flex flex-wrap gap-2 mb-3">
-        @if (Model.CanRescanFields)
-        {
-            <form asp-action="RescanFields" asp-route-id="@Model.Id" method="post">
-                <button type="submit" class="btn btn-outline-secondary">Повторно прочитати Content Controls</button>
+    @if (Model.CanImportTags)
+    {
+        <div class="lims-callout mb-4">
+            <p class="lims-callout__title mb-1">Імпорт тегів у цю версію</p>
+            <p class="lims-callout__text mb-3">
+                Версія завантажена без тегів. Можна скопіювати overlay з попередньої версії з тими самими координатами.
+            </p>
+            <form asp-action="ImportTags" asp-route-id="@Model.Id" method="post" class="d-flex flex-wrap gap-2 align-items-center">
+                <select name="sourceVersionId" class="form-select" style="min-width: min(100%, 20rem); max-width: 28rem;" required>
+                    <option value="">Оберіть версію-джерело</option>
+                    @foreach (var sourceVersion in Model.TagSourceVersions)
+                    {
+                        <option value="@sourceVersion.Id">
+                            v@(sourceVersion.VersionNumber) — @sourceVersion.FieldCount тег(ів), @sourceVersion.OriginalFileName
+                        </option>
+                    }
+                </select>
+                <button type="submit" class="lims-btn lims-btn--outline">Скопіювати теги</button>
             </form>
-        }
-        <form asp-action="Publish" asp-route-id="@Model.Id" method="post" class="d-flex gap-2">
-            <input name="publicationNotesUk" class="form-control" placeholder="Примітка до публікації" />
-            <button type="submit" class="btn btn-success">Опублікувати</button>
-        </form>
-    </div>
-}
+        </div>
+    }
 
-@if (Model.CanRepublish)
-{
-    <div class="alert alert-light border mb-3">
-        <div class="fw-semibold mb-2">Зробити поточною знову</div>
-        <p class="small text-muted mb-2">
-            Версія була опублікована раніше. Поточна опублікована версія шаблону перейде в «Замінено»;
-            нова робота (за замовчуванням) піде на v@(Model.VersionNumber). Перша дата публікації не зміниться.
-        </p>
-        <form asp-action="Republish" asp-route-id="@Model.Id" method="post" class="d-flex flex-wrap gap-2">
-            @Html.AntiForgeryToken()
-            <input name="publicationNotesUk" class="form-control" style="min-width: 280px;" placeholder="Причина повторної активації (необов'язково)" />
-            <button type="submit" class="btn btn-warning">Зробити поточною</button>
-        </form>
-    </div>
-}
+    @if (isEditable)
+    {
+        <div class="lims-callout mb-4">
+            <p class="lims-callout__title mb-2">Публікація версії</p>
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+                @if (Model.CanRescanFields)
+                {
+                    <form asp-action="RescanFields" asp-route-id="@Model.Id" method="post">
+                        <button type="submit" class="lims-btn lims-btn--outline">Повторно прочитати Content Controls</button>
+                    </form>
+                }
+                <form asp-action="Publish" asp-route-id="@Model.Id" method="post" class="d-flex flex-wrap gap-2 align-items-center flex-grow-1">
+                    <input name="publicationNotesUk" class="form-control" style="min-width: min(100%, 14rem); max-width: 22rem;" placeholder="Примітка до публікації" />
+                    <button type="submit" class="lims-btn lims-btn--primary">Опублікувати</button>
+                </form>
+            </div>
+        </div>
+    }
 
-<h2 class="h5">Поля шаблону</h2>
-<table class="table table-striped align-middle">
-    <thead>
-        <tr>
-            <th>Tag</th>
-            <th>Title</th>
-            <th>Тип</th>
-            <th>Обов'язковий</th>
-            <th>DataField</th>
-            <th>Місткість</th>
-            <th>Права</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var field in Model.Fields)
-        {
-            <tr>
-                <td><code>@field.Tag</code></td>
-                <td>@(field.Title ?? "—")</td>
-                <td>@field.WordControlType</td>
-                <td>@(field.IsRequired ? "так" : "ні")</td>
-                <td>
-                    @if (field.DataFieldKey is null)
+    @if (Model.CanRepublish)
+    {
+        <div class="lims-callout lims-callout--warning mb-4">
+            <p class="lims-callout__title mb-1">Зробити поточною знову</p>
+            <p class="lims-callout__text mb-3">
+                Версія була опублікована раніше. Поточна опублікована версія шаблону перейде в «Замінено»;
+                нова робота (за замовчуванням) піде на v@(Model.VersionNumber). Перша дата публікації не зміниться.
+            </p>
+            <form asp-action="Republish" asp-route-id="@Model.Id" method="post" class="d-flex flex-wrap gap-2 align-items-center">
+                @Html.AntiForgeryToken()
+                <input name="publicationNotesUk" class="form-control" style="min-width: min(100%, 14rem); max-width: 22rem;" placeholder="Причина повторної активації (необов'язково)" />
+                <button type="submit" class="lims-btn lims-btn--outline">Зробити поточною</button>
+            </form>
+        </div>
+    }
+
+    <h2 class="lims-section-title">Поля шаблону</h2>
+
+    <div class="lims-panel">
+        <div class="lims-data-table-wrap">
+            <table class="lims-data-table">
+                <thead>
+                    <tr>
+                        <th>Tag</th>
+                        <th>Title</th>
+                        <th>Тип</th>
+                        <th>Обов'язковий</th>
+                        <th>DataField</th>
+                        <th class="text-center">Місткість</th>
+                        <th class="text-center">Права</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var field in Model.Fields)
                     {
-                        <span class="text-danger">не прив'язано</span>
+                        <tr>
+                            <td><code class="lims-tag-code">@field.Tag</code></td>
+                            <td class="lims-data-table__name">@(field.Title ?? "—")</td>
+                            <td class="lims-data-table__muted">@field.WordControlType</td>
+                            <td class="lims-data-table__muted">@(field.IsRequired ? "так" : "ні")</td>
+                            <td>
+                                @if (field.DataFieldKey is null)
+                                {
+                                    <span class="lims-data-table__danger">не прив'язано</span>
+                                }
+                                else
+                                {
+                                    <span><code class="lims-code">@field.DataFieldKey</code> — @field.DataFieldDisplayNameUk</span>
+                                }
+                            </td>
+                            <td class="text-center lims-data-table__muted">@(field.EstimatedCapacityChars?.ToString() ?? "—")</td>
+                            <td class="text-center">@field.PermissionCount</td>
+                        </tr>
                     }
-                    else
-                    {
-                        <span><code>@field.DataFieldKey</code> — @field.DataFieldDisplayNameUk</span>
-                    }
-                </td>
-                <td>@(field.EstimatedCapacityChars?.ToString() ?? "—")</td>
-                <td>@field.PermissionCount</td>
-            </tr>
-        }
-    </tbody>
-</table>
+                </tbody>
+            </table>
+        </div>
+    </div>
 
-<a class="btn btn-link" asp-controller="Templates" asp-action="Details" asp-route-id="@Model.TemplateId">До шаблону</a>
+    <footer class="lims-page-footer">
+        <a class="lims-link" asp-controller="Templates" asp-action="Details" asp-route-id="@Model.TemplateId">← До шаблону</a>
+    </footer>
+</section>

@@ -127,7 +127,12 @@ public sealed class LaboratoryController : Controller
             return RedirectToAction(
                 "Fill",
                 "PdfWorkspace",
-                new { templateVersionId = target.TemplateVersionId, orderId = target.OrderId });
+                new
+                {
+                    templateVersionId = target.TemplateVersionId,
+                    orderId = target.OrderId,
+                    sampleId
+                });
         }
 
         return View(

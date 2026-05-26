@@ -13,6 +13,8 @@ public sealed class PdfWorkspaceFillSegmentDto
 
     public string? Title { get; init; }
 
+    public Guid? DataFieldId { get; init; }
+
     public string? DataFieldKey { get; init; }
 
     public int Sequence { get; init; }

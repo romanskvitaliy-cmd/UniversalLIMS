@@ -26,6 +26,9 @@
     const panelValue = document.getElementById("pdfFillPanelValue");
     const panelReadonlyNote = document.getElementById("pdfFillPanelReadonlyNote");
     const panelCharCount = document.getElementById("pdfFillPanelCharCount");
+    const valueZone = document.getElementById("pdfFillValueZone");
+    const valueZoneNotice = document.getElementById("pdfFillValueZoneNotice");
+    let valueZoneNoticeTimer = null;
     const panelSaveBadge = document.getElementById("pdfFillSaveBadge");
     const panelSaveButton = document.getElementById("pdfFillPanelSaveButton");
     const panelNextField = document.getElementById("pdfFillPanelNextField");
@@ -44,6 +47,22 @@
     const fillLineHeight = document.getElementById("pdfFillLineHeight");
     const fillOffsetX = document.getElementById("pdfFillOffsetX");
     const fillOffsetY = document.getElementById("pdfFillOffsetY");
+    const libraryBrowser = document.getElementById("pdfFillLibraryBrowser");
+    const libraryCollapseToggle = document.getElementById("pdfFillLibraryCollapseToggle");
+    const libraryBody = document.getElementById("pdfFillLibraryBody");
+    const librarySearch = document.getElementById("pdfFillLibrarySearch");
+    const libraryList = document.getElementById("pdfFillLibraryList");
+    const libraryEmpty = document.getElementById("pdfFillLibraryEmpty");
+    const libraryExpandBtn = document.getElementById("pdfFillLibraryExpand");
+    const libraryCount = document.getElementById("pdfFillLibraryCount");
+    const libraryAddOnSave = document.getElementById("pdfFillLibraryAddOnSave");
+    const libraryAddNow = document.getElementById("pdfFillLibraryAddNow");
+    const libraryModal = document.getElementById("pdfFillLibraryModal");
+    const libraryModalBackdrop = document.getElementById("pdfFillLibraryModalBackdrop");
+    const libraryModalClose = document.getElementById("pdfFillLibraryModalClose");
+    const libraryModalField = document.getElementById("pdfFillLibraryModalField");
+    const libraryModalSearch = document.getElementById("pdfFillLibraryModalSearch");
+    const libraryModalList = document.getElementById("pdfFillLibraryModalList");
 
     if (!pagesHost) {
         return;
@@ -94,7 +113,55 @@
     let isSavingLayout = false;
     const AUTO_SAVE_DELAY_MS = Number.parseInt(clientConfig.autoSaveDelayMs ?? "2500", 10) || 2500;
     const layoutSaveUrl = clientConfig.layoutSaveUrl || "";
+    const libraryUrl = clientConfig.libraryUrl || "";
     const segmentLayoutOverrides = new Map();
+    let libraryEntries = [];
+    let pendingLibraryAddFieldId = null;
+    let libraryFilterQuery = "";
+    let isLibraryModalOpen = false;
+    let isLibraryPanelExpanded = false;
+    const LIBRARY_PANEL_EXPANDED_KEY = "pdfFillLibraryPanelExpanded";
+
+    const readLibraryPanelExpandedPreference = () => {
+        try {
+            return sessionStorage.getItem(LIBRARY_PANEL_EXPANDED_KEY) === "1";
+        } catch {
+            return false;
+        }
+    };
+
+    const persistLibraryPanelExpandedPreference = (expanded) => {
+        try {
+            sessionStorage.setItem(LIBRARY_PANEL_EXPANDED_KEY, expanded ? "1" : "0");
+        } catch {
+            /* ignore */
+        }
+    };
+
+    const setLibraryPanelExpanded = (expanded, options = {}) => {
+        const { persist = true, focusSearch = false } = options;
+        isLibraryPanelExpanded = expanded;
+        libraryBrowser?.classList.toggle("is-expanded", expanded);
+        libraryBrowser?.classList.toggle("is-collapsed", !expanded);
+        if (libraryBody) {
+            libraryBody.hidden = !expanded;
+        }
+        if (libraryCollapseToggle) {
+            libraryCollapseToggle.setAttribute("aria-expanded", expanded ? "true" : "false");
+        }
+        if (persist) {
+            persistLibraryPanelExpandedPreference(expanded);
+        }
+        if (expanded && focusSearch && librarySearch && !librarySearch.disabled) {
+            window.setTimeout(() => librarySearch.focus(), 0);
+        }
+    };
+
+    const toggleLibraryPanelExpanded = () => {
+        setLibraryPanelExpanded(!isLibraryPanelExpanded, {
+            focusSearch: !isLibraryPanelExpanded
+        });
+    };
     const layoutDirtySegmentIds = new Set();
     let pdfDoc = null;
     const pageLayers = new Map();
@@ -542,6 +609,587 @@
         panelNextField.disabled = index < 0 || index >= nav.length - 1;
     };
 
+    const getSelectedTemplateFieldId = () => {
+        if (!selectedSegmentId) {
+            return null;
+        }
+        const segment = segmentById.get(selectedSegmentId);
+        return segment?.templateFieldId ? String(segment.templateFieldId) : null;
+    };
+
+    const buildLibraryUrl = (query = {}) => {
+        if (!libraryUrl) {
+            return null;
+        }
+        const url = new URL(libraryUrl, window.location.origin);
+        Object.entries(query).forEach(([key, value]) => {
+            if (value !== null && value !== undefined && value !== "") {
+                url.searchParams.set(key, String(value));
+            }
+        });
+        return url.toString();
+    };
+
+    const setLibraryControlsEnabled = (writable) => {
+        const show = Boolean(libraryUrl) && writable;
+        libraryBrowser?.classList.toggle("d-none", !show);
+        if (!show) {
+            closeLibraryModal();
+            libraryFilterQuery = "";
+            if (librarySearch) {
+                librarySearch.value = "";
+            }
+        }
+        if (libraryAddOnSave) {
+            libraryAddOnSave.disabled = !writable;
+            if (!writable) {
+                libraryAddOnSave.checked = false;
+            }
+        }
+        if (libraryAddNow) {
+            libraryAddNow.disabled = !writable;
+        }
+        if (librarySearch) {
+            librarySearch.disabled = !writable;
+        }
+        if (libraryExpandBtn) {
+            libraryExpandBtn.disabled = !writable || libraryEntries.length === 0;
+        }
+        if (libraryCollapseToggle) {
+            libraryCollapseToggle.disabled = !writable;
+        }
+    };
+
+    const entryMatchesLibraryFilter = (entry, query) => {
+        if (!query) {
+            return true;
+        }
+        const hay = [entry.shortLabel, entry.body].filter(Boolean).join(" ").toLowerCase();
+        return hay.includes(query);
+    };
+
+    const getFilteredLibraryEntries = () => {
+        const query = normalizeLibraryText(libraryFilterQuery);
+        if (!query) {
+            return libraryEntries;
+        }
+        return libraryEntries.filter((entry) => entryMatchesLibraryFilter(entry, query));
+    };
+
+    const syncLibraryFilterInputs = () => {
+        if (librarySearch && librarySearch.value !== libraryFilterQuery) {
+            librarySearch.value = libraryFilterQuery;
+        }
+        if (libraryModalSearch && libraryModalSearch.value !== libraryFilterQuery) {
+            libraryModalSearch.value = libraryFilterQuery;
+        }
+    };
+
+    const setLibraryFilterQuery = (query) => {
+        libraryFilterQuery = String(query ?? "");
+        syncLibraryFilterInputs();
+        renderLibraryBrowser();
+    };
+
+    const closeLibraryModal = () => {
+        if (!libraryModal || !isLibraryModalOpen) {
+            return;
+        }
+        isLibraryModalOpen = false;
+        libraryModal.hidden = true;
+        document.body.classList.remove("pdf-fill-library-modal-open");
+    };
+
+    const openLibraryModal = () => {
+        if (!libraryModal || !libraryEntries.length) {
+            return;
+        }
+        const segment = selectedSegmentId ? segmentById.get(selectedSegmentId) : null;
+        if (libraryModalField) {
+            libraryModalField.textContent = segment
+                ? formatSegmentLabel(segment) + (segment.tag ? ` · ${segment.tag}` : "")
+                : "";
+        }
+        isLibraryModalOpen = true;
+        libraryModal.hidden = false;
+        document.body.classList.add("pdf-fill-library-modal-open");
+        syncLibraryFilterInputs();
+        renderLibraryListInto(libraryModalList, getFilteredLibraryEntries());
+        window.setTimeout(() => {
+            libraryModalSearch?.focus();
+            if (typeof libraryModalSearch?.select === "function") {
+                libraryModalSearch.select();
+            }
+        }, 0);
+    };
+
+    const buildLibraryListItem = (entry, currentText) => {
+        const li = document.createElement("li");
+        li.className = "pdf-fill-library-browser__item";
+        li.setAttribute("role", "option");
+        const entryBody = String(entry.body || "");
+        const normalizedEntry = normalizeLibraryText(entryBody);
+        if (currentText && normalizedEntry === currentText) {
+            li.classList.add("is-active");
+        }
+
+        const shortLabel = String(entry.shortLabel || "").trim();
+
+        const mainBtn = document.createElement("button");
+        mainBtn.type = "button";
+        mainBtn.className = "pdf-fill-library-browser__item-main";
+        mainBtn.title = entryBody;
+
+        const title = document.createElement("span");
+        title.className = "pdf-fill-library-browser__item-title";
+        const bodyPreview = document.createElement("span");
+        bodyPreview.className = "pdf-fill-library-browser__item-body";
+
+        if (shortLabel && shortLabel !== entryBody) {
+            title.textContent = shortLabel;
+            bodyPreview.textContent = entryBody;
+            mainBtn.appendChild(title);
+            mainBtn.appendChild(bodyPreview);
+        } else {
+            title.textContent = entryBody || "—";
+            mainBtn.appendChild(title);
+        }
+
+        const actions = document.createElement("div");
+        actions.className = "pdf-fill-library-browser__item-actions";
+
+        const editBtn = document.createElement("button");
+        editBtn.type = "button";
+        editBtn.className = "pdf-fill-library-browser__item-action pdf-fill-library-browser__item-action--edit";
+        editBtn.textContent = "✏";
+        editBtn.title = "Редагувати запис";
+        editBtn.setAttribute("aria-label", "Редагувати");
+        editBtn.addEventListener("mousedown", (event) => event.preventDefault());
+        editBtn.addEventListener("click", (event) => {
+            event.stopPropagation();
+            editLibraryEntry(entry);
+        });
+
+        const deleteBtn = document.createElement("button");
+        deleteBtn.type = "button";
+        deleteBtn.className = "pdf-fill-library-browser__item-action pdf-fill-library-browser__item-action--delete";
+        deleteBtn.textContent = "×";
+        deleteBtn.title = "Видалити з бібліотеки";
+        deleteBtn.setAttribute("aria-label", "Видалити");
+        deleteBtn.addEventListener("mousedown", (event) => event.preventDefault());
+        deleteBtn.addEventListener("click", (event) => {
+            event.stopPropagation();
+            deleteLibraryEntry(entry);
+        });
+
+        actions.appendChild(editBtn);
+        actions.appendChild(deleteBtn);
+
+        const applyEntry = () => {
+            applyLibraryBodyToField(entryBody, {
+                silent: true,
+                entryId: entry.id,
+                notice: "Текст підставлено у поле «Значення» зверху."
+            });
+            if (isLibraryModalOpen) {
+                closeLibraryModal();
+            }
+        };
+
+        mainBtn.addEventListener("mousedown", (event) => event.preventDefault());
+        mainBtn.addEventListener("click", (event) => {
+            event.stopPropagation();
+            applyEntry();
+        });
+
+        li.appendChild(mainBtn);
+        li.appendChild(actions);
+        li.tabIndex = 0;
+        li.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                applyEntry();
+            }
+        });
+
+        return li;
+    };
+
+    const renderLibraryListInto = (listEl, entries) => {
+        if (!listEl) {
+            return;
+        }
+        listEl.innerHTML = "";
+        const currentText = normalizeLibraryText(panelValue?.value || "");
+        entries.forEach((entry) => {
+            listEl.appendChild(buildLibraryListItem(entry, currentText));
+        });
+    };
+
+    const renderLibraryBrowser = () => {
+        const writable = selectedSegmentId
+            && getFieldInputBySegmentId(selectedSegmentId)?.dataset.canWrite === "true";
+        const show = Boolean(libraryUrl) && writable;
+        libraryBrowser?.classList.toggle("d-none", !show);
+
+        if (!show) {
+            closeLibraryModal();
+            return;
+        }
+
+        const filtered = getFilteredLibraryEntries();
+        updateLibraryCountBadge(libraryEntries.length);
+
+        if (libraryExpandBtn) {
+            libraryExpandBtn.disabled = !writable || libraryEntries.length === 0;
+        }
+        if (libraryCollapseToggle) {
+            libraryCollapseToggle.disabled = !writable;
+        }
+
+        if (libraryEmpty) {
+            const showEmpty = libraryEntries.length === 0
+                || (libraryFilterQuery && filtered.length === 0);
+            libraryEmpty.classList.toggle("d-none", !showEmpty);
+            libraryEmpty.textContent = libraryEntries.length === 0
+                ? "Поки немає текстів. Введіть значення зверху і натисніть «+»."
+                : "Нічого не знайдено за запитом.";
+        }
+
+        renderLibraryListInto(libraryList, filtered);
+        if (isLibraryModalOpen) {
+            renderLibraryListInto(libraryModalList, filtered);
+        }
+    };
+
+    const updateLibraryCountBadge = (count) => {
+        if (!libraryCount) {
+            return;
+        }
+        const n = Number(count) || 0;
+        libraryCount.textContent = String(n);
+        libraryCount.classList.toggle("d-none", n <= 0);
+    };
+
+    const resetLibraryAddOnSaveCheckbox = () => {
+        if (libraryAddOnSave) {
+            libraryAddOnSave.checked = false;
+        }
+        pendingLibraryAddFieldId = null;
+    };
+
+    const normalizeLibraryText = (text) =>
+        String(text ?? "").replace(/\s+/g, " ").trim();
+
+    const focusPanelValue = (options = {}) => {
+        const { flash = false, notice = null } = options;
+        if (!panelValue || panelValue.disabled) {
+            return;
+        }
+        try {
+            panelValue.focus({ preventScroll: true });
+        } catch {
+            panelValue.focus();
+        }
+        if (flash && valueZone) {
+            valueZone.classList.remove("is-flash");
+            void valueZone.offsetWidth;
+            valueZone.classList.add("is-flash");
+        }
+        if (valueZoneNotice) {
+            if (valueZoneNoticeTimer) {
+                clearTimeout(valueZoneNoticeTimer);
+                valueZoneNoticeTimer = null;
+            }
+            if (notice) {
+                valueZoneNotice.textContent = notice;
+                valueZoneNotice.classList.remove("d-none");
+                valueZoneNoticeTimer = window.setTimeout(() => {
+                    valueZoneNotice.classList.add("d-none");
+                    valueZoneNotice.textContent = "";
+                }, 2800);
+            } else {
+                valueZoneNotice.classList.add("d-none");
+                valueZoneNotice.textContent = "";
+            }
+        }
+    };
+
+    const applyLibraryBodyToField = (body, options = {}) => {
+        const { silent = false, entryId = null, notice = null } = options;
+        const text = String(body ?? "");
+        if (!selectedSegmentId || !panelValue) {
+            return;
+        }
+        const fieldEl = getFieldInputBySegmentId(selectedSegmentId);
+        if (!fieldEl || fieldEl.dataset.canWrite !== "true") {
+            return;
+        }
+        panelSyncing = true;
+        panelValue.value = text;
+        panelSyncing = false;
+        writeFieldText(fieldEl, text);
+        fieldEl.classList.toggle("is-empty", text.length === 0);
+        updatePanelCharCount(text);
+        renderFieldList(panelFieldSearch?.value || "");
+        renderLibraryBrowser();
+        markDirtyFromDom();
+        focusPanelValue({
+            flash: true,
+            notice: notice
+                ?? (silent ? null : "Текст підставлено. За потреби відредагуйте тут і збережіть.")
+        });
+        const templateFieldId = getSelectedTemplateFieldId();
+        if (templateFieldId && entryId) {
+            recordLibraryUsage(entryId, templateFieldId);
+        }
+    };
+
+    const refreshLibraryBrowser = () => {
+        renderLibraryBrowser();
+    };
+
+    const loadLibraryForSelectedField = async () => {
+        const templateFieldId = getSelectedTemplateFieldId();
+        if (!libraryUrl || !templateFieldId) {
+            libraryEntries = [];
+            refreshLibraryBrowser();
+            return;
+        }
+
+        const url = buildLibraryUrl({
+            templateFieldId,
+            orderId: currentOrderId || ""
+        });
+        if (!url) {
+            return;
+        }
+
+        try {
+            const response = await fetch(url, { credentials: "same-origin" });
+            const body = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(body.message || "Не вдалося завантажити бібліотеку.");
+            }
+            libraryEntries = Array.isArray(body.entries) ? body.entries : [];
+            refreshLibraryBrowser();
+        } catch (error) {
+            console.warn("[PdfWorkspace Fill] library load:", error);
+            libraryEntries = [];
+            refreshLibraryBrowser();
+        }
+    };
+
+    const recordLibraryUsage = async (entryId, templateFieldId) => {
+        if (!libraryUrl || !entryId || !templateFieldId) {
+            return;
+        }
+        const url = `${libraryUrl}/${entryId}/use`;
+        try {
+            await fetch(url, {
+                method: "POST",
+                credentials: "same-origin",
+                headers: {
+                    "Content-Type": "application/json",
+                    RequestVerificationToken: getAntiforgeryToken()
+                },
+                body: JSON.stringify({
+                    templateFieldId,
+                    orderId: currentOrderId
+                })
+            });
+        } catch (error) {
+            console.warn("[PdfWorkspace Fill] library usage:", error);
+        }
+    };
+
+    const upsertLibraryEntry = async ({ body, shortLabel, silent = false }) => {
+        const templateFieldId = getSelectedTemplateFieldId();
+        const normalized = String(body ?? "").trim();
+        if (!libraryUrl || !templateFieldId || !normalized) {
+            if (!silent) {
+                showStatus("Немає тексту для додавання до бібліотеки.", "warning");
+            }
+            return null;
+        }
+
+        try {
+            const response = await fetch(libraryUrl, {
+                method: "POST",
+                credentials: "same-origin",
+                headers: {
+                    "Content-Type": "application/json",
+                    RequestVerificationToken: getAntiforgeryToken()
+                },
+                body: JSON.stringify({
+                    templateFieldId,
+                    orderId: currentOrderId,
+                    body: normalized,
+                    shortLabel: shortLabel || null
+                })
+            });
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(result.message || "Не вдалося додати до бібліотеки.");
+            }
+            if (!silent) {
+                showStatus(result.message || "Додано до бібліотеки.", "success");
+            }
+            await loadLibraryForSelectedField();
+            return result;
+        } catch (error) {
+            if (!silent) {
+                showStatus(error.message || "Помилка бібліотеки.", "danger");
+            }
+            return null;
+        }
+    };
+
+    const editLibraryEntry = async (entry) => {
+        const templateFieldId = getSelectedTemplateFieldId();
+        if (!libraryUrl || !templateFieldId || !entry?.id) {
+            return;
+        }
+        const nextBody = window.prompt("Текст для бібліотеки:", entry.body || "");
+        if (nextBody === null) {
+            return;
+        }
+        const trimmed = nextBody.trim();
+        if (!trimmed) {
+            showStatus("Текст не може бути порожнім.", "warning");
+            return;
+        }
+        const nextLabel = window.prompt("Коротка назва в списку (необов’язково):", entry.shortLabel || "");
+        try {
+            const response = await fetch(`${libraryUrl}/${entry.id}`, {
+                method: "PUT",
+                credentials: "same-origin",
+                headers: {
+                    "Content-Type": "application/json",
+                    RequestVerificationToken: getAntiforgeryToken()
+                },
+                body: JSON.stringify({
+                    templateFieldId,
+                    orderId: currentOrderId,
+                    body: trimmed,
+                    shortLabel: nextLabel?.trim() || null,
+                    rowVersionBase64: entry.rowVersionBase64
+                })
+            });
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(result.message || "Не вдалося оновити запис.");
+            }
+            showStatus(result.message || "Запис оновлено.", "success");
+            await loadLibraryForSelectedField();
+        } catch (error) {
+            showStatus(error.message || "Помилка оновлення бібліотеки.", "danger");
+        }
+    };
+
+    const deleteLibraryEntry = async (entry) => {
+        const templateFieldId = getSelectedTemplateFieldId();
+        if (!libraryUrl || !templateFieldId || !entry?.id) {
+            return;
+        }
+        if (!window.confirm("Прибрати цей текст з бібліотеки? Це не змінить уже збережені замовлення.")) {
+            return;
+        }
+        const url = new URL(`${libraryUrl}/${entry.id}`, window.location.origin);
+        url.searchParams.set("templateFieldId", templateFieldId);
+        if (currentOrderId) {
+            url.searchParams.set("orderId", String(currentOrderId));
+        }
+        try {
+            const response = await fetch(url.toString(), {
+                method: "DELETE",
+                credentials: "same-origin",
+                headers: {
+                    RequestVerificationToken: getAntiforgeryToken()
+                }
+            });
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(result.message || "Не вдалося видалити запис.");
+            }
+            showStatus(result.message || "Запис прибрано з бібліотеки.", "success");
+            await loadLibraryForSelectedField();
+        } catch (error) {
+            showStatus(error.message || "Помилка видалення.", "danger");
+        }
+    };
+
+    const buildLibraryAdditionsPayload = () => {
+        if (!libraryAddOnSave?.checked) {
+            return [];
+        }
+        const templateFieldId = pendingLibraryAddFieldId || getSelectedTemplateFieldId();
+        const text = (panelValue?.value || "").trim();
+        if (!templateFieldId || !text) {
+            return [];
+        }
+        return [{ templateFieldId, body: text }];
+    };
+
+    const initLibraryPanel = () => {
+        if (!libraryUrl) {
+            return;
+        }
+
+        libraryCollapseToggle?.addEventListener("click", (event) => {
+            event.preventDefault();
+            if (libraryCollapseToggle.disabled) {
+                return;
+            }
+            toggleLibraryPanelExpanded();
+        });
+
+        setLibraryPanelExpanded(readLibraryPanelExpandedPreference(), { persist: false });
+
+        librarySearch?.addEventListener("input", () => {
+            setLibraryFilterQuery(librarySearch.value);
+        });
+
+        libraryModalSearch?.addEventListener("input", () => {
+            setLibraryFilterQuery(libraryModalSearch.value);
+        });
+
+        libraryExpandBtn?.addEventListener("click", () => openLibraryModal());
+        libraryModalClose?.addEventListener("click", () => closeLibraryModal());
+        libraryModalBackdrop?.addEventListener("click", () => closeLibraryModal());
+
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape" && isLibraryModalOpen) {
+                event.preventDefault();
+                closeLibraryModal();
+            }
+        });
+
+        libraryAddOnSave?.addEventListener("change", () => {
+            if (libraryAddOnSave.checked) {
+                pendingLibraryAddFieldId = getSelectedTemplateFieldId();
+            } else {
+                pendingLibraryAddFieldId = null;
+            }
+        });
+
+        libraryAddNow?.addEventListener("click", async () => {
+            const text = (panelValue?.value || "").trim();
+            if (!text) {
+                showStatus("Спочатку введіть текст у поле «Значення».", "warning");
+                return;
+            }
+            const label = window.prompt(
+                "Коротка назва в списку (необов’язково):",
+                text.length > 60 ? `${text.slice(0, 57)}…` : text
+            );
+            if (label === null) {
+                return;
+            }
+            await upsertLibraryEntry({ body: text, shortLabel: label.trim() || null });
+        });
+    };
+
     const selectField = (segmentId, options = {}) => {
         const { focusPanel = false, focusPdf = true, switchTab = false } = options;
         const segment = segmentById.get(String(segmentId || ""));
@@ -581,9 +1229,21 @@
         if (panelReadonlyNote) {
             panelReadonlyNote.classList.toggle("d-none", writable);
         }
+        resetLibraryAddOnSaveCheckbox();
+        libraryFilterQuery = "";
+        if (librarySearch) {
+            librarySearch.value = "";
+        }
+        setLibraryControlsEnabled(writable);
+        if (writable) {
+            setLibraryPanelExpanded(readLibraryPanelExpandedPreference(), { persist: false });
+        } else {
+            setLibraryPanelExpanded(false, { persist: false });
+        }
         updatePanelCharCount(readFieldText(fieldEl));
         updateNextFieldButton();
         syncLayoutControlsFromSegment(segment);
+        loadLibraryForSelectedField();
 
         if (switchTab) {
             activateFillTab("text");
@@ -595,7 +1255,7 @@
                 fieldEl.select();
             }
         } else if (focusPanel && panelValue && writable) {
-            panelValue.focus();
+            focusPanelValue();
         }
 
         if (focusPdf && box && workspaceRoot) {
@@ -650,7 +1310,7 @@
                 + `${label}`
                 + (writable ? "" : " <span class=\"text-muted\">(перегляд)</span>");
             button.addEventListener("click", () => {
-                selectField(segmentId, { focusPdf: true, switchTab: true });
+                selectField(segmentId, { focusPanel: true, focusPdf: false });
             });
             panelFieldList.appendChild(button);
         });
@@ -667,6 +1327,8 @@
         if (!panelValue) {
             return;
         }
+
+        initLibraryPanel();
 
         document.querySelectorAll(".pdf-fill-panel__tab").forEach((tab) => {
             tab.addEventListener("click", () => {
@@ -686,6 +1348,7 @@
             fieldEl.classList.toggle("is-empty", panelValue.value.length === 0);
             updatePanelCharCount(panelValue.value);
             renderFieldList(panelFieldSearch?.value || "");
+            renderLibraryBrowser();
             markDirtyFromDom();
         });
 
@@ -698,7 +1361,7 @@
             const nav = sortedSegmentsForNav().filter((segment) => canWriteSegment(segment));
             const index = nav.findIndex((segment) => String(segment.segmentId) === selectedSegmentId);
             if (index >= 0 && index < nav.length - 1) {
-                selectField(nav[index + 1].segmentId, { focusPdf: true, switchTab: true });
+                selectField(nav[index + 1].segmentId, { focusPanel: true, focusPdf: false });
             }
         });
 
@@ -1385,11 +2048,13 @@
             panelSaveButton.disabled = true;
         }
 
-        const requestBody = { orderId: currentOrderId, values: payload };
+        const libraryAdditions = buildLibraryAdditionsPayload();
+        const requestBody = { orderId: currentOrderId, values: payload, libraryAdditions };
         console.info("[PdfWorkspace Fill] save payload:", {
             orderId: currentOrderId,
             fields: payload.length,
             nonEmpty,
+            libraryAdditions: libraryAdditions.length,
             values: payload
         });
 
@@ -1450,6 +2115,16 @@
                 lastSavedSignature = buildValuesSignature(payload);
                 isDirty = false;
                 updateSaveBadge("saved");
+                if (libraryAdditions.length > 0) {
+                    const libraryMessages = (body.libraryResults || [])
+                        .map((item) => item.message || item.error)
+                        .filter(Boolean);
+                    if (libraryMessages.length > 0 && !silent) {
+                        showStatus(libraryMessages.join(" "), "success");
+                    }
+                    resetLibraryAddOnSaveCheckbox();
+                    await loadLibraryForSelectedField();
+                }
             } else if (!silent) {
                 updateSaveBadge(isDirty ? "dirty" : "saved");
             }

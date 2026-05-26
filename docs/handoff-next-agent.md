@@ -14,7 +14,7 @@
 | **PR-1** — Реєстр замовлень (read-only) | ✅ Реалізовано, **не закомічено** |
 | **PR-2** — Створення Order/Sample + PDF redirect | ✅ Реалізовано, **не закомічено** |
 | **PDF Fill — панель + макет шаблону + layout API** | ✅ Реалізовано локально (див. **`handoff-pdf-fill-panel-and-template-lifecycle.md`**) |
-| **Спринт 3** — Лабораторний журнал | ⏳ **Наступний пріоритет** (див. `handoff-stage-2-laboratory.md`) |
+| **Спринт 3** — Лабораторний журнал | 🟡 Журнал + ResultEntry + workflow документів (див. `handoff-stage-2-laboratory.md`) |
 
 **Рішення продукту:** спочатку реєстратура (A) — зроблено; далі лабораторія (B).
 
@@ -144,9 +144,9 @@ feat(registration): order registry, create flow, and customer search API
 - Значення замовлення: `docs/handoff-pdf-workspace-fill.md`
 - [ ] `savedCount` = реально збережені записи (не `Received`)
 - [ ] Прибрати тимчасові `Console.WriteLine` / debug log
-- [ ] **Republish** — знову зробити активною версію Superseded (зараз лише Draft→Publish)
-- [ ] **Дві дати публікації** — `FirstPublishedAtUtc` + `RepublishedAtUtc` (зараз одне `PublishedAtUtc` перезаписується)
-- [ ] Unit-тест `SaveFillLayoutRefinementAsync` для Published
+- [x] **Republish** — `RepublishAsync` для Superseded
+- [x] **Дві дати публікації** — `FirstPublishedAtUtc` + `RepublishedAtUtc`
+- [x] Unit-тест `SaveFillLayoutRefinementAsync` для Published
 
 ### UI / дрібниці
 - [ ] Логотип ЦКПХ у hero порталу

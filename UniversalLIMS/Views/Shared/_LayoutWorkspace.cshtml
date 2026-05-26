@@ -25,7 +25,7 @@
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     @await RenderSectionAsync("Styles", required: false)
 </head>
-<body class="lims-workspace-body @themeClass" style="--workspace-accent: @accent; font-family: Inter, system-ui, sans-serif;">
+<body class="lims-workspace-body @themeClass @(ViewData["BodyClass"])" style="--workspace-accent: @accent; font-family: Inter, system-ui, sans-serif;">
     <header>
         <nav class="navbar navbar-expand-md lims-workspace-navbar">
             <div class="container-fluid px-3 px-md-4">

@@ -23,7 +23,8 @@
            asp-controller="PdfWorkspace"
            asp-action="Fill"
            asp-route-templateVersionId="@target.TemplateVersionId"
-           asp-route-orderId="@target.OrderId">
+           asp-route-orderId="@target.OrderId"
+           asp-route-sampleId="@target.SampleId">
             <span>
                 <span class="fw-semibold">@target.TemplateNameUk</span>
                 <span class="text-muted small"> · v@(target.VersionNumber)</span>

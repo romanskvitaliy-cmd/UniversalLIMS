@@ -92,6 +92,7 @@ namespace UniversalLIMS
             builder.Services.AddScoped<INumberingService, NumberingService>();
             builder.Services.AddScoped<IReferralPdfGenerator, ReferralPdfGenerator>();
             builder.Services.AddScoped<IPdfWorkspaceFillService, PdfWorkspaceFillService>();
+            builder.Services.AddScoped<IFieldTextLibraryService, FieldTextLibraryService>();
             builder.Services.AddScoped<ITemplateFieldPermissionService, TemplateFieldPermissionService>();
             builder.Services.AddAuthorization(options =>
             {

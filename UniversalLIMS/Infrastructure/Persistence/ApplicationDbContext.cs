@@ -47,6 +47,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
 
     public DbSet<OrderFieldValue> OrderFieldValues => Set<OrderFieldValue>();
 
+    public DbSet<FieldTextLibraryEntry> FieldTextLibraryEntries => Set<FieldTextLibraryEntry>();
+
     public DbSet<SampleResultValue> SampleResultValues => Set<SampleResultValue>();
 
     public DbSet<Equipment> Equipment => Set<Equipment>();

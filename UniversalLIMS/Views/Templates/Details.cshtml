@@ -2,69 +2,93 @@
 @using UniversalLIMS.Application.Templates
 
 @{
+    Layout = "_LayoutWorkspace";
     ViewData["Title"] = Model.NameUk;
 }
 
-<div class="d-flex justify-content-between align-items-start mb-3">
-    <div>
-        <h1 class="h3 mb-1">@Model.NameUk</h1>
-        <div class="text-muted"><code>@Model.Code</code> · @Model.Status</div>
-        @if (!string.IsNullOrWhiteSpace(Model.DescriptionUk))
-        {
-            <p class="mt-2 mb-0">@Model.DescriptionUk</p>
-        }
-    </div>
-    <div class="btn-group">
-        <a class="btn btn-outline-secondary" asp-action="Edit" asp-route-id="@Model.Id">Редагувати</a>
-        <a class="btn btn-primary" asp-controller="TemplateVersions" asp-action="Upload" asp-route-templateId="@Model.Id">Нова версія</a>
-    </div>
-</div>
+<section class="lims-page">
+    <header class="lims-page-header">
+        <div class="lims-page-header__text">
+            <h1 class="lims-page-header__title">@Model.NameUk</h1>
+            <div class="lims-page-header__meta">
+                <code class="lims-code">@Model.Code</code>
+                <span class="lims-badge lims-badge--draft">@Model.Status</span>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(Model.DescriptionUk))
+            {
+                <p class="lims-page-header__desc">@Model.DescriptionUk</p>
+            }
+        </div>
+        <div class="lims-page-actions">
+            <a class="lims-btn lims-btn--outline" asp-action="Edit" asp-route-id="@Model.Id">Редагувати</a>
+            <a class="lims-btn lims-btn--primary" asp-controller="TemplateVersions" asp-action="Upload" asp-route-templateId="@Model.Id">
+                <i class="bi bi-plus-lg" aria-hidden="true"></i>
+                Нова версія
+            </a>
+        </div>
+    </header>
 
-<h2 class="h5">Версії</h2>
-<table class="table table-striped align-middle">
-    <thead>
-        <tr>
-            <th>Версія</th>
-            <th>Файл</th>
-            <th>Статус</th>
-            <th>Поля</th>
-            <th>Перша публікація UTC</th>
-            <th>Повторна активація UTC</th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var version in Model.Versions)
-        {
-            <tr>
-                <td>v@(version.VersionNumber)</td>
-                <td>@version.OriginalFileName</td>
-                <td>
-                    <span class="badge lims-status-badge @TemplateVersionStatusDisplay.BadgeClass(version.Status)">
-                        @TemplateVersionStatusDisplay.ToUk(version.Status)
-                    </span>
-                    @if (version.IsCurrentPublished)
+    <h2 class="lims-section-title">Версії</h2>
+
+    <div class="lims-panel">
+        <div class="lims-data-table-wrap">
+            <table class="lims-data-table">
+                <thead>
+                    <tr>
+                        <th>Версія</th>
+                        <th>Файл</th>
+                        <th>Статус</th>
+                        <th class="text-center">Поля</th>
+                        <th>Перша публікація</th>
+                        <th>Повторна активація</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var version in Model.Versions)
                     {
-                        <span class="badge @TemplateVersionStatusDisplay.ActiveBadgeClass ms-1">Активний</span>
+                        <tr class="@(version.IsCurrentPublished ? "is-highlight" : null)">
+                            <td>
+                                <span class="badge lims-version-badge">v@(version.VersionNumber)</span>
+                            </td>
+                            <td class="lims-data-table__file" title="@version.OriginalFileName">@version.OriginalFileName</td>
+                            <td>
+                                <span class="badge lims-status-badge @TemplateVersionStatusDisplay.BadgeClass(version.Status)">
+                                    @TemplateVersionStatusDisplay.ToUk(version.Status)
+                                </span>
+                                @if (version.IsCurrentPublished)
+                                {
+                                    <span class="badge lims-status-badge lims-status-badge--registered ms-1">Активний</span>
+                                }
+                            </td>
+                            <td class="text-center lims-data-table__muted">@version.FieldCount</td>
+                            <td class="lims-data-table__muted">@(version.FirstPublishedAtUtc?.ToString("g") ?? "—")</td>
+                            <td class="lims-data-table__muted">@(version.RepublishedAtUtc?.ToString("g") ?? "—")</td>
+                            <td class="text-end">
+                                <a class="lims-btn lims-btn--outline lims-btn--sm"
+                                   asp-controller="TemplateVersions"
+                                   asp-action="Details"
+                                   asp-route-id="@version.Id">
+                                    Відкрити
+                                </a>
+                            </td>
+                        </tr>
                     }
-                </td>
-                <td>@version.FieldCount</td>
-                <td>@(version.FirstPublishedAtUtc?.ToString("g") ?? "—")</td>
-                <td>@(version.RepublishedAtUtc?.ToString("g") ?? "—")</td>
-                <td class="text-end">
-                    <a class="btn btn-sm btn-outline-primary" asp-controller="TemplateVersions" asp-action="Details" asp-route-id="@version.Id">Відкрити</a>
-                </td>
-            </tr>
-        }
-    </tbody>
-</table>
+                </tbody>
+            </table>
+        </div>
+    </div>
 
-<div class="alert alert-light border small">
-  <strong>Нова версія</strong> — завантаження оновленого PDF/DOCX і, за потреби, копіювання тегів з попередньої версії з тими самими координатами overlay.
-  Legacy `.docx` підтримується для раніше створених шаблонів.
-</div>
+    <div class="lims-callout">
+        <p class="lims-callout__title mb-1">Нова версія</p>
+        <p class="lims-callout__text mb-0">
+            Завантаження оновленого PDF/DOCX і, за потреби, копіювання тегів з попередньої версії з тими самими координатами overlay.
+            Legacy <code>.docx</code> підтримується для раніше створених шаблонів.
+        </p>
+    </div>
 
-<div class="mt-3">
-    <a class="btn btn-link" asp-action="Index">До списку шаблонів</a>
-    <a class="btn btn-link text-danger" asp-action="Annul" asp-route-id="@Model.Id">Анулювати шаблон</a>
-</div>
+    <footer class="lims-page-footer">
+        <a class="lims-link" asp-action="Index">← До списку шаблонів</a>
+        <a class="lims-link lims-link--danger" asp-action="Annul" asp-route-id="@Model.Id">Анулювати шаблон</a>
+    </footer>
+</section>

@@ -68,6 +68,8 @@ public sealed class PdfWorkspaceFillSegmentViewModel
 
     public string? Title { get; set; }
 
+    public Guid? DataFieldId { get; set; }
+
     public string? DataFieldKey { get; set; }
 
     public int Sequence { get; set; }

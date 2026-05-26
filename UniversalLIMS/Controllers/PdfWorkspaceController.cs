@@ -23,6 +23,7 @@ public sealed class PdfWorkspaceController : Controller
     private readonly ApplicationDbContext _context;
     private readonly ITemplateOriginalOpenTokenIssuer _openTokenIssuer;
     private readonly IPdfWorkspaceFillService _fillService;
+    private readonly IFieldTextLibraryService _textLibrary;
     private readonly ITemplateFieldMappingService _fieldMapping;
     private readonly IActiveLimsRoleService _activeRole;
     private readonly ILogger<PdfWorkspaceController> _logger;
@@ -31,6 +32,7 @@ public sealed class PdfWorkspaceController : Controller
         ApplicationDbContext context,
         ITemplateOriginalOpenTokenIssuer openTokenIssuer,
         IPdfWorkspaceFillService fillService,
+        IFieldTextLibraryService textLibrary,
         ITemplateFieldMappingService fieldMapping,
         IActiveLimsRoleService activeRole,
         ILogger<PdfWorkspaceController> logger)
@@ -38,6 +40,7 @@ public sealed class PdfWorkspaceController : Controller
         _context = context;
         _openTokenIssuer = openTokenIssuer;
         _fillService = fillService;
+        _textLibrary = textLibrary;
         _fieldMapping = fieldMapping;
         _activeRole = activeRole;
         _logger = logger;
@@ -134,6 +137,50 @@ public sealed class PdfWorkspaceController : Controller
                 values,
                 cancellationToken);
 
+            var libraryResults = new List<object>();
+            if (request.LibraryAdditions is { Count: > 0 }
+                && result.FailedFields.Count == 0)
+            {
+                foreach (var addition in request.LibraryAdditions)
+                {
+                    if (!Guid.TryParse(addition.TemplateFieldId, out var templateFieldId)
+                        || string.IsNullOrWhiteSpace(addition.Body))
+                    {
+                        continue;
+                    }
+
+                    try
+                    {
+                        var libraryResult = await _textLibrary.UpsertAsync(
+                            templateVersionId,
+                            new FieldTextLibraryUpsertRequest
+                            {
+                                OrderId = result.OrderId,
+                                TemplateFieldId = templateFieldId,
+                                Body = addition.Body,
+                                ShortLabel = addition.ShortLabel
+                            },
+                            cancellationToken);
+
+                        libraryResults.Add(new
+                        {
+                            templateFieldId,
+                            created = libraryResult.Created,
+                            message = libraryResult.Message,
+                            entryId = libraryResult.Entry.Id
+                        });
+                    }
+                    catch (InvalidOperationException libraryException)
+                    {
+                        libraryResults.Add(new
+                        {
+                            templateFieldId,
+                            error = libraryException.Message
+                        });
+                    }
+                }
+            }
+
             _logger.LogInformation(
                 "PdfWorkspace SaveValues result: order={OrderId}, received={Received}, saved={Saved}, unmapped={Unmapped}, failed={Failed}",
                 result.OrderId,
@@ -155,7 +202,8 @@ public sealed class PdfWorkspaceController : Controller
                 {
                     templateFieldId = failure.TemplateFieldId,
                     reason = failure.Reason
-                })
+                }),
+                libraryResults
             });
         }
         catch (InvalidOperationException exception)
@@ -170,6 +218,152 @@ public sealed class PdfWorkspaceController : Controller
                 detail = exception.Message,
                 inner = exception.InnerException?.Message
             });
+        }
+    }
+
+    [HttpGet("PdfWorkspace/Fill/{templateVersionId:guid}/library")]
+    public async Task<IActionResult> ListLibrary(
+        Guid templateVersionId,
+        Guid templateFieldId,
+        Guid? orderId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _textLibrary.ListForFieldAsync(
+                templateVersionId,
+                templateFieldId,
+                orderId,
+                cancellationToken);
+
+            return Json(new
+            {
+                entries = result.Entries.Select(entry => new
+                {
+                    id = entry.Id,
+                    body = entry.Body,
+                    shortLabel = entry.ShortLabel,
+                    usageCount = entry.UsageCount,
+                    rowVersionBase64 = entry.RowVersionBase64
+                }),
+                totalCount = result.TotalCount
+            });
+        }
+        catch (InvalidOperationException exception)
+        {
+            return BadRequest(new { message = exception.Message });
+        }
+    }
+
+    [HttpPost("PdfWorkspace/Fill/{templateVersionId:guid}/library")]
+    [IgnoreAntiforgeryToken]
+    public async Task<IActionResult> UpsertLibrary(
+        Guid templateVersionId,
+        [FromBody] FieldTextLibraryUpsertRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (request is null)
+        {
+            return BadRequest(new { message = "Тіло запиту порожнє." });
+        }
+
+        try
+        {
+            var result = await _textLibrary.UpsertAsync(templateVersionId, request, cancellationToken);
+            return Json(new
+            {
+                entry = MapLibraryEntry(result.Entry),
+                created = result.Created,
+                message = result.Message
+            });
+        }
+        catch (InvalidOperationException exception)
+        {
+            return BadRequest(new { message = exception.Message });
+        }
+    }
+
+    [HttpPut("PdfWorkspace/Fill/{templateVersionId:guid}/library/{entryId:guid}")]
+    [IgnoreAntiforgeryToken]
+    public async Task<IActionResult> UpdateLibrary(
+        Guid templateVersionId,
+        Guid entryId,
+        [FromBody] FieldTextLibraryUpdateRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (request is null)
+        {
+            return BadRequest(new { message = "Тіло запиту порожнє." });
+        }
+
+        try
+        {
+            var result = await _textLibrary.UpdateAsync(templateVersionId, entryId, request, cancellationToken);
+            return Json(new
+            {
+                entry = MapLibraryEntry(result.Entry),
+                message = result.Message
+            });
+        }
+        catch (InvalidOperationException exception)
+        {
+            return BadRequest(new { message = exception.Message });
+        }
+    }
+
+    [HttpDelete("PdfWorkspace/Fill/{templateVersionId:guid}/library/{entryId:guid}")]
+    [IgnoreAntiforgeryToken]
+    public async Task<IActionResult> DeleteLibrary(
+        Guid templateVersionId,
+        Guid entryId,
+        Guid templateFieldId,
+        Guid? orderId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _textLibrary.AnnulAsync(
+                templateVersionId,
+                entryId,
+                templateFieldId,
+                orderId,
+                cancellationToken);
+
+            return Json(new { message = "Запис прибрано з бібліотеки." });
+        }
+        catch (InvalidOperationException exception)
+        {
+            return BadRequest(new { message = exception.Message });
+        }
+    }
+
+    [HttpPost("PdfWorkspace/Fill/{templateVersionId:guid}/library/{entryId:guid}/use")]
+    [IgnoreAntiforgeryToken]
+    public async Task<IActionResult> RecordLibraryUsage(
+        Guid templateVersionId,
+        Guid entryId,
+        [FromBody] FieldTextLibraryUsageRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (request is null)
+        {
+            return BadRequest(new { message = "Тіло запиту порожнє." });
+        }
+
+        try
+        {
+            await _textLibrary.RecordUsageAsync(
+                templateVersionId,
+                entryId,
+                request.TemplateFieldId,
+                request.OrderId,
+                cancellationToken);
+
+            return Json(new { ok = true });
+        }
+        catch (InvalidOperationException exception)
+        {
+            return BadRequest(new { message = exception.Message });
         }
     }
 
@@ -254,6 +448,7 @@ public sealed class PdfWorkspaceController : Controller
                 TemplateFieldId = segment.TemplateFieldId,
                 Tag = segment.Tag,
                 Title = segment.Title,
+                DataFieldId = segment.DataFieldId,
                 DataFieldKey = segment.DataFieldKey,
                 Sequence = segment.Sequence,
                 PageNumber = segment.PageNumber,
@@ -311,6 +506,16 @@ public sealed class PdfWorkspaceController : Controller
                 new { templateVersionId = version.Id })
         };
     }
+
+    private static object MapLibraryEntry(FieldTextLibraryEntryDto entry) =>
+        new
+        {
+            id = entry.Id,
+            body = entry.Body,
+            shortLabel = entry.ShortLabel,
+            usageCount = entry.UsageCount,
+            rowVersionBase64 = entry.RowVersionBase64
+        };
 
     private static string SanitizeFileName(string name)
     {

@@ -104,6 +104,7 @@ public sealed class ResultEntryService : IResultEntryService
 
         var sample = await _context.Samples
             .Include(item => item.Order)
+                .ThenInclude(order => order.OrderDocuments)
             .FirstOrDefaultAsync(item => item.Id == sampleId && !item.IsAnnulled, cancellationToken);
 
         if (sample is null || !IsAccessibleForCurrentBranch(sample.Order.BranchId))
@@ -214,7 +215,15 @@ public sealed class ResultEntryService : IResultEntryService
 
         if (saved > 0 || request.MarkResultsComplete)
         {
-            _workflow.ApplyAfterResultSave(sample, request.MarkResultsComplete);
+            var sampleDocuments = sample.Order.OrderDocuments
+                .Where(document => document.SampleId == sampleId)
+                .ToList();
+
+            _workflow.ApplyAfterResultSave(
+                sample,
+                sampleDocuments,
+                request.MarkResultsComplete,
+                hadPersistedChanges: saved > 0);
         }
 
         await _context.SaveChangesAsync(cancellationToken);

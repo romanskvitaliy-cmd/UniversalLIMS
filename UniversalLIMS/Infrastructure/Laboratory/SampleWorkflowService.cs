@@ -5,8 +5,17 @@ namespace UniversalLIMS.Infrastructure.Laboratory;
 
 public sealed class SampleWorkflowService : ISampleWorkflowService
 {
-    public void ApplyAfterResultSave(Sample sample, bool markResultsComplete)
+    public void ApplyAfterResultSave(
+        Sample sample,
+        IEnumerable<OrderDocument> sampleDocuments,
+        bool markResultsComplete,
+        bool hadPersistedChanges)
     {
+        if (!hadPersistedChanges && !markResultsComplete)
+        {
+            return;
+        }
+
         if (sample.Status is SampleStatus.Registered or SampleStatus.Routed)
         {
             sample.Status = SampleStatus.InProgress;
@@ -15,6 +24,24 @@ public sealed class SampleWorkflowService : ISampleWorkflowService
         if (markResultsComplete)
         {
             sample.Status = SampleStatus.ResultsEntered;
+        }
+
+        foreach (var document in sampleDocuments.Where(document => !document.IsAnnulled))
+        {
+            if (markResultsComplete)
+            {
+                if (document.Status is OrderDocumentStatus.SentToLab or OrderDocumentStatus.InProgress)
+                {
+                    document.Status = OrderDocumentStatus.ResultsEntered;
+                }
+
+                continue;
+            }
+
+            if (hadPersistedChanges && document.Status == OrderDocumentStatus.SentToLab)
+            {
+                document.Status = OrderDocumentStatus.InProgress;
+            }
         }
     }
 }

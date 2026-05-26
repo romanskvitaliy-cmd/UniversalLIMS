@@ -8,8 +8,10 @@
 
         const items = Array.isArray(config?.items) ? config.items : [];
         const placeholder = config?.placeholder || "Оберіть…";
+        const searchPlaceholder = config?.searchPlaceholder || "Пошук…";
         const emptyText = config?.emptyText || "Нічого не знайдено";
-        const disabled = config?.disabled === true;
+        let isDisabled = config?.disabled === true;
+        const useFixedMenu = config?.useFixedMenu !== false;
 
         container.classList.add("searchable-combo");
         container.innerHTML = `
@@ -19,7 +21,7 @@
                 <span class="searchable-combo-caret" aria-hidden="true">▾</span>
             </button>
             <div class="searchable-combo-menu" hidden>
-                <input type="text" class="searchable-combo-search form-control form-control-sm" placeholder="Пошук тегу..." autocomplete="off" />
+                <input type="text" class="searchable-combo-search form-control form-control-sm" placeholder="${searchPlaceholder.replace(/"/g, "&quot;")}" autocomplete="off" />
                 <ul class="searchable-combo-list" role="listbox"></ul>
             </div>`;
 
@@ -38,6 +40,17 @@
         const getItemKey = (item) => item?.key ?? item?.Key ?? "";
         const getItemDisplay = (item) => item?.displayName ?? item?.DisplayNameUk ?? item?.displayNameUk ?? getItemKey(item);
         const getItemGroup = (item) => item?.groupName ?? item?.GroupName ?? "";
+        const getSearchableText = (item) => {
+            if (typeof config?.getSearchableText === "function") {
+                return config.getSearchableText(item);
+            }
+            return [
+                getItemDisplay(item),
+                getItemKey(item),
+                getItemGroup(item),
+                item?.body ?? item?.Body ?? ""
+            ].join(" ");
+        };
 
         const findItem = (value) => {
             if (value === null || value === undefined || value === "") return null;
@@ -100,36 +113,61 @@
             const q = normalize(query);
             filtered = !q
                 ? items
-                : items.filter((item) => {
-                    const haystack = [
-                        getItemDisplay(item),
-                        getItemKey(item),
-                        getItemGroup(item)
-                    ].join(" ");
-                    return normalize(haystack).includes(q);
-                });
+                : items.filter((item) => normalize(getSearchableText(item)).includes(q));
             activeIndex = filtered.length ? 0 : -1;
             renderList();
         };
 
+        const positionMenu = () => {
+            if (!useFixedMenu) {
+                menu.style.position = "";
+                menu.style.top = "";
+                menu.style.left = "";
+                menu.style.width = "";
+                menu.style.zIndex = "";
+                return;
+            }
+
+            const rect = trigger.getBoundingClientRect();
+            menu.style.position = "fixed";
+            menu.style.top = `${Math.round(rect.bottom + 4)}px`;
+            menu.style.left = `${Math.round(rect.left)}px`;
+            menu.style.width = `${Math.round(rect.width)}px`;
+            menu.style.zIndex = "10050";
+        };
+
+        const resetMenuPosition = () => {
+            menu.style.position = "";
+            menu.style.top = "";
+            menu.style.left = "";
+            menu.style.width = "";
+            menu.style.zIndex = "";
+        };
+
         const openMenu = () => {
-            if (disabled || isOpen) return;
+            if (isDisabled || isOpen) {
+                return;
+            }
             isOpen = true;
             menu.hidden = false;
             trigger.setAttribute("aria-expanded", "true");
             container.classList.add("is-open");
             searchInput.value = "";
             applyFilter("");
+            positionMenu();
             window.setTimeout(() => searchInput.focus(), 0);
         };
 
         const closeMenu = () => {
-            if (!isOpen) return;
+            if (!isOpen) {
+                return;
+            }
             isOpen = false;
             menu.hidden = true;
             trigger.setAttribute("aria-expanded", "false");
             container.classList.remove("is-open");
             activeIndex = -1;
+            resetMenuPosition();
         };
 
         const notifyPreview = (item) => {
@@ -160,6 +198,20 @@
         };
 
         trigger.addEventListener("click", () => (isOpen ? closeMenu() : openMenu()));
+        window.addEventListener("resize", () => {
+            if (isOpen) {
+                positionMenu();
+            }
+        });
+        window.addEventListener(
+            "scroll",
+            () => {
+                if (isOpen) {
+                    positionMenu();
+                }
+            },
+            true
+        );
         searchInput.addEventListener("input", () => applyFilter(searchInput.value));
         searchInput.addEventListener("keydown", (event) => {
             if (event.key === "ArrowDown") {
@@ -200,18 +252,27 @@
                 return findItem(currentValue);
             },
             setDisabled(next) {
-                trigger.disabled = next;
-                if (next) closeMenu();
+                isDisabled = next === true;
+                trigger.disabled = isDisabled;
+                if (isDisabled) {
+                    closeMenu();
+                }
             },
             setItems(nextItems) {
                 items.length = 0;
                 items.push(...(nextItems || []));
-                applyFilter(searchInput.value);
+                applyFilter(isOpen ? searchInput.value : "");
                 renderLabel();
+            },
+            open() {
+                openMenu();
+            },
+            close() {
+                closeMenu();
             }
         };
 
-        api.setDisabled(disabled);
+        api.setDisabled(isDisabled);
         renderLabel();
         return api;
     }

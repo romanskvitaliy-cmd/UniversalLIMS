@@ -9,6 +9,22 @@ public sealed class PdfWorkspaceSaveRequest
 
     [JsonPropertyName("values")]
     public List<PdfWorkspaceSaveFieldRequest>? Values { get; set; }
+
+    /// <summary>Додати тексти до бібліотеки після успішного збереження значень (ідемпотентно).</summary>
+    [JsonPropertyName("libraryAdditions")]
+    public List<PdfWorkspaceLibraryAdditionRequest>? LibraryAdditions { get; set; }
+}
+
+public sealed class PdfWorkspaceLibraryAdditionRequest
+{
+    [JsonPropertyName("templateFieldId")]
+    public string? TemplateFieldId { get; set; }
+
+    [JsonPropertyName("body")]
+    public string? Body { get; set; }
+
+    [JsonPropertyName("shortLabel")]
+    public string? ShortLabel { get; set; }
 }
 
 public sealed class PdfWorkspaceSaveFieldRequest

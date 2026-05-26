@@ -172,10 +172,10 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
             if (string.IsNullOrEmpty(trimmedValue))
             {
                 var existing = existingValues.FirstOrDefault(fieldValue => fieldValue.DataFieldId == dataFieldId);
-                if (existing is not null)
+                if (existing is not null && !string.IsNullOrEmpty(existing.StoredValue))
                 {
-                    _context.OrderFieldValues.Remove(existing);
-                    existingValues.Remove(existing);
+                    existing.StoredValue = null;
+                    saved++;
                     _logger.LogDebug(
                         "PdfWorkspaceFill cleared empty value: templateField={TemplateFieldId}, dataField={DataFieldId}",
                         templateFieldId,
@@ -927,7 +927,8 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
                 {
                     Segment = segment,
                     Field = field,
-                    DataFieldKey = dataField != null ? dataField.Key : null
+                    DataFieldKey = dataField != null ? dataField.Key : null,
+                    DataFieldId = field.DataFieldId
                 })
             .ToListAsync(cancellationToken);
 
@@ -940,6 +941,7 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
                 TemplateFieldId = row.Field.Id,
                 Tag = row.Field.Tag,
                 Title = row.Field.Title,
+                DataFieldId = row.DataFieldId,
                 DataFieldKey = row.DataFieldKey ?? row.Field.Tag,
                 Sequence = row.Segment.Sequence,
                 PageNumber = row.Segment.PageNumber,
