@@ -221,7 +221,7 @@
         font-size: 0.65rem;
     }
 
-    .searchable-combo-menu {
+    #overlayDataFieldCombo .searchable-combo-menu {
         position: relative !important;
         margin-top: 0.2rem;
         margin-bottom: 10px;
@@ -231,6 +231,19 @@
         background: #fff;
         box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
         padding: 0.35rem;
+    }
+
+    /* Тег з бібліотеки — fixed-меню, щоб список не обрізався overflow у nudge-pad */
+    #nudgeTagLibraryCombo .searchable-combo-menu {
+        position: fixed;
+        margin-top: 0;
+        margin-bottom: 0;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        background: #fff;
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
+        padding: 0.35rem;
+        z-index: 10050;
     }
 
     .searchable-combo-search {
@@ -1745,13 +1758,8 @@ else
     </p>
 }
 
-@if (Model.DocumentFormat == TemplateDocumentFormat.Pdf && Model.IsEditable)
+@if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
 {
-    <form id="addPdfFieldForm" asp-controller="TemplateFields" asp-action="AddPdfField" method="post" class="pdf-tag-panel-host-hidden" aria-hidden="true">
-        @Html.AntiForgeryToken()
-        <input type="hidden" name="TemplateVersionId" value="@Model.TemplateVersionId" />
-        <input id="newPdfFieldTag" name="Tag" value="@Model.NewPdfField.Tag" tabindex="-1" />
-        <input id="newPdfFieldTitle" name="Title" value="@Model.NewPdfField.Title" tabindex="-1" />
 <select id="pdfTagLibrary" class="pdf-tag-library-select-hidden" tabindex="-1" aria-hidden="true">
                 <option value="">-- оберіть тег зі списку --</option>
                 <optgroup label="Глобальні теги (Шапка та загальні дані)">
@@ -1855,6 +1863,15 @@ else
                     <option value="Head_Laboratory" data-title="Завідувач лабораторії">Head_Laboratory — Завідувач лабораторії</option>
                 </optgroup>
             </select>
+}
+
+@if (Model.DocumentFormat == TemplateDocumentFormat.Pdf && Model.IsEditable)
+{
+    <form id="addPdfFieldForm" asp-controller="TemplateFields" asp-action="AddPdfField" method="post" class="pdf-tag-panel-host-hidden" aria-hidden="true">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="TemplateVersionId" value="@Model.TemplateVersionId" />
+        <input id="newPdfFieldTag" name="Tag" value="@Model.NewPdfField.Tag" tabindex="-1" />
+        <input id="newPdfFieldTitle" name="Title" value="@Model.NewPdfField.Title" tabindex="-1" />
     </form>
 }
 
@@ -2169,22 +2186,32 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
     <div class="nudge-tag-composer mb-2">
         <div class="d-flex justify-content-between align-items-center mb-1">
             <span class="small fw-semibold">➕ Новий тег</span>
-            <button id="toggleNudgeTagComposer" type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" aria-expanded="false">▸</button>
+            @if (Model.IsEditable)
+            {
+                <button id="toggleNudgeTagComposer" type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" aria-expanded="true">▾</button>
+            }
         </div>
-        <div id="nudgeTagComposerBody" style="display:none">
-            <label class="form-label small text-muted mb-0">Тег з бібліотеки</label>
-            <div id="nudgeTagLibraryCombo"></div>
-            <div id="nudgeTagLivePreview" class="nudge-tag-live-preview" aria-live="polite">
-                <div class="nudge-tag-live-preview__placeholder small text-muted">Оберіть тег — ключ і повний опис зʼявляться тут</div>
-                <div class="nudge-tag-live-preview__content d-none">
-                    <span class="nudge-tag-live-preview__group"></span>
-                    <code class="nudge-tag-live-preview__key"></code>
-                    <p class="nudge-tag-live-preview__title"></p>
+        <div id="nudgeTagComposerBody" style="@(Model.IsEditable ? "" : null)">
+            @if (Model.IsEditable)
+            {
+                <label class="form-label small text-muted mb-0">Тег з бібліотеки</label>
+                <div id="nudgeTagLibraryCombo"></div>
+                <div id="nudgeTagLivePreview" class="nudge-tag-live-preview" aria-live="polite">
+                    <div class="nudge-tag-live-preview__placeholder small text-muted">Оберіть тег — ключ і повний опис зʼявляться тут</div>
+                    <div class="nudge-tag-live-preview__content d-none">
+                        <span class="nudge-tag-live-preview__group"></span>
+                        <code class="nudge-tag-live-preview__key"></code>
+                        <p class="nudge-tag-live-preview__title"></p>
+                    </div>
                 </div>
-            </div>
-            <label class="form-label small text-muted mb-0 mt-1" for="nudgeDraftTitle">Назва на PDF</label>
-            <textarea id="nudgeDraftTitle" class="form-control form-control-sm nudge-tag-title-edit" rows="2" placeholder="Повний опис поля…"></textarea>
-            <button type="button" id="nudgeSubmitNewTag" class="btn btn-sm btn-primary w-100 mt-2" disabled>➕ Додати на шаблон</button>
+                <label class="form-label small text-muted mb-0 mt-1" for="nudgeDraftTitle">Назва на PDF</label>
+                <textarea id="nudgeDraftTitle" class="form-control form-control-sm nudge-tag-title-edit" rows="2" placeholder="Повний опис поля…"></textarea>
+                <button type="button" id="nudgeSubmitNewTag" class="btn btn-sm btn-primary w-100 mt-2" disabled>➕ Додати на шаблон</button>
+            }
+            else
+            {
+                <p class="small text-muted mb-0">Додати тег з бібліотеки можна лише у версії <strong>Чернетка</strong> або <strong>Готовий до публікації</strong>.</p>
+            }
         </div>
     </div>
     <hr class="my-2" />
@@ -8533,6 +8560,9 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
 
                 if (pdfTagLibrary && newPdfFieldTag && newPdfFieldTitle) {
                     const addPdfFieldForm = document.getElementById("addPdfFieldForm");
+                    if (!addPdfFieldForm) {
+                        console.warn("addPdfFieldForm missing — tag library add is disabled for this version.");
+                    }
                     const nudgeDraftTitle = document.getElementById("nudgeDraftTitle");
                     const nudgeSubmitNewTag = document.getElementById("nudgeSubmitNewTag");
                     const nudgeTagPreview = document.getElementById("nudgeTagLivePreview");
@@ -8564,10 +8594,17 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         return items;
                     };
 
+                    const resolveDraftTitle = () => {
+                        const fromInput = (nudgeDraftTitle?.value || "").trim();
+                        if (fromInput) {
+                            return fromInput;
+                        }
+                        return String(draftItem?.displayName ?? "").trim();
+                    };
+
                     const setSubmitEnabled = () => {
                         if (!nudgeSubmitNewTag) return;
-                        const title = (nudgeDraftTitle?.value || "").trim();
-                        nudgeSubmitNewTag.disabled = !draftTagKey || !title;
+                        nudgeSubmitNewTag.disabled = !draftTagKey || !resolveDraftTitle() || !addPdfFieldForm;
                     };
 
                     const updateNudgeTagPreview = (item, titleOverride) => {
@@ -8641,9 +8678,15 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                     };
 
                     const submitAddPdfField = async () => {
-                        if (!draftTagKey || !addPdfFieldForm) return;
-                        const title = (nudgeDraftTitle?.value || "").trim();
-                        if (!title) return;
+                        if (!draftTagKey || !addPdfFieldForm) {
+                            showOverlayToast("Додавання тегів недоступне для опублікованої або заміненої версії.", true);
+                            return;
+                        }
+                        const title = resolveDraftTitle();
+                        if (!title) {
+                            showOverlayToast("Оберіть тег з бібліотеки або введіть назву на PDF.", true);
+                            return;
+                        }
 
                         const token = addPdfFieldForm.querySelector('input[name="__RequestVerificationToken"]')?.value
                             ?? fieldMapForm?.querySelector('input[name="__RequestVerificationToken"]')?.value
@@ -8664,6 +8707,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                                 credentials: "same-origin",
                                 headers: {
                                     Accept: "application/json",
+                                    "X-Requested-With": "XMLHttpRequest",
                                     RequestVerificationToken: token
                                 },
                                 body: formData
@@ -8716,11 +8760,13 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
 
                     const libraryItems = buildTagLibraryItems();
                     const nudgeTagComboRoot = document.getElementById("nudgeTagLibraryCombo");
-                    if (nudgeTagComboRoot && typeof initSearchableCombo === "function") {
+                    if (nudgeTagComboRoot && typeof initSearchableCombo === "function" && addPdfFieldForm) {
                         nudgeTagComboApi = initSearchableCombo(nudgeTagComboRoot, {
                             items: libraryItems,
                             placeholder: "Оберіть тег зі словника...",
+                            searchPlaceholder: "Пошук тега…",
                             value: draftTagKey || null,
+                            useFixedMenu: true,
                             onPreview: (item) => {
                                 if (!item) return;
                                 draftItem = item;
@@ -8728,6 +8774,8 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             },
                             onChange: (_value, item) => applyTagDraft(item)
                         });
+                    } else if (nudgeTagComboRoot && !addPdfFieldForm) {
+                        nudgeTagComboRoot.innerHTML = "";
                     }
 
                     if (draftTagKey) {
