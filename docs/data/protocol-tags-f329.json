@@ -1,0 +1,58 @@
+{
+  "protocolCode": "f329",
+  "protocolNameUk": "Форма 329 — дослідження повітря населених місць (1 stop / 2 stop)",
+  "tagPrefix": "f329_",
+  "groups": [
+    {
+      "name": "Глобальні (семантичні ключі — мапінг у реєстратурі, без префікса)",
+      "tags": [
+        { "key": "Global.ProtocolNumber", "titleUk": "ПРОТОКОЛ №" },
+        { "key": "Sample.SamplingLocation", "titleUk": "Місце відбору проби повітря" },
+        { "key": "Sample.Purpose", "titleUk": "Мета відбору" },
+        { "key": "Sample.SampleType", "titleUk": "Вид проби (разова, середньодобова)" },
+        { "key": "Sample.SamplingDate", "titleUk": "Дата і час відбору" },
+        { "key": "Sample.DeliveryDate", "titleUk": "Дата і час доставки" },
+        { "key": "Sample.TransportationConditions", "titleUk": "Умови транспортування" },
+        { "key": "Sample.StorageConditions", "titleUk": "Умови зберігання" },
+        { "key": "Sample.MethodsPreservation", "titleUk": "Методи консервування" },
+        { "key": "Sample.Equipment", "titleUk": "Засоби вимірювання" },
+        { "key": "Sample.VerificationInfo", "titleUk": "Інформація про державну повірку" },
+        { "key": "Sample.AreaCharacteristics", "titleUk": "Характеристика району" },
+        { "key": "Sample.Relief", "titleUk": "Характеристика рельєфу" },
+        { "key": "Sample.EmissionSources", "titleUk": "Характеристика джерел забруднення" },
+        { "key": "Sample.EmissionPower", "titleUk": "Потужність викиду інгредієнтів" },
+        { "key": "Sample.DistanceToSource", "titleUk": "Відстань від джерел забруднення" },
+        { "key": "Sample.FunnelShape", "titleUk": "Форма факелу" },
+        { "key": "Sample.AreaSketch", "titleUk": "Ескіз місцевості" },
+        { "key": "Sample.SamplingND", "titleUk": "НТД на метод відбору" },
+        { "key": "Sample.SamplingPerformer", "titleUk": "Посада, прізвище особи, яка провела відбір" }
+      ]
+    },
+    {
+      "name": "Локальні (префікс f329_)",
+      "tags": [
+        { "key": "f329_AbsorberNumber", "titleUk": "Номер поглинача" },
+        { "key": "f329_SketchSampleNumber", "titleUk": "Номер проби за ескізом" },
+        { "key": "f329_SamplingPoint", "titleUk": "Точка відбору проб" },
+        { "key": "f329_AtmosphericPressure", "titleUk": "Атмосферний тиск, мм.рт.ст." },
+        { "key": "f329_AirTemperature", "titleUk": "Температура повітря, °C" },
+        { "key": "f329_RelativeHumidity", "titleUk": "Відносна вологість, %" },
+        { "key": "f329_WindDirection", "titleUk": "Напрямок вітру" },
+        { "key": "f329_WindSpeed", "titleUk": "Швидкість вітру, м/сек" },
+        { "key": "f329_WeatherCondition", "titleUk": "Стан погоди" },
+        { "key": "f329_SamplingStart", "titleUk": "Час відбору: Початок" },
+        { "key": "f329_SamplingEnd", "titleUk": "Час відбору: Кінець" },
+        { "key": "f329_SamplingRate", "titleUk": "Швидкість відбору л/хв" },
+        { "key": "f329_SubstanceName", "titleUk": "Назва досліджуваної речовини" },
+        { "key": "f329_ConcentrationSingle", "titleUk": "Виявлена концентрація разова, мг/м³" },
+        { "key": "f329_ConcentrationDaily", "titleUk": "Виявлена концентрація середньодобова, мг/м³" },
+        { "key": "f329_MPC", "titleUk": "ГДК, мг/м³" },
+        { "key": "f329_LimitingIndicator", "titleUk": "Лімітуючий показник (ЛДК/ЛПК, тип шкідливості)" },
+        { "key": "f329_MethodND", "titleUk": "НТД на методи досліджень" },
+        { "key": "f329_LabPerformer", "titleUk": "Дослідження проводив (ПІБ)" },
+        { "key": "f329_SanitaryDoctorConclusion", "titleUk": "Висновок санітарного лікаря" },
+        { "key": "f329_HygieneDoctor", "titleUk": "Лікар із загальної гігієни" }
+      ]
+    }
+  ]
+}

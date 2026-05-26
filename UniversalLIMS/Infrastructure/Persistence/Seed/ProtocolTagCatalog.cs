@@ -94,6 +94,113 @@ public static class ProtocolTagCatalog
         new("f343_ComplianceMark", "Відмітка про відповідність", DataFieldScope.Conclusion),
     ];
 
+    public static IReadOnlyList<TagDefinition> F332 { get; } =
+    [
+        new("f332_SampleNumber", "№ проби", DataFieldScope.Sample),
+        new("f332_SamplingPoint", "Місце та точка відбору", DataFieldScope.Sample),
+        new("f332_Quantity", "Кількість, гр", DataFieldScope.Sample, DataFieldType.Number),
+        new("f332_Depth", "Глибина відбору, см", DataFieldScope.Sample, DataFieldType.Number),
+        new("f332_MethodND", "Науково-технічна документація на метод відбору", DataFieldScope.Sample),
+        new("f332_IndicatorName", "Найменування показників", DataFieldScope.Result),
+        new("f332_ResultValue", "Результат дослідження у одиницях вимірювання ГДК ОВРВ, мг/кг", DataFieldScope.Result),
+        new("f332_ComplianceMark", "Відмітка про відповідність", DataFieldScope.Conclusion),
+    ];
+
+    public static IReadOnlyList<TagDefinition> F413 { get; } =
+    [
+        new("f413_SampleNumber", "№ проби", DataFieldScope.Sample),
+        new("f413_SamplingLocation", "Місце відбору проб", DataFieldScope.Sample),
+        new("f413_DryThermometer", "Показання термометра сухого", DataFieldScope.Result),
+        new("f413_WetThermometer", "Показання термометра вологого", DataFieldScope.Result),
+        new("f413_AirPressure", "Атмосферний тиск, мм.рт.ст.", DataFieldScope.Result, DataFieldType.Number),
+        new("f413_AspirationSpeed", "Швидкість аспірації, л/хв.", DataFieldScope.Result, DataFieldType.Number),
+        new("f413_SamplingDuration", "Тривалість відбору проби, хвилин", DataFieldScope.Result, DataFieldType.Number),
+        new("f413_SubstanceName", "Назва речовини, що визначається", DataFieldScope.Result),
+        new("f413_Concentration", "Концентрація, мг/м³", DataFieldScope.Result),
+        new("f413_MPC", "Гранично допустима концентрація, мг/м³", DataFieldScope.Result),
+        new("f413_Method", "Методика досліджень", DataFieldScope.Result),
+    ];
+
+    public static IReadOnlyList<TagDefinition> F329 { get; } =
+    [
+        new("f329_AbsorberNumber", "Номер поглинача", DataFieldScope.Sample),
+        new("f329_SketchSampleNumber", "Номер проби за ескізом", DataFieldScope.Sample),
+        new("f329_SamplingPoint", "Точка відбору проб", DataFieldScope.Sample),
+        new("f329_AtmosphericPressure", "Атмосферний тиск, мм.рт.ст.", DataFieldScope.Result, DataFieldType.Number),
+        new("f329_AirTemperature", "Температура повітря, °C", DataFieldScope.Result, DataFieldType.Number),
+        new("f329_RelativeHumidity", "Відносна вологість, %", DataFieldScope.Result, DataFieldType.Number),
+        new("f329_WindDirection", "Напрямок вітру", DataFieldScope.Result),
+        new("f329_WindSpeed", "Швидкість вітру, м/сек", DataFieldScope.Result, DataFieldType.Number),
+        new("f329_WeatherCondition", "Стан погоди", DataFieldScope.Result),
+        new("f329_SamplingStart", "Час відбору: Початок", DataFieldScope.Result),
+        new("f329_SamplingEnd", "Час відбору: Кінець", DataFieldScope.Result),
+        new("f329_SamplingRate", "Швидкість відбору л/хв", DataFieldScope.Result, DataFieldType.Number),
+        new("f329_SubstanceName", "Назва досліджуваної речовини", DataFieldScope.Result),
+        new("f329_ConcentrationSingle", "Виявлена концентрація разова, мг/м³", DataFieldScope.Result, DataFieldType.Number),
+        new("f329_ConcentrationDaily", "Виявлена концентрація середньодобова, мг/м³", DataFieldScope.Result, DataFieldType.Number),
+        new("f329_MPC", "ГДК, мг/м³", DataFieldScope.Result, DataFieldType.Number),
+        new("f329_LimitingIndicator", "Лімітуючий показник (ЛДК/ЛПК, тип шкідливості)", DataFieldScope.Result),
+        new("f329_MethodND", "НТД на методи досліджень", DataFieldScope.Result),
+        new("f329_LabPerformer", "Дослідження проводив (ПІБ)", DataFieldScope.Conclusion),
+        new("f329_SanitaryDoctorConclusion", "Висновок санітарного лікаря", DataFieldScope.Conclusion),
+        new("f329_HygieneDoctor", "Лікар із загальної гігієни", DataFieldScope.Conclusion),
+    ];
+
+    public static IReadOnlyList<TagDefinition> F325 { get; } =
+    [
+        new("f325_WaterTemperature", "Температура води у градусах C", DataFieldScope.Result, DataFieldType.Number),
+        new("f325_SmellIntensity", "Запах: Інтенсивність у балах", DataFieldScope.Result, DataFieldType.Number),
+        new("f325_SmellCharacter", "Запах: Характер (описати)", DataFieldScope.Result),
+        new("f325_SmellDilutionThreshold", "Запах: Поріг зникнення (в розведенні)", DataFieldScope.Result),
+        new("f325_ColorIntensity", "Кольоровість у градусах", DataFieldScope.Result, DataFieldType.Number),
+        new("f325_ColorDescription", "Колір (описати)", DataFieldScope.Result),
+        new("f325_ColorDilutionThreshold", "Поріг зникнення кольору (в розведенні)", DataFieldScope.Result),
+        new("f325_Turbidity", "Мутність, осад (описати)", DataFieldScope.Result),
+        new("f325_Transparency", "Прозорість, см", DataFieldScope.Result, DataFieldType.Number),
+        new("f325_FloatingImpurities", "Плаваючі домішки, плівки", DataFieldScope.Result),
+        new("f325_SuspendedSolids", "Зважені речовини, мг/дм³", DataFieldScope.Result, DataFieldType.Number),
+        new("f325_pH", "pH", DataFieldScope.Result, DataFieldType.Number),
+        new("f325_DissolvedOxygen", "Розчинний кисень, мг/дм³", DataFieldScope.Result, DataFieldType.Number),
+        new("f325_BOD5", "БСК-5, мгО₂/дм³", DataFieldScope.Result, DataFieldType.Number),
+        new("f325_BOD20", "БСК-20, мгО₂/дм³", DataFieldScope.Result, DataFieldType.Number),
+        new("f325_Oxidizability", "Окисність, мгО₂/дм³", DataFieldScope.Result, DataFieldType.Number),
+        new("f325_XCK", "ХСК, мгО₂/дм³", DataFieldScope.Result, DataFieldType.Number),
+        new("f325_Alkalinity", "Лужність, мг/екв", DataFieldScope.Result, DataFieldType.Number),
+        new("f325_Acidity", "Кислотність, мг/екв", DataFieldScope.Result, DataFieldType.Number),
+        new("f325_TotalHardness", "Загальна жорсткість, мг-екв/дм³", DataFieldScope.Result, DataFieldType.Number),
+        new("f325_DryResidue", "Сухий залишок, мг/дм³", DataFieldScope.Result, DataFieldType.Number),
+        new("f325_Calcium", "Кальцій, мг/дм³", DataFieldScope.Result, DataFieldType.Number),
+        new("f325_Magnesium", "Магній, мг/дм³", DataFieldScope.Result, DataFieldType.Number),
+        new("f325_Iron", "Залізо, мг/дм³", DataFieldScope.Result, DataFieldType.Number),
+        new("f325_Chlorides", "Хлориди, мг/дм³", DataFieldScope.Result, DataFieldType.Number),
+        new("f325_Sulfates", "Сульфати, мг/дм³", DataFieldScope.Result, DataFieldType.Number),
+        new("f325_Ammonia", "Азот аміаку, мг/дм³", DataFieldScope.Result, DataFieldType.Number),
+        new("f325_Nitrates", "Азот нітратів, мг/дм³", DataFieldScope.Result, DataFieldType.Number),
+        new("f325_Nitrites", "Азот нітритів, мг/дм³", DataFieldScope.Result, DataFieldType.Number),
+        new("f325_Fluorine", "Фтор, мг/дм³", DataFieldScope.Result, DataFieldType.Number),
+        new("f325_SPAP", "СПАР, мг/дм³", DataFieldScope.Result, DataFieldType.Number),
+        new("f325_OilProducts", "Нафтопродукти, мг/дм³", DataFieldScope.Result, DataFieldType.Number),
+        new("f325_Phenols", "Феноли, мг/дм³", DataFieldScope.Result, DataFieldType.Number),
+        new("f325_Cyanides", "Ціаніди, мг/дм³", DataFieldScope.Result, DataFieldType.Number),
+        new("f325_Copper", "Мідь, мг/дм³", DataFieldScope.Result, DataFieldType.Number),
+        new("f325_Lead", "Свинець, мг/дм³", DataFieldScope.Result, DataFieldType.Number),
+        new("f325_ChromiumTrivalent", "Хром трьохвалентний, мг/дм³", DataFieldScope.Result, DataFieldType.Number),
+        new("f325_ChromiumTotal", "Хром загальний, мг/дм³", DataFieldScope.Result, DataFieldType.Number),
+        new("f325_Pesticide_HCH", "γ-ГХЦГ, мг/дм³", DataFieldScope.Result, DataFieldType.Number),
+        new("f325_Pesticide_DDT_1", "ДДТ (перший рядок), мг/дм³", DataFieldScope.Result, DataFieldType.Number),
+        new("f325_Pesticide_DDE", "ДДЕ, мг/дм³", DataFieldScope.Result, DataFieldType.Number),
+        new("f325_Pesticide_DDD", "ДДД (четвертий рядок у бланку), мг/дм³", DataFieldScope.Result, DataFieldType.Number),
+        new("f325_Pesticide_TMTD", "ТМТД, мг/дм³", DataFieldScope.Result, DataFieldType.Number),
+        new("f325_Pesticide_DDVP", "ДДВФ, мг/дм³", DataFieldScope.Result, DataFieldType.Number),
+        new("f325_Pesticide_Actellic", "Актеллік, мг/дм³", DataFieldScope.Result, DataFieldType.Number),
+        new("f325_Pesticide_Chlorophos", "Хлорофос, мг/дм³", DataFieldScope.Result, DataFieldType.Number),
+        new("f325_Pesticide_Rogor", "Рогор, мг/дм³", DataFieldScope.Result, DataFieldType.Number),
+        new("f325_Pesticide_Carbophos", "Карбофос, мг/дм³", DataFieldScope.Result, DataFieldType.Number),
+        new("f325_OtherSubstances", "Інші речовини", DataFieldScope.Result),
+        new("f325_MethodND", "НТД на методи дослідження", DataFieldScope.Result),
+    ];
+
     /// <summary>Усі теги каталогу (після протокольних списків).</summary>
-    public static IReadOnlyList<TagDefinition> All { get; } = [.. F327, .. Food, .. F345, .. F343];
+    public static IReadOnlyList<TagDefinition> All { get; } =
+        [.. F327, .. Food, .. F345, .. F343, .. F332, .. F413, .. F329, .. F325];
 }

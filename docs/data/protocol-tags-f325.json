@@ -1,0 +1,101 @@
+{
+  "protocolCode": "f325",
+  "protocolNameUk": "Форма 325 — вода поверхневих водоймищ (прибережні зони, стічні води)",
+  "tagPrefix": "f325_",
+  "groups": [
+    {
+      "name": "Глобальні (семантичні ключі — мапінг у реєстратурі, без префікса)",
+      "tags": [
+        { "key": "Global.ProtocolNumber", "titleUk": "ПРОТОКОЛ №" },
+        { "key": "Global.ProtocolCity", "titleUk": "Місто (м. _________)" },
+        { "key": "Global.ProtocolDate", "titleUk": "Дата складання протоколу (від «_» ________ 20 р.)" },
+        { "key": "Sample.ObjectName", "titleUk": "Найменування джерела" },
+        { "key": "Sample.SamplingLocation", "titleUk": "Місце відбору проб" },
+        { "key": "Sample.SamplingDate", "titleUk": "Дата і час відбору проби" },
+        { "key": "Sample.Performer", "titleUk": "Підпис особи, яка проводила дослідження" },
+        { "key": "Sample.Conclusion", "titleUk": "Висновок лікаря" },
+        { "key": "Sample.SanitaryDoctor", "titleUk": "Лікар із загальної гігієни" }
+      ]
+    },
+    {
+      "name": "Фізико-органолептичні показники",
+      "tags": [
+        { "key": "f325_WaterTemperature", "titleUk": "Температура води у градусах C" },
+        { "key": "f325_SmellIntensity", "titleUk": "Запах: Інтенсивність у балах" },
+        { "key": "f325_SmellCharacter", "titleUk": "Запах: Характер (описати)" },
+        { "key": "f325_SmellDilutionThreshold", "titleUk": "Запах: Поріг зникнення (в розведенні)" },
+        { "key": "f325_ColorIntensity", "titleUk": "Кольоровість у градусах" },
+        { "key": "f325_ColorDescription", "titleUk": "Колір (описати)" },
+        { "key": "f325_ColorDilutionThreshold", "titleUk": "Поріг зникнення кольору (в розведенні)" },
+        { "key": "f325_Turbidity", "titleUk": "Мутність, осад (описати)" },
+        { "key": "f325_Transparency", "titleUk": "Прозорість, см" },
+        { "key": "f325_FloatingImpurities", "titleUk": "Плаваючі домішки, плівки" }
+      ]
+    },
+    {
+      "name": "Основні хімічні показники",
+      "tags": [
+        { "key": "f325_SuspendedSolids", "titleUk": "Зважені речовини, мг/дм³" },
+        { "key": "f325_pH", "titleUk": "pH" },
+        { "key": "f325_DissolvedOxygen", "titleUk": "Розчинний кисень, мг/дм³" },
+        { "key": "f325_BOD5", "titleUk": "БСК-5, мгО₂/дм³" },
+        { "key": "f325_BOD20", "titleUk": "БСК-20, мгО₂/дм³" },
+        { "key": "f325_Oxidizability", "titleUk": "Окисність, мгО₂/дм³" },
+        { "key": "f325_XCK", "titleUk": "ХСК, мгО₂/дм³" },
+        { "key": "f325_Alkalinity", "titleUk": "Лужність, мг/екв" },
+        { "key": "f325_Acidity", "titleUk": "Кислотність, мг/екв" },
+        { "key": "f325_TotalHardness", "titleUk": "Загальна жорсткість, мг-екв/дм³" },
+        { "key": "f325_DryResidue", "titleUk": "Сухий залишок, мг/дм³" },
+        { "key": "f325_Calcium", "titleUk": "Кальцій, мг/дм³" },
+        { "key": "f325_Magnesium", "titleUk": "Магній, мг/дм³" },
+        { "key": "f325_Iron", "titleUk": "Залізо, мг/дм³" },
+        { "key": "f325_Chlorides", "titleUk": "Хлориди, мг/дм³" },
+        { "key": "f325_Sulfates", "titleUk": "Сульфати, мг/дм³" }
+      ]
+    },
+    {
+      "name": "Азотна група та фтор",
+      "tags": [
+        { "key": "f325_Ammonia", "titleUk": "Азот аміаку, мг/дм³" },
+        { "key": "f325_Nitrates", "titleUk": "Азот нітратів, мг/дм³" },
+        { "key": "f325_Nitrites", "titleUk": "Азот нітритів, мг/дм³" },
+        { "key": "f325_Fluorine", "titleUk": "Фтор, мг/дм³" }
+      ]
+    },
+    {
+      "name": "Специфічні речовини",
+      "tags": [
+        { "key": "f325_SPAP", "titleUk": "СПАР, мг/дм³" },
+        { "key": "f325_OilProducts", "titleUk": "Нафтопродукти, мг/дм³" },
+        { "key": "f325_Phenols", "titleUk": "Феноли, мг/дм³" },
+        { "key": "f325_Cyanides", "titleUk": "Ціаніди, мг/дм³" },
+        { "key": "f325_Copper", "titleUk": "Мідь, мг/дм³" },
+        { "key": "f325_Lead", "titleUk": "Свинець, мг/дм³" },
+        { "key": "f325_ChromiumTrivalent", "titleUk": "Хром трьохвалентний, мг/дм³" },
+        { "key": "f325_ChromiumTotal", "titleUk": "Хром загальний, мг/дм³" }
+      ]
+    },
+    {
+      "name": "Пестициди",
+      "tags": [
+        { "key": "f325_Pesticide_HCH", "titleUk": "γ-ГХЦГ, мг/дм³" },
+        { "key": "f325_Pesticide_DDT_1", "titleUk": "ДДТ (перший рядок), мг/дм³" },
+        { "key": "f325_Pesticide_DDE", "titleUk": "ДДЕ, мг/дм³" },
+        { "key": "f325_Pesticide_DDD", "titleUk": "ДДД (четвертий рядок у бланку), мг/дм³" },
+        { "key": "f325_Pesticide_TMTD", "titleUk": "ТМТД, мг/дм³" },
+        { "key": "f325_Pesticide_DDVP", "titleUk": "ДДВФ, мг/дм³" },
+        { "key": "f325_Pesticide_Actellic", "titleUk": "Актеллік, мг/дм³" },
+        { "key": "f325_Pesticide_Chlorophos", "titleUk": "Хлорофос, мг/дм³" },
+        { "key": "f325_Pesticide_Rogor", "titleUk": "Рогор, мг/дм³" },
+        { "key": "f325_Pesticide_Carbophos", "titleUk": "Карбофос, мг/дм³" }
+      ]
+    },
+    {
+      "name": "Фінал",
+      "tags": [
+        { "key": "f325_OtherSubstances", "titleUk": "Інші речовини" },
+        { "key": "f325_MethodND", "titleUk": "НТД на методи дослідження" }
+      ]
+    }
+  ]
+}

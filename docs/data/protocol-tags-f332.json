@@ -1,0 +1,35 @@
+{
+  "protocolCode": "f332",
+  "protocolNameUk": "ПРОТОКОЛ відбору та дослідження проб ґрунту",
+  "tagPrefix": "f332_",
+  "groups": [
+    {
+      "name": "Глобальні (семантичні ключі — мапінг у реєстратурі, без префікса)",
+      "tags": [
+        { "key": "Global.ProtocolNumber", "titleUk": "ПРОТОКОЛ №" },
+        { "key": "Sample.RegistrationNumber", "titleUk": "Реєстраційний номер зразка" },
+        { "key": "Sample.ObjectName", "titleUk": "Назва об'єкта, адреса" },
+        { "key": "Sample.SamplingDate", "titleUk": "Дата та час відбору" },
+        { "key": "Sample.DeliveryDate", "titleUk": "Дата та час доставки" },
+        { "key": "Sample.Purpose", "titleUk": "Мета дослідження" },
+        { "key": "Sample.AdditionalInfo", "titleUk": "Додаткові відомості" },
+        { "key": "Sample.PerformerSignature", "titleUk": "Підпис особи, яка проводила дослідження" },
+        { "key": "Sample.SanitaryDoctorConclusion", "titleUk": "Висновки санітарного лікаря" },
+        { "key": "Sample.SanitaryDoctor", "titleUk": "Санітарний лікар (підпис)" }
+      ]
+    },
+    {
+      "name": "Локальні (префікс f332_)",
+      "tags": [
+        { "key": "f332_SampleNumber", "titleUk": "№ проби" },
+        { "key": "f332_SamplingPoint", "titleUk": "Місце та точка відбору" },
+        { "key": "f332_Quantity", "titleUk": "Кількість, гр" },
+        { "key": "f332_Depth", "titleUk": "Глибина відбору, см" },
+        { "key": "f332_MethodND", "titleUk": "Науково-технічна документація на метод відбору" },
+        { "key": "f332_IndicatorName", "titleUk": "Найменування показників" },
+        { "key": "f332_ResultValue", "titleUk": "Результат дослідження у одиницях вимірювання ГДК ОВРВ, мг/кг" },
+        { "key": "f332_ComplianceMark", "titleUk": "Відмітка про відповідність" }
+      ]
+    }
+  ]
+}

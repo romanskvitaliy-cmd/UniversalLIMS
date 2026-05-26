@@ -1,0 +1,40 @@
+{
+  "protocolCode": "f413",
+  "protocolNameUk": "Форма 413 — дослідження повітря робочої зони",
+  "tagPrefix": "f413_",
+  "groups": [
+    {
+      "name": "Глобальні (семантичні ключі — мапінг у реєстратурі, без префікса)",
+      "tags": [
+        { "key": "Global.ProtocolNumber", "titleUk": "ПРОТОКОЛ №" },
+        { "key": "Sample.SamplingDate", "titleUk": "Дата проведення відбору проб" },
+        { "key": "Sample.ObjectName", "titleUk": "Підприємство, адреса, цех, відділення" },
+        { "key": "Sample.SamplingPoint", "titleUk": "Робоче місце, професія, технологічний процес" },
+        { "key": "Sample.Purpose", "titleUk": "Мета відбору проб" },
+        { "key": "Sample.Equipment", "titleUk": "Засоби вимірювальної техніки" },
+        { "key": "Sample.VerificationInfo", "titleUk": "Відомості про повірку" },
+        { "key": "Sample.NormativeDocs", "titleUk": "Нормативна документація" },
+        { "key": "Sample.PresentPersons", "titleUk": "Присутні від підприємства" },
+        { "key": "Sample.Performer", "titleUk": "Посада, прізвище, ім'я, по батькові, що проводили відбір" },
+        { "key": "Sample.Conclusion", "titleUk": "Висновок" },
+        { "key": "Sample.Signature", "titleUk": "Підпис" }
+      ]
+    },
+    {
+      "name": "Локальні (префікс f413_)",
+      "tags": [
+        { "key": "f413_SampleNumber", "titleUk": "№ проби" },
+        { "key": "f413_SamplingLocation", "titleUk": "Місце відбору проб" },
+        { "key": "f413_DryThermometer", "titleUk": "Показання термометра сухого" },
+        { "key": "f413_WetThermometer", "titleUk": "Показання термометра вологого" },
+        { "key": "f413_AirPressure", "titleUk": "Атмосферний тиск, мм.рт.ст." },
+        { "key": "f413_AspirationSpeed", "titleUk": "Швидкість аспірації, л/хв." },
+        { "key": "f413_SamplingDuration", "titleUk": "Тривалість відбору проби, хвилин" },
+        { "key": "f413_SubstanceName", "titleUk": "Назва речовини, що визначається" },
+        { "key": "f413_Concentration", "titleUk": "Концентрація, мг/м³" },
+        { "key": "f413_MPC", "titleUk": "Гранично допустима концентрація, мг/м³" },
+        { "key": "f413_Method", "titleUk": "Методика досліджень" }
+      ]
+    }
+  ]
+}
