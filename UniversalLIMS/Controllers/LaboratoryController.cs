@@ -151,6 +151,7 @@ public sealed class LaboratoryController : Controller
                 {
                     templateVersionId = target.TemplateVersionId,
                     orderId = target.OrderId,
+                    orderDocumentId = target.OrderDocumentId,
                     sampleId
                 });
         }

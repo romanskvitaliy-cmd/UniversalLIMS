@@ -3,8 +3,7 @@ namespace UniversalLIMS.Application.Laboratory.Abstractions;
 public interface ILaboratoryPdfFillService
 {
     /// <summary>
-    /// Документи проби, які лаборант може заповнювати в PDF Workspace (SentToLab / InProgress),
-    /// або fallback на опублікований PDF-шаблон типу дослідження.
+    /// Документи проби, які лаборант може заповнювати в PDF Workspace (SentToLab / InProgress).
     /// </summary>
     Task<IReadOnlyList<SamplePdfFillTargetDto>> GetFillTargetsAsync(
         Guid sampleId,

@@ -48,6 +48,65 @@ public sealed class LaboratoryPdfFillServiceTests
     }
 
     [Fact]
+    public async Task GetFillTargetsAsync_ReturnsOnlyRequestedSampleDocumentsInMultiSampleOrder()
+    {
+        await using var context = CreateContext();
+        var branchId = Guid.NewGuid();
+        var orderId = Guid.NewGuid();
+        var investigationTypeId = Guid.NewGuid();
+        var sampleAId = Guid.NewGuid();
+        var sampleBId = Guid.NewGuid();
+        var versionId = Guid.NewGuid();
+        var templateId = Guid.NewGuid();
+        var documentAId = Guid.NewGuid();
+        var documentBId = Guid.NewGuid();
+
+        SeedBranchCustomerOrderSample(context, branchId, orderId, sampleAId, investigationTypeId);
+        context.Samples.Add(new Sample
+        {
+            Id = sampleBId,
+            OrderId = orderId,
+            InvestigationTypeId = investigationTypeId,
+            Number = "ZHY-TEST-002",
+            RegisteredAt = DateTime.UtcNow,
+            Status = SampleStatus.Routed
+        });
+        SeedPdfTemplate(context, templateId, versionId, "Протокол");
+        context.OrderDocuments.AddRange(
+            new OrderDocument
+            {
+                Id = documentAId,
+                OrderId = orderId,
+                SampleId = sampleAId,
+                TemplateId = templateId,
+                TemplateVersionId = versionId,
+                TargetBranchId = branchId,
+                Status = OrderDocumentStatus.SentToLab
+            },
+            new OrderDocument
+            {
+                Id = documentBId,
+                OrderId = orderId,
+                SampleId = sampleBId,
+                TemplateId = templateId,
+                TemplateVersionId = versionId,
+                TargetBranchId = branchId,
+                Status = OrderDocumentStatus.SentToLab
+            });
+
+        await context.SaveChangesAsync();
+
+        var service = new LaboratoryPdfFillService(context, new FixedLaboratoryBranchContext(branchId));
+        var targets = await service.GetFillTargetsAsync(sampleAId);
+
+        var target = Assert.Single(targets);
+        Assert.Equal(sampleAId, target.SampleId);
+        Assert.Equal(orderId, target.OrderId);
+        Assert.Equal(documentAId, target.OrderDocumentId);
+        Assert.DoesNotContain(targets, item => item.OrderDocumentId == documentBId);
+    }
+
+    [Fact]
     public async Task GetFillTargetsAsync_IgnoresPendingDocuments()
     {
         await using var context = CreateContext();

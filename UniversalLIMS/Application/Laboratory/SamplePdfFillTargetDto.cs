@@ -2,7 +2,7 @@ using UniversalLIMS.Domain.Registration;
 
 namespace UniversalLIMS.Application.Laboratory;
 
-/// <summary>Посилання на заповнення PDF для проби (через OrderDocument або fallback-шаблон).</summary>
+/// <summary>Посилання на заповнення PDF для конкретного документа проби.</summary>
 public sealed class SamplePdfFillTargetDto
 {
     public Guid SampleId { get; init; }
