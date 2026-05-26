@@ -139,10 +139,7 @@ public sealed class PdfWorkspaceFillServiceTests
         var stored = await context.OrderFieldValues
             .SingleAsync(fieldValue => fieldValue.OrderId == result.OrderId);
 
-        var workspaceDataField = await context.DataFields
-            .SingleAsync(field => field.Key == templateField.Id.ToString("D"));
-
-        Assert.Equal(workspaceDataField.Id, stored.DataFieldId);
+        Assert.Equal(dataFieldId, stored.DataFieldId);
         Assert.Equal("м. Житомир", stored.StoredValue);
     }
 
@@ -1391,22 +1388,11 @@ public sealed class PdfWorkspaceFillServiceTests
             ]
         });
 
-        var workspaceDataFieldId = Guid.NewGuid();
-        context.DataFields.Add(new DataField
-        {
-            Id = workspaceDataFieldId,
-            Key = templateFieldId.ToString("D"),
-            DisplayNameUk = "Примітка",
-            FieldType = DataFieldType.Text,
-            Scope = DataFieldScope.Registration,
-            IsActive = true
-        });
-
         context.OrderFieldValues.Add(new OrderFieldValue
         {
             OrderId = orderId,
             SampleId = null,
-            DataFieldId = workspaceDataFieldId,
+            DataFieldId = dataFieldId,
             StoredValue = "старе значення"
         });
 
@@ -1427,9 +1413,12 @@ public sealed class PdfWorkspaceFillServiceTests
             [new PdfWorkspaceFieldValueDto { TemplateFieldId = templateFieldId, Value = "   " }]);
 
         Assert.Equal(1, result.Mapped);
-        Assert.Equal(0, result.Saved);
+        Assert.Equal(1, result.Saved);
         Assert.Equal(1, result.SkippedEmpty);
-        Assert.Empty(await context.OrderFieldValues.Where(fieldValue => fieldValue.OrderId == orderId).ToListAsync());
+
+        var cleared = await context.OrderFieldValues.SingleAsync(fieldValue => fieldValue.OrderId == orderId);
+        Assert.Equal(dataFieldId, cleared.DataFieldId);
+        Assert.Null(cleared.StoredValue);
     }
 
     [Fact]

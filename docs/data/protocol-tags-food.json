@@ -1,0 +1,38 @@
+{
+  "protocolCode": "Food",
+  "protocolNameUk": "Харчові проби",
+  "tagPrefix": "Food_",
+  "groups": [
+    {
+      "name": "Спільні (локальні копії для мапінгу в реєстратурі)",
+      "tags": [
+        { "key": "Food_ProtocolNumber", "titleUk": "ПРОТОКОЛ №" },
+        { "key": "Food_RegistrationNumber", "titleUk": "Реєстраційний номер зразка" },
+        { "key": "Food_SampleName", "titleUk": "Найменування зразка" },
+        { "key": "Food_SamplingPoint", "titleUk": "Місце відбору" },
+        { "key": "Food_Purpose", "titleUk": "Мета випробування" },
+        { "key": "Food_Customer", "titleUk": "Замовник" },
+        { "key": "Food_SamplingDate", "titleUk": "Дата відбору" }
+      ]
+    },
+    {
+      "name": "Висновки та підписи",
+      "tags": [
+        { "key": "Food_AnalysisDate", "titleUk": "Дата видачі результату" },
+        { "key": "Food_SignaturePerformer", "titleUk": "Підпис виконання" },
+        { "key": "Food_Conclusion", "titleUk": "Висновок" },
+        { "key": "Food_SanitaryDoctor", "titleUk": "Санітарний лікар (підпис)" }
+      ]
+    },
+    {
+      "name": "Таблиця результатів",
+      "tags": [
+        { "key": "Food_IndicatorName", "titleUk": "Назва показника" },
+        { "key": "Food_Norm", "titleUk": "Норма" },
+        { "key": "Food_ResultValue", "titleUk": "Отримане значення" },
+        { "key": "Food_MethodND", "titleUk": "НД на метод випробувань" },
+        { "key": "Food_ComplianceMark", "titleUk": "Відмітка про відповідність" }
+      ]
+    }
+  ]
+}

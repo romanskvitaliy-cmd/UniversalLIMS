@@ -1,0 +1,52 @@
+{
+  "protocolCode": "f327",
+  "protocolNameUk": "Питна вода (форма 327)",
+  "tagPrefix": "f327_",
+  "groups": [
+    {
+      "name": "Спільні (локальні копії для мапінгу в реєстратурі)",
+      "tags": [
+        { "key": "f327_FacilityName", "titleUk": "Найменування закладу" },
+        { "key": "f327_ProtocolNumber", "titleUk": "ПРОТОКОЛ №" },
+        { "key": "f327_SamplingDate", "titleUk": "Дата і час відбору" },
+        { "key": "f327_SamplingPoint", "titleUk": "Місце відбору проби" },
+        { "key": "f327_WaterSource", "titleUk": "Найменування вододжерела" }
+      ]
+    },
+    {
+      "name": "Органолептика та фізико-хімія",
+      "tags": [
+        { "key": "f327_Smell", "titleUk": "Запах" },
+        { "key": "f327_Taste", "titleUk": "Присмак" },
+        { "key": "f327_Turbidity", "titleUk": "Каламутність" },
+        { "key": "f327_Sediment", "titleUk": "Осад (описати)" },
+        { "key": "f327_Transparency", "titleUk": "Прозорість" },
+        { "key": "f327_pH", "titleUk": "pH" },
+        { "key": "f327_ResidualChlorine", "titleUk": "Залишковий хлор" },
+        { "key": "f327_Fluorides", "titleUk": "Фториди" },
+        { "key": "f327_Aluminium", "titleUk": "Залишковий алюміній" },
+        { "key": "f327_Polyphosphates", "titleUk": "Поліфосфати" }
+      ]
+    },
+    {
+      "name": "Мікроелементи та забруднювачі",
+      "tags": [
+        { "key": "f327_Cobalt", "titleUk": "Кобальт" },
+        { "key": "f327_Nickel", "titleUk": "Нікель" },
+        { "key": "f327_Manganese", "titleUk": "Марганець" },
+        { "key": "f327_Trihalomethanes", "titleUk": "Тригалогенметани (сума)" },
+        { "key": "f327_SurfaceActiveSubstances", "titleUk": "Поверхнево-активні речовини" },
+        { "key": "f327_Phenols", "titleUk": "Феноли" },
+        { "key": "f327_OilProducts", "titleUk": "Нафтопродукти" },
+        { "key": "f327_TotalHardness", "titleUk": "Загальна жорсткість" },
+        { "key": "f327_DryResidue", "titleUk": "Сухий залишок" },
+        { "key": "f327_Chlorides", "titleUk": "Хлориди" },
+        { "key": "f327_Sulfates", "titleUk": "Сульфати" },
+        { "key": "f327_Iron", "titleUk": "Залізо" },
+        { "key": "f327_Copper", "titleUk": "Мідь" },
+        { "key": "f327_Zinc", "titleUk": "Цинк" },
+        { "key": "f327_Lead", "titleUk": "Свинець" }
+      ]
+    }
+  ]
+}

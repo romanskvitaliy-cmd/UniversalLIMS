@@ -16,5 +16,6 @@ public static class SeedDataExtensions
         await seeder.SeedAsync();
 
         await LaboratoryDataSeeder.SeedAsync(context);
+        await ProtocolTagCatalogSeeder.SeedAsync(context);
     }
 }

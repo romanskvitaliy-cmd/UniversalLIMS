@@ -86,7 +86,7 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
             templateFieldIds.Count,
             templateFields.Count);
 
-        var workspaceDataFieldIdByTemplateFieldId = await EnsureWorkspaceDataFieldsAsync(
+        var workspaceDataFieldIdByTemplateFieldId = await ResolveStorageDataFieldIdsAsync(
             templateFields.Values,
             cancellationToken);
 
@@ -994,14 +994,19 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
         }
 
         var workspaceKeys = templateFields.Select(field => WorkspaceDataFieldKey(field.Id)).ToList();
-        var workspaceDataFieldIds = await _context.DataFields
+        var workspaceDataFieldIdsByKey = await _context.DataFields
             .AsNoTracking()
             .Where(dataField => workspaceKeys.Contains(dataField.Key) && dataField.IsActive)
-            .Select(dataField => new { dataField.Key, dataField.Id })
-            .ToDictionaryAsync(item => item.Key, item => item.Id, cancellationToken);
+            .ToDictionaryAsync(dataField => dataField.Key, dataField => dataField.Id, cancellationToken);
 
-        var dataFieldIds = workspaceDataFieldIds.Values
-            .Concat(templateFields.Where(field => field.DataFieldId.HasValue).Select(field => field.DataFieldId!.Value))
+        var dataFieldIds = templateFields
+            .Select(field => ResolveStorageDataFieldId(
+                field.Id,
+                field.DataFieldId,
+                field.DataFieldKey,
+                workspaceDataFieldIdsByKey))
+            .Where(id => id.HasValue)
+            .Select(id => id!.Value)
             .Distinct()
             .ToList();
 
@@ -1026,13 +1031,14 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
         var result = new Dictionary<string, string?>(StringComparer.Ordinal);
         foreach (var field in templateFields)
         {
-            var workspaceKey = WorkspaceDataFieldKey(field.Id);
-            var dataFieldId = workspaceDataFieldIds.TryGetValue(workspaceKey, out var workspaceId)
-                ? workspaceId
-                : field.DataFieldId;
+            var storageDataFieldId = ResolveStorageDataFieldId(
+                field.Id,
+                field.DataFieldId,
+                field.DataFieldKey,
+                workspaceDataFieldIdsByKey);
 
-            if (!dataFieldId.HasValue ||
-                !storedByDataFieldId.TryGetValue(dataFieldId.Value, out var storedValue) ||
+            if (!storageDataFieldId.HasValue ||
+                !storedByDataFieldId.TryGetValue(storageDataFieldId.Value, out var storedValue) ||
                 string.IsNullOrWhiteSpace(storedValue))
             {
                 continue;
@@ -1064,7 +1070,28 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
     private static string WorkspaceDataFieldKey(Guid templateFieldId) =>
         templateFieldId.ToString("D");
 
-    private async Task<Dictionary<Guid, Guid>> EnsureWorkspaceDataFieldsAsync(
+    private static bool IsWorkspaceDataFieldKey(string dataFieldKey, Guid templateFieldId) =>
+        string.Equals(dataFieldKey, WorkspaceDataFieldKey(templateFieldId), StringComparison.Ordinal);
+
+    private static Guid? ResolveStorageDataFieldId(
+        Guid templateFieldId,
+        Guid? dataFieldId,
+        string? dataFieldKey,
+        IReadOnlyDictionary<string, Guid> workspaceDataFieldIdsByKey)
+    {
+        if (dataFieldId.HasValue
+            && !string.IsNullOrWhiteSpace(dataFieldKey)
+            && !IsWorkspaceDataFieldKey(dataFieldKey, templateFieldId))
+        {
+            return dataFieldId;
+        }
+
+        return workspaceDataFieldIdsByKey.TryGetValue(WorkspaceDataFieldKey(templateFieldId), out var workspaceId)
+            ? workspaceId
+            : dataFieldId;
+    }
+
+    private async Task<Dictionary<Guid, Guid>> ResolveStorageDataFieldIdsAsync(
         IEnumerable<TemplateField> fields,
         CancellationToken cancellationToken)
     {
@@ -1074,9 +1101,21 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
             return new Dictionary<Guid, Guid>();
         }
 
-        var keys = fieldList.Select(field => WorkspaceDataFieldKey(field.Id)).ToList();
-        var existingByKey = await _context.DataFields
-            .Where(dataField => keys.Contains(dataField.Key) && dataField.IsActive)
+        var mappedDataFieldIds = fieldList
+            .Where(field => field.DataFieldId.HasValue)
+            .Select(field => field.DataFieldId!.Value)
+            .Distinct()
+            .ToList();
+
+        var dataFieldKeysById = mappedDataFieldIds.Count == 0
+            ? new Dictionary<Guid, string>()
+            : await _context.DataFields
+                .Where(dataField => mappedDataFieldIds.Contains(dataField.Id) && dataField.IsActive)
+                .ToDictionaryAsync(dataField => dataField.Id, dataField => dataField.Key, cancellationToken);
+
+        var workspaceKeys = fieldList.Select(field => WorkspaceDataFieldKey(field.Id)).ToList();
+        var existingWorkspaceByKey = await _context.DataFields
+            .Where(dataField => workspaceKeys.Contains(dataField.Key) && dataField.IsActive)
             .ToDictionaryAsync(dataField => dataField.Key, cancellationToken);
 
         var result = new Dictionary<Guid, Guid>();
@@ -1084,13 +1123,23 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
 
         foreach (var field in fieldList)
         {
-            var key = WorkspaceDataFieldKey(field.Id);
-            if (existingByKey.TryGetValue(key, out var existing))
+            if (field.DataFieldId.HasValue
+                && dataFieldKeysById.TryGetValue(field.DataFieldId.Value, out var mappedKey)
+                && !IsWorkspaceDataFieldKey(mappedKey, field.Id))
             {
-                result[field.Id] = existing.Id;
-                if (!field.DataFieldId.HasValue)
+                result[field.Id] = field.DataFieldId.Value;
+                continue;
+            }
+
+            var workspaceKey = WorkspaceDataFieldKey(field.Id);
+            if (existingWorkspaceByKey.TryGetValue(workspaceKey, out var existingWorkspace))
+            {
+                result[field.Id] = existingWorkspace.Id;
+                if (!field.DataFieldId.HasValue
+                    || (dataFieldKeysById.TryGetValue(field.DataFieldId.Value, out var currentKey)
+                        && IsWorkspaceDataFieldKey(currentKey, field.Id)))
                 {
-                    field.DataFieldId = existing.Id;
+                    field.DataFieldId = existingWorkspace.Id;
                 }
 
                 continue;
@@ -1098,7 +1147,7 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
 
             var dataField = new DataField
             {
-                Key = key,
+                Key = workspaceKey,
                 DisplayNameUk = string.IsNullOrWhiteSpace(field.Title) ? field.Tag : field.Title.Trim(),
                 FieldType = DataFieldType.Text,
                 Scope = DataFieldScope.Registration,
@@ -1107,7 +1156,7 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
             };
 
             _context.DataFields.Add(dataField);
-            existingByKey[key] = dataField;
+            existingWorkspaceByKey[workspaceKey] = dataField;
             result[field.Id] = dataField.Id;
             if (!field.DataFieldId.HasValue)
             {
@@ -1118,7 +1167,7 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
             _logger.LogInformation(
                 "PdfWorkspaceFill created workspace DataField for TemplateField {TemplateFieldId}, key={Key}",
                 field.Id,
-                key);
+                workspaceKey);
         }
 
         if (created > 0 || fieldList.Any(field => _context.Entry(field).State == EntityState.Modified))
@@ -1352,24 +1401,33 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
 
         var templateFieldIds = layoutRows.Select(row => row.TemplateFieldId).Distinct().ToList();
         var workspaceKeys = templateFieldIds.Select(WorkspaceDataFieldKey).ToList();
-        var workspaceDataFieldIdByTemplateFieldId = await _context.DataFields
+        var workspaceDataFieldIdsByKey = await _context.DataFields
             .AsNoTracking()
             .Where(dataField => workspaceKeys.Contains(dataField.Key) && dataField.IsActive)
-            .Select(dataField => new { dataField.Key, dataField.Id })
-            .ToDictionaryAsync(
-                item => Guid.Parse(item.Key),
-                item => item.Id,
-                cancellationToken);
+            .ToDictionaryAsync(dataField => dataField.Key, dataField => dataField.Id, cancellationToken);
+
+        var mappedDataFieldIds = layoutRows
+            .Where(row => row.DataFieldId != Guid.Empty)
+            .Select(row => row.DataFieldId)
+            .Distinct()
+            .ToList();
+
+        var dataFieldKeysById = mappedDataFieldIds.Count == 0
+            ? new Dictionary<Guid, string>()
+            : await _context.DataFields
+                .AsNoTracking()
+                .Where(dataField => mappedDataFieldIds.Contains(dataField.Id) && dataField.IsActive)
+                .ToDictionaryAsync(dataField => dataField.Id, dataField => dataField.Key, cancellationToken);
 
         var dataFieldIds = layoutRows
             .Select(row =>
             {
-                if (workspaceDataFieldIdByTemplateFieldId.TryGetValue(row.TemplateFieldId, out var workspaceId))
-                {
-                    return workspaceId;
-                }
-
-                return row.DataFieldId != Guid.Empty ? row.DataFieldId : (Guid?)null;
+                dataFieldKeysById.TryGetValue(row.DataFieldId, out var mappedKey);
+                return ResolveStorageDataFieldId(
+                    row.TemplateFieldId,
+                    row.DataFieldId != Guid.Empty ? row.DataFieldId : null,
+                    mappedKey,
+                    workspaceDataFieldIdsByKey);
             })
             .Where(id => id.HasValue)
             .Select(id => id!.Value)
@@ -1400,11 +1458,12 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
         {
             var templateFieldId = fieldGroup.Key;
             var rowDataFieldId = fieldGroup.First().DataFieldId;
-            var dataFieldId = workspaceDataFieldIdByTemplateFieldId.TryGetValue(templateFieldId, out var workspaceId)
-                ? workspaceId
-                : rowDataFieldId != Guid.Empty
-                    ? rowDataFieldId
-                    : (Guid?)null;
+            dataFieldKeysById.TryGetValue(rowDataFieldId, out var mappedKey);
+            var dataFieldId = ResolveStorageDataFieldId(
+                templateFieldId,
+                rowDataFieldId != Guid.Empty ? rowDataFieldId : null,
+                mappedKey,
+                workspaceDataFieldIdsByKey);
 
             if (!dataFieldId.HasValue ||
                 !valuesByDataFieldId.TryGetValue(dataFieldId.Value, out var storedValue) ||
