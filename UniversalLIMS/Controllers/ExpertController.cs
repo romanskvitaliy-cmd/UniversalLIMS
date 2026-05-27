@@ -14,6 +14,8 @@ namespace UniversalLIMS.Controllers;
 [RequireActiveLimsRole]
 public sealed class ExpertController : Controller
 {
+    private const int ExpertNotesMaxLength = 2000;
+
     private readonly IExpertReviewQueueService _queue;
     private readonly IExpertPdfFillService _pdfFill;
     private readonly IExpertConclusionService _conclusion;
@@ -36,6 +38,8 @@ public sealed class ExpertController : Controller
         [FromQuery] ExpertReviewQueueFilter filter,
         CancellationToken cancellationToken)
     {
+        filter.SampleNumber = string.IsNullOrWhiteSpace(filter.SampleNumber) ? null : filter.SampleNumber.Trim();
+        filter.NotesContainsUk = string.IsNullOrWhiteSpace(filter.NotesContainsUk) ? null : filter.NotesContainsUk.Trim();
         var result = await _queue.GetQueueAsync(filter, cancellationToken);
         return View(new ExpertIndexViewModel
         {
@@ -102,7 +106,8 @@ public sealed class ExpertController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Approve(Guid sampleId, string? notesUk, CancellationToken cancellationToken)
     {
-        var approved = await _conclusion.ApproveAsync(sampleId, notesUk, cancellationToken);
+        var normalizedNotes = NormalizeExpertNotes(notesUk);
+        var approved = await _conclusion.ApproveAsync(sampleId, normalizedNotes, cancellationToken);
         if (!approved)
         {
             TempData["ExpertWarning"] =
@@ -112,5 +117,18 @@ public sealed class ExpertController : Controller
 
         TempData["ExpertSuccess"] = "Висновок по пробі затверджено.";
         return RedirectToAction(nameof(Index), new ExpertReviewQueueFilter { ReviewStatus = Domain.Laboratory.ExpertConclusionStatus.Approved });
+    }
+
+    private static string? NormalizeExpertNotes(string? notesUk)
+    {
+        if (string.IsNullOrWhiteSpace(notesUk))
+        {
+            return null;
+        }
+
+        var trimmed = notesUk.Trim();
+        return trimmed.Length <= ExpertNotesMaxLength
+            ? trimmed
+            : trimmed[..ExpertNotesMaxLength];
     }
 }

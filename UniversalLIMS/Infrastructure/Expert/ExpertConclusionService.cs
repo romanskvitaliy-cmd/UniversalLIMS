@@ -9,6 +9,8 @@ namespace UniversalLIMS.Infrastructure.Expert;
 
 public sealed class ExpertConclusionService : IExpertConclusionService
 {
+    private const int ExpertNotesMaxLength = 2000;
+
     private readonly ApplicationDbContext _context;
     private readonly ICurrentUserService _currentUser;
     private readonly IDateTimeProvider _dateTimeProvider;
@@ -79,6 +81,7 @@ public sealed class ExpertConclusionService : IExpertConclusionService
 
         var now = _dateTimeProvider.UtcNow;
         var userId = _currentUser.UserId;
+        var normalizedNotes = NormalizeExpertNotes(notesUk);
 
         if (review is null)
         {
@@ -89,7 +92,7 @@ public sealed class ExpertConclusionService : IExpertConclusionService
                 ReviewStartedAtUtc = now,
                 ApprovedAtUtc = now,
                 ApprovedByUserId = userId,
-                NotesUk = string.IsNullOrWhiteSpace(notesUk) ? null : notesUk.Trim(),
+                NotesUk = normalizedNotes,
                 CreatedAtUtc = now,
                 CreatedByUserId = userId
             };
@@ -101,10 +104,7 @@ public sealed class ExpertConclusionService : IExpertConclusionService
             review.ReviewStartedAtUtc ??= now;
             review.ApprovedAtUtc = now;
             review.ApprovedByUserId = userId;
-            if (!string.IsNullOrWhiteSpace(notesUk))
-            {
-                review.NotesUk = notesUk.Trim();
-            }
+            review.NotesUk = normalizedNotes;
 
             review.UpdatedAtUtc = now;
             review.UpdatedByUserId = userId;
@@ -129,4 +129,17 @@ public sealed class ExpertConclusionService : IExpertConclusionService
                     && document.Status != OrderDocumentStatus.Pending
                     && document.Status != OrderDocumentStatus.ResultsEntered))
             .AnyAsync(cancellationToken);
+
+    private static string? NormalizeExpertNotes(string? notesUk)
+    {
+        if (string.IsNullOrWhiteSpace(notesUk))
+        {
+            return null;
+        }
+
+        var trimmed = notesUk.Trim();
+        return trimmed.Length <= ExpertNotesMaxLength
+            ? trimmed
+            : trimmed[..ExpertNotesMaxLength];
+    }
 }

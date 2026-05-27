@@ -42,6 +42,11 @@
                 <input type="text" class="form-control form-control-sm" id="sampleNumber" name="sampleNumber"
                        value="@Model.Filter.SampleNumber" />
             </div>
+            <div class="col-md-3">
+                <label class="form-label small text-muted" for="notesContainsUk">Пошук у примітках</label>
+                <input type="text" class="form-control form-control-sm" id="notesContainsUk" name="notesContainsUk"
+                       value="@Model.Filter.NotesContainsUk" placeholder="Фрагмент тексту примітки" />
+            </div>
             <div class="col-md-2">
                 <label class="form-label small text-muted" for="dateFrom">Дата від</label>
                 <input type="date" class="form-control form-control-sm" id="dateFrom" name="dateFrom"
@@ -121,14 +126,35 @@ else
                                 </div>
                             }
                         </td>
-                        <td style="max-width: 280px;">
+                        <td style="max-width: 320px;">
                             @if (string.IsNullOrWhiteSpace(sample.NotesUk))
                             {
                                 <span class="text-muted">—</span>
                             }
                             else
                             {
-                                <span title="@sample.NotesUk">@sample.NotesUk</span>
+                                var normalizedNotes = sample.NotesUk.Trim();
+                                var canExpandNotes = normalizedNotes.Length > 120;
+                                var notesPreview = canExpandNotes ? $"{normalizedNotes[..120]}..." : normalizedNotes;
+                                var notesCollapseId = $"notes-{sample.SampleId:N}";
+                                <div title="@normalizedNotes">
+                                    <div class="small text-muted mb-1">Є примітка</div>
+                                    <span>@notesPreview</span>
+                                </div>
+                                @if (canExpandNotes)
+                                {
+                                    <button class="btn btn-link btn-sm p-0 mt-1"
+                                            type="button"
+                                            data-bs-toggle="collapse"
+                                            data-bs-target="#@notesCollapseId"
+                                            aria-expanded="false"
+                                            aria-controls="@notesCollapseId">
+                                        Розгорнути
+                                    </button>
+                                    <div class="collapse mt-1" id="@notesCollapseId">
+                                        <div class="small text-break">@normalizedNotes</div>
+                                    </div>
+                                }
                             }
                         </td>
                         <td class="text-end text-nowrap">
@@ -176,6 +202,11 @@ else
                     if (!string.IsNullOrWhiteSpace(Model.Filter.SampleNumber))
                     {
                         query["sampleNumber"] = Model.Filter.SampleNumber;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(Model.Filter.NotesContainsUk))
+                    {
+                        query["notesContainsUk"] = Model.Filter.NotesContainsUk;
                     }
 
                     if (Model.Filter.DateFrom.HasValue)

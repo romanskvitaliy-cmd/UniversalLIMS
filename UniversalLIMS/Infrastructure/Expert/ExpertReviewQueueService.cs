@@ -44,6 +44,16 @@ public sealed class ExpertReviewQueueService : IExpertReviewQueueService
             samplesQuery = samplesQuery.Where(sample => EF.Functions.Like(sample.Number, pattern));
         }
 
+        if (!string.IsNullOrWhiteSpace(filter.NotesContainsUk))
+        {
+            var notesPattern = $"%{filter.NotesContainsUk.Trim()}%";
+            samplesQuery = samplesQuery.Where(sample =>
+                _context.ExpertConclusionReviews.Any(review =>
+                    review.SampleId == sample.Id
+                    && review.NotesUk != null
+                    && EF.Functions.Like(review.NotesUk, notesPattern)));
+        }
+
         if (filter.DateFrom.HasValue)
         {
             var fromUtc = DateTime.SpecifyKind(filter.DateFrom.Value.Date, DateTimeKind.Utc);

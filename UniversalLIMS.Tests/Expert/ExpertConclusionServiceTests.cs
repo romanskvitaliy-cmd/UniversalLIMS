@@ -52,6 +52,28 @@ public sealed class ExpertConclusionServiceTests
         Assert.False(await context.ExpertConclusionReviews.AnyAsync());
     }
 
+    [Fact]
+    public async Task ApproveAsync_TrimsAndTruncatesNotes_ToConfiguredLimit()
+    {
+        var sampleId = Guid.NewGuid();
+        await using var context = await CreateReadySampleContextAsync(sampleId);
+
+        var service = new ExpertConclusionService(
+            context,
+            new TestCurrentUserService(),
+            new TestDateTimeProvider(DateTime.UtcNow));
+
+        var rawNotes = $"  {new string('Н', 2100)}  ";
+        var approved = await service.ApproveAsync(sampleId, rawNotes);
+
+        Assert.True(approved);
+
+        var review = await context.ExpertConclusionReviews.SingleAsync(item => item.SampleId == sampleId);
+        Assert.NotNull(review.NotesUk);
+        Assert.Equal(2000, review.NotesUk!.Length);
+        Assert.Equal('Н', review.NotesUk[0]);
+    }
+
     private static async Task<ApplicationDbContext> CreateReadySampleContextAsync(
         Guid sampleId,
         OrderDocumentStatus documentStatus = OrderDocumentStatus.ResultsEntered)

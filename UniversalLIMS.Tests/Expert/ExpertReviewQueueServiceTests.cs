@@ -79,6 +79,30 @@ public sealed class ExpertReviewQueueServiceTests
         Assert.Contains(result.Items, item => item.SampleId == sampleId);
     }
 
+    [Fact]
+    public async Task GetQueueAsync_FiltersByNotesContainsUk_WhenProvided()
+    {
+        var sampleId = Guid.NewGuid();
+        await using var context = await CreateSeededContextAsync(sampleId, OrderDocumentStatus.ResultsEntered);
+        context.ExpertConclusionReviews.Add(new ExpertConclusionReview
+        {
+            SampleId = sampleId,
+            Status = ExpertConclusionStatus.Approved,
+            ApprovedAtUtc = DateTime.UtcNow,
+            NotesUk = "Потребує контрольної перевірки"
+        });
+        await context.SaveChangesAsync();
+
+        var service = new ExpertReviewQueueService(context);
+        var result = await service.GetQueueAsync(new ExpertReviewQueueFilter
+        {
+            ReviewStatus = ExpertConclusionStatus.Approved,
+            NotesContainsUk = "контрольної"
+        });
+
+        Assert.Contains(result.Items, item => item.SampleId == sampleId);
+    }
+
     private static async Task<ApplicationDbContext> CreateSeededContextAsync(
         Guid sampleId,
         OrderDocumentStatus primaryDocumentStatus,

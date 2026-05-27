@@ -6,6 +6,8 @@ public sealed class ExpertReviewQueueFilter
 {
     public string? SampleNumber { get; set; }
 
+    public string? NotesContainsUk { get; set; }
+
     public ExpertConclusionStatus? ReviewStatus { get; set; }
 
     public DateTime? DateFrom { get; set; }
