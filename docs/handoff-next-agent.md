@@ -80,6 +80,16 @@
 
 ## 3. Критично: архітектурні заборони (урок з інциденту)
 
+### ❌ НЕ повертати «Показники» / табличний ResultEntry
+
+Це вже прибирали вручну і повторно прибрали в цій сесії. Не відновлювати:
+- кнопку «Показники» в лабораторному журналі;
+- `LaboratoryController.ResultEntry`;
+- `ResultEntryService`, `IResultEntryService`, `ResultEntryDtos`;
+- табличну сторінку `Views/Laboratory/Results.cshtml`.
+
+Правильний workflow: лаборант відкриває **PDF** з журналу; значення вносяться у PDF Workspace через теги шаблону, permissions і `FieldTextLibrary`.
+
 ### ❌ НЕ інжектити `ApplicationDbContext` в `ICurrentUserService`
 
 Цикл DI:

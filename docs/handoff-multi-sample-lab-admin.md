@@ -143,7 +143,7 @@ dotnet test UniversalLIMS.Tests/UniversalLIMS.Tests.csproj --filter "FullyQualif
 
 - **НЕ** інжектити `ApplicationDbContext` в `ICurrentUserService` (цикл DI)
 - SSOT: `Customer.FullName`, `Sample.Number` — не з `OrderFieldValue`
-- Лабораторне заповнення зараз через PDF Workspace і бібліотеку текстів під теги; окремий табличний ResultEntry не використовується
+- **НЕ повертати «Показники» / табличний `ResultEntry`**: це вже прибирали раніше й повторно прибрали. Лаборант працює через кнопку **PDF**, PDF Workspace, теги шаблону та `FieldTextLibrary`.
 - Annul, не DELETE (`ISoftAnnulled`)
 
 ---
