@@ -33,6 +33,8 @@
 | `Order` -> `Registered` після успішного PDF fill save | Закрито |
 | Редагування клієнта зі сторінки справи (`Orders/Details`) | Закрито |
 | Inline валідація форми редагування клієнта | Закрито |
+| `FieldTextLibrary` tag-first у PDF Fill | Закрито |
+| PDF Fill: autosave макету разом із збереженням значень | Закрито |
 
 **Поточна гілка:** `main`, локально попереду `origin/main` на кілька комітів. `debug-40b8bf.log` може оновлюватися локально автоматично, але його **не комітити**.
 
@@ -182,6 +184,8 @@ dotnet test UniversalLIMS.Tests/UniversalLIMS.Tests.csproj --filter "FullyQualif
 - [x] **Republish** — `RepublishAsync` для Superseded
 - [x] **Дві дати публікації** — `FirstPublishedAtUtc` + `RepublishedAtUtc`
 - [x] Unit-тест `SaveFillLayoutRefinementAsync` для Published
+- [x] `FieldTextLibrary` — ключ по тегу (`NormalizedTag`), не по спільному `DataFieldId`
+- [x] Autosave layout після успішного save values, якщо `isLayoutDirty`
 
 ### UI / дрібниці
 - [ ] Логотип ЦКПХ у hero порталу
