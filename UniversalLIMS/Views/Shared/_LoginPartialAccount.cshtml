@@ -1,0 +1,25 @@
+@using Microsoft.AspNetCore.Identity
+@using UniversalLIMS.Domain.Identity
+@inject SignInManager<ApplicationUser> SignInManager
+
+<ul class="lims-account-user-nav">
+@if (SignInManager.IsSignedIn(User))
+{
+    <li>
+        <span class="lims-account-user-nav__email" title="@User.Identity?.Name">
+            Вітаємо, @User.Identity?.Name!
+        </span>
+    </li>
+    <li>
+        <form class="d-inline" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@Url.Action("Index", "Home", new { area = "" })">
+            <button type="submit" class="lims-account-user-nav__logout">Вийти</button>
+        </form>
+    </li>
+}
+else
+{
+    <li>
+        <a class="lims-account-user-nav__logout" asp-area="Identity" asp-page="/Account/Login">Увійти</a>
+    </li>
+}
+</ul>

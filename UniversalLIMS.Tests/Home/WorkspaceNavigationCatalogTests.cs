@@ -24,11 +24,21 @@ public sealed class WorkspaceNavigationCatalogTests
     }
 
     [Fact]
-    public void Specialist_HasOnlyComingSoonLinks()
+    public void Specialist_HasExpertQuickLinks()
     {
+        var navItems = WorkspaceNavigationCatalog.GetNavItems(LimsRoles.Specialist);
         var quickLinks = WorkspaceNavigationCatalog.GetQuickLinks(LimsRoles.Specialist);
 
+        Assert.Contains(navItems, item =>
+            item.Controller == "Expert" && item.Action == "Index");
+
         Assert.Equal(2, quickLinks.Count);
-        Assert.All(quickLinks, link => Assert.False(link.IsAvailable));
+        Assert.All(quickLinks, link => Assert.True(link.IsAvailable));
+
+        var queueLink = Assert.Single(quickLinks, link => link.Title == "Черга експерта");
+        Assert.Equal("/Expert", queueLink.Url);
+
+        var approvedLink = Assert.Single(quickLinks, link => link.Title == "Затверджені");
+        Assert.Equal("/Expert?reviewStatus=2", approvedLink.Url);
     }
 }

@@ -1,0 +1,41 @@
+@page
+@model LoginModel
+@{
+    ViewData["Title"] = "Увійти";
+}
+
+<div class="lims-account-shell lims-account-shell--auth">
+    <header class="lims-account-page-header text-center">
+        <h1 class="lims-account-page-title">Увійти</h1>
+        <p class="lims-account-page-subtitle">UniversalLIMS — портал лабораторних досліджень</p>
+    </header>
+
+    <div class="lims-account-panel lims-account-panel--auth">
+        <form id="account" method="post">
+            <div asp-validation-summary="ModelOnly" class="text-danger mb-3" role="alert"></div>
+            <div class="lims-account-field">
+                <label asp-for="Input.Email" class="lims-account-field__label"></label>
+                <input asp-for="Input.Email" class="lims-account-field__input" autocomplete="username" />
+                <span asp-validation-for="Input.Email" class="text-danger"></span>
+            </div>
+            <div class="lims-account-field">
+                <label asp-for="Input.Password" class="lims-account-field__label"></label>
+                <input asp-for="Input.Password" class="lims-account-field__input" autocomplete="current-password" />
+                <span asp-validation-for="Input.Password" class="text-danger"></span>
+            </div>
+            <label class="lims-account-checkbox">
+                <input asp-for="Input.RememberMe" />
+                @Html.DisplayNameFor(m => m.Input.RememberMe)
+            </label>
+            <button id="login-submit" type="submit" class="lims-account-btn">Увійти</button>
+        </form>
+
+        <p class="lims-account-auth-links">
+            <a asp-page="./Register" asp-route-returnUrl="@Model.ReturnUrl">Створити обліковий запис</a>
+        </p>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

@@ -1,0 +1,17 @@
+<ul class="list-unstyled m-0 p-0">
+    <li>
+        <a class="lims-account-nav__link @ManageNavPages.IndexNavClass(ViewContext)" id="profile" asp-page="./Index">Профіль</a>
+    </li>
+    <li>
+        <a class="lims-account-nav__link @ManageNavPages.EmailNavClass(ViewContext)" id="email" asp-page="./Email">Електронна пошта</a>
+    </li>
+    <li>
+        <a class="lims-account-nav__link @ManageNavPages.ChangePasswordNavClass(ViewContext)" id="change-password" asp-page="./ChangePassword">Пароль</a>
+    </li>
+    <li>
+        <a class="lims-account-nav__link @ManageNavPages.TwoFactorAuthenticationNavClass(ViewContext)" id="two-factor" asp-page="./TwoFactorAuthentication">Двофакторна автентифікація</a>
+    </li>
+    <li>
+        <a class="lims-account-nav__link @ManageNavPages.PersonalDataNavClass(ViewContext)" id="personal-data" asp-page="./PersonalData">Особисті дані</a>
+    </li>
+</ul>

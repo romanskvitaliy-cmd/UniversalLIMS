@@ -1,0 +1,25 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Профіль";
+    ViewData["ActivePage"] = ManageNavPages.Index;
+}
+
+<h2 class="lims-account-section-title">Профіль</h2>
+<partial name="_StatusMessage" model="Model.StatusMessage" />
+<form id="profile-form" method="post">
+    <div class="lims-account-field">
+        <label asp-for="Username" class="lims-account-field__label">Ім'я користувача</label>
+        <input asp-for="Username" class="lims-account-field__input lims-account-field__input--readonly" disabled />
+    </div>
+    <div class="lims-account-field">
+        <label asp-for="Input.PhoneNumber" class="lims-account-field__label">Номер телефону</label>
+        <input asp-for="Input.PhoneNumber" class="lims-account-field__input" autocomplete="tel" />
+        <span asp-validation-for="Input.PhoneNumber" class="text-danger"></span>
+    </div>
+    <button id="update-profile-button" type="submit" class="lims-account-btn">Зберегти</button>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

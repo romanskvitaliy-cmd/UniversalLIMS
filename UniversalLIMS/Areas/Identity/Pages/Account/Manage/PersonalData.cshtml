@@ -1,0 +1,24 @@
+@page
+@model PersonalDataModel
+@{
+    ViewData["Title"] = "Особисті дані";
+    ViewData["ActivePage"] = ManageNavPages.PersonalData;
+}
+
+<h2 class="lims-account-section-title">Особисті дані</h2>
+<p class="lims-account-hint">
+    Ваш обліковий запис містить особисті дані, які ви надали. Ця сторінка дозволяє завантажити або видалити їх.
+</p>
+
+<form asp-page="DownloadPersonalData" method="post" class="mb-3">
+    <button type="submit" class="lims-account-btn">Завантажити</button>
+</form>
+
+<div class="lims-account-danger-zone">
+    <p class="lims-account-hint text-danger">
+        Видалення облікового запису є незворотною дією.
+    </p>
+    <a asp-page="DeletePersonalData" class="lims-account-btn lims-account-btn--danger d-inline-block text-center text-decoration-none">
+        Видалити обліковий запис
+    </a>
+</div>

@@ -1,0 +1,23 @@
+@{
+    Layout = "/Views/Shared/_LayoutAccount.cshtml";
+}
+
+<div class="lims-account-shell">
+    <header class="lims-account-page-header">
+        <h1 class="lims-account-page-title">Керування обліковим записом</h1>
+        <p class="lims-account-page-subtitle">Змінити налаштування облікового запису</p>
+    </header>
+
+    <div class="lims-account-grid">
+        <nav class="lims-account-nav" aria-label="Налаштування облікового запису">
+            <partial name="_ManageNav" />
+        </nav>
+        <div class="lims-account-panel">
+            @RenderBody()
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @await RenderSectionAsync("Scripts", required: false)
+}

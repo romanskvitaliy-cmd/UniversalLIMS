@@ -72,6 +72,32 @@
     --ws-text-on-dark-muted: #b2c7d9;
 }
 
+/* Тема 4 — Білий: чистий світлий інтерфейс (як portal-theme-4) */
+.workspace-theme-4 {
+    --ws-bg: #ffffff;
+    --ws-bg-accent: rgba(37, 99, 235, 0.06);
+    --ws-border: #e2e8f0;
+    --ws-nav-bg: rgba(255, 255, 255, 0.96);
+    --ws-grid-line: rgba(15, 23, 42, 0.04);
+    --ws-atmos-base: linear-gradient(165deg, #ffffff 0%, #f8fafc 50%, #f1f5f9 100%);
+    --ws-atmos-radial:
+        radial-gradient(ellipse 75% 50% at 50% 15%, rgba(37, 99, 235, 0.08) 0%, transparent 55%),
+        radial-gradient(ellipse 55% 38% at 90% 70%, rgba(14, 165, 233, 0.06) 0%, transparent 50%),
+        radial-gradient(ellipse 45% 32% at 8% 75%, rgba(99, 102, 241, 0.05) 0%, transparent 45%);
+    --ws-glow-a: rgba(37, 99, 235, 0.1);
+    --ws-glow-b: rgba(14, 165, 233, 0.08);
+    --ws-glow-c: rgba(99, 102, 241, 0.06);
+    --ws-theme-from: #0f172a;
+    --ws-theme-to: #2563eb;
+    --ws-theme-mid: #3b82f6;
+    --ws-theme-deep: #1d4ed8;
+    --ws-theme-cta-end: #60a5fa;
+    --ws-theme-check: #2563eb;
+    --ws-theme-menu-active: rgba(37, 99, 235, 0.12);
+    --ws-text-on-dark-soft: #64748b;
+    --ws-text-on-dark-muted: #94a3b8;
+}
+
 /* Тема 3 — Салатовий: темний фон + лайм (як portal-theme-3) */
 .workspace-theme-3 {
     --ws-bg: #edf5e4;

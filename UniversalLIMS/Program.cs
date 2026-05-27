@@ -11,7 +11,9 @@ using UniversalLIMS.Domain.Identity;
 using UniversalLIMS.Infrastructure.Persistence;
 using UniversalLIMS.Infrastructure.Persistence.Interceptors;
 using UniversalLIMS.Infrastructure.Persistence.Seed;
+using Microsoft.AspNetCore.Identity.UI.Services;
 using UniversalLIMS.Infrastructure.Expert;
+using UniversalLIMS.Infrastructure.Identity;
 using UniversalLIMS.Infrastructure.Laboratory;
 using UniversalLIMS.Infrastructure.Registration;
 using UniversalLIMS.Infrastructure.Security;
@@ -58,6 +60,7 @@ namespace UniversalLIMS
             builder.Services.AddDefaultIdentity<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = true)
                 .AddRoles<IdentityRole>()
                 .AddEntityFrameworkStores<ApplicationDbContext>();
+            builder.Services.AddTransient<IEmailSender, IdentityEmailSender>();
             LimsIdentityCookieConfigurator.ConfigureLimsIdentityCookies(builder.Services);
             builder.Services.AddHttpContextAccessor();
             builder.Services.AddDistributedMemoryCache();

@@ -1,0 +1,27 @@
+@page
+@model RegisterConfirmationModel
+@{
+    ViewData["Title"] = "Підтвердження реєстрації";
+}
+
+<div class="lims-account-shell lims-account-shell--auth">
+    <div class="lims-account-panel lims-account-panel--auth">
+        <h2 class="lims-account-section-title">Перевірте пошту</h2>
+        @if (Model.DisplayConfirmAccountLink)
+        {
+            <p class="lims-account-hint">
+                У режимі розробки підтвердження можна виконати за
+                <a id="confirm-link" href="@Model.EmailConfirmationUrl">посиланням</a>.
+            </p>
+        }
+        else
+        {
+            <p class="lims-account-hint">
+                На адресу <strong>@Model.Email</strong> надіслано лист для підтвердження облікового запису.
+            </p>
+        }
+        <p class="lims-account-auth-links">
+            <a asp-page="./Login">Повернутися до входу</a>
+        </p>
+    </div>
+</div>

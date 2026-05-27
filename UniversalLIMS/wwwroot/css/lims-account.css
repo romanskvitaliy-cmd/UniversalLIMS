@@ -1,0 +1,398 @@
+/* UniversalLIMS — обліковий запис (біла premium-сторінка) */
+
+@property --lims-account-border-angle {
+    syntax: "<angle>";
+    initial-value: 0deg;
+    inherits: false;
+}
+
+.lims-account-body {
+    --font-ui: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --font-display: "Plus Jakarta Sans", "Inter", system-ui, sans-serif;
+    --acc-bg: #f4f7fb;
+    --acc-surface: #ffffff;
+    --acc-border: #e2e8f0;
+    --acc-text: #0f172a;
+    --acc-muted: #64748b;
+    --acc-accent: #2563eb;
+    --acc-accent-soft: rgba(37, 99, 235, 0.1);
+    --acc-shadow: 0 8px 32px rgba(15, 23, 42, 0.06);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    font-family: var(--font-ui);
+    background: var(--acc-bg);
+    color: var(--acc-text);
+    -webkit-font-smoothing: antialiased;
+}
+
+.lims-account-body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background:
+        radial-gradient(ellipse 55% 40% at 100% 0%, rgba(37, 99, 235, 0.07) 0%, transparent 55%),
+        radial-gradient(ellipse 45% 35% at 0% 100%, rgba(14, 165, 233, 0.06) 0%, transparent 50%);
+}
+
+.lims-account-body > header,
+.lims-account-body > .lims-account-main,
+.lims-account-body > footer {
+    position: relative;
+    z-index: 1;
+}
+
+.lims-account-navbar {
+    background: rgba(255, 255, 255, 0.92) !important;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--acc-border) !important;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset;
+}
+
+.lims-account-navbar .navbar-brand {
+    font-family: var(--font-display);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--acc-text) !important;
+}
+
+.lims-account-navbar .nav-link {
+    font-weight: 500;
+    color: var(--acc-muted) !important;
+    transition: color 0.2s ease;
+}
+
+.lims-account-navbar .nav-link:hover,
+.lims-account-navbar .nav-link:focus {
+    color: var(--acc-accent) !important;
+}
+
+.lims-account-user-nav {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.lims-account-user-nav__email {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--acc-muted);
+    max-width: 14rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.lims-account-user-nav__logout {
+    border: none;
+    background: transparent;
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--acc-accent);
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.lims-account-user-nav__logout:hover {
+    background: var(--acc-accent-soft);
+}
+
+.lims-account-main {
+    flex: 1;
+    padding: clamp(1.25rem, 3vw, 2rem) 0 2.5rem;
+}
+
+.lims-account-shell {
+    max-width: 960px;
+    margin: 0 auto;
+    animation: lims-account-fade-in 0.55s ease both;
+}
+
+@keyframes lims-account-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.lims-account-page-header {
+    margin-bottom: 1.5rem;
+}
+
+.lims-account-page-title {
+    font-family: var(--font-display);
+    margin: 0 0 0.35rem;
+    font-size: clamp(1.5rem, 3vw, 1.875rem);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    background: linear-gradient(120deg, #0f172a 0%, #2563eb 55%, #0ea5e9 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.lims-account-page-subtitle {
+    margin: 0;
+    font-size: 0.9375rem;
+    color: var(--acc-muted);
+}
+
+.lims-account-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 200px) minmax(0, 1fr);
+    gap: 1.25rem;
+    align-items: start;
+}
+
+@media (max-width: 767.98px) {
+    .lims-account-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.lims-account-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding: 0.5rem;
+    border-radius: 14px;
+    background: var(--acc-surface);
+    border: 1px solid var(--acc-border);
+    box-shadow: var(--acc-shadow);
+}
+
+.lims-account-nav__link {
+    display: block;
+    padding: 0.55rem 0.85rem;
+    border-radius: 10px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--acc-accent);
+    text-decoration: none;
+    transition:
+        background 0.2s ease,
+        color 0.2s ease,
+        box-shadow 0.2s ease,
+        transform 0.2s ease;
+}
+
+.lims-account-nav__link:hover {
+    background: var(--acc-accent-soft);
+    color: #1d4ed8;
+    text-decoration: none;
+    transform: translateX(2px);
+}
+
+.lims-account-nav__link.active {
+    color: #fff;
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    box-shadow: 0 4px 16px rgba(37, 99, 235, 0.35);
+}
+
+.lims-account-panel {
+    position: relative;
+    padding: clamp(1.25rem, 3vw, 1.75rem);
+    border-radius: 16px;
+    background: var(--acc-surface);
+    border: 1px solid var(--acc-border);
+    box-shadow: var(--acc-shadow);
+    overflow: hidden;
+}
+
+.lims-account-panel::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1.5px;
+    background: conic-gradient(
+        from var(--lims-account-border-angle),
+        transparent 0deg,
+        rgba(37, 99, 235, 0.5) 80deg,
+        rgba(14, 165, 233, 0.45) 160deg,
+        transparent 260deg);
+    -webkit-mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    pointer-events: none;
+    opacity: 0.65;
+    animation: lims-account-border-spin 8s linear infinite;
+}
+
+@keyframes lims-account-border-spin {
+    to { --lims-account-border-angle: 360deg; }
+}
+
+.lims-account-panel > * {
+    position: relative;
+    z-index: 1;
+}
+
+.lims-account-section-title {
+    font-family: var(--font-display);
+    margin: 0 0 1.25rem;
+    font-size: 1.125rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+.lims-account-field {
+    margin-bottom: 1.1rem;
+}
+
+.lims-account-field__label {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--acc-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.lims-account-field__input {
+    display: block;
+    width: 100%;
+    padding: 0.85rem 1rem;
+    border: 1px solid var(--acc-border);
+    border-radius: 12px;
+    font-size: 0.9375rem;
+    color: var(--acc-text);
+    background: #fff;
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.lims-account-field__input:focus {
+    outline: none;
+    border-color: var(--acc-accent);
+    box-shadow: 0 0 0 3px var(--acc-accent-soft);
+}
+
+.lims-account-field__input--readonly {
+    background: #f8fafc;
+    color: var(--acc-muted);
+}
+
+.lims-account-btn {
+    display: block;
+    width: 100%;
+    margin-top: 0.5rem;
+    padding: 0.85rem 1.25rem;
+    border: none;
+    border-radius: 12px;
+    font-size: 0.9375rem;
+    font-weight: 700;
+    color: #fff;
+    cursor: pointer;
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.35);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.lims-account-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 28px rgba(37, 99, 235, 0.4);
+}
+
+.lims-account-btn:active {
+    transform: translateY(0);
+}
+
+.lims-account-alert {
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    border-radius: 10px;
+    font-size: 0.875rem;
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    color: #065f46;
+}
+
+.lims-account-footer {
+    padding: 1rem 0;
+    font-size: 0.8125rem;
+    color: var(--acc-muted);
+    border-top: 1px solid var(--acc-border);
+    background: rgba(255, 255, 255, 0.85);
+}
+
+.lims-account-footer a {
+    color: var(--acc-accent);
+    text-decoration: none;
+}
+
+.lims-account-footer a:hover {
+    text-decoration: underline;
+}
+
+.lims-account-hint {
+    font-size: 0.875rem;
+    color: var(--acc-muted);
+    margin-bottom: 1rem;
+}
+
+.lims-account-danger-zone {
+    margin-top: 1.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--acc-border);
+}
+
+.lims-account-btn--danger {
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+    box-shadow: 0 6px 20px rgba(220, 38, 38, 0.3);
+}
+
+/* Вхід / реєстрація — одна центральна картка */
+.lims-account-shell--auth {
+    max-width: 440px;
+    margin: clamp(1rem, 4vh, 2.5rem) auto;
+}
+
+.lims-account-panel--auth::before {
+    opacity: 0.45;
+}
+
+.lims-account-auth-links {
+    margin-top: 1.25rem;
+    font-size: 0.875rem;
+    text-align: center;
+    color: var(--acc-muted);
+}
+
+.lims-account-auth-links a {
+    color: var(--acc-accent);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.lims-account-auth-links a:hover {
+    text-decoration: underline;
+}
+
+.lims-account-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    font-size: 0.875rem;
+    color: var(--acc-muted);
+}

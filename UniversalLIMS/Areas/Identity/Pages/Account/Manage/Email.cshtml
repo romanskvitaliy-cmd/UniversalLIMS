@@ -1,0 +1,39 @@
+@page
+@model EmailModel
+@{
+    ViewData["Title"] = "Електронна пошта";
+    ViewData["ActivePage"] = ManageNavPages.Email;
+}
+
+<h2 class="lims-account-section-title">Електронна пошта</h2>
+<partial name="_StatusMessage" model="Model.StatusMessage" />
+
+@if (Model.IsEmailConfirmed)
+{
+    <p class="lims-account-hint">
+        Поточна адреса <strong>@Model.Email</strong> підтверджена.
+    </p>
+}
+else
+{
+    <p class="lims-account-hint">
+        Поточна адреса <strong>@Model.Email</strong> не підтверджена.
+    </p>
+    <form id="email-verification" method="post" asp-page-handler="SendVerificationEmail" class="mb-3">
+        <button type="submit" class="lims-account-btn">Надіслати лист підтвердження</button>
+    </form>
+}
+
+<form id="email-form" method="post" asp-page-handler="ChangeEmail">
+    <div asp-validation-summary="All" class="text-danger" role="alert"></div>
+    <div class="lims-account-field">
+        <label asp-for="Input.NewEmail" class="lims-account-field__label"></label>
+        <input asp-for="Input.NewEmail" class="lims-account-field__input" autocomplete="email" />
+        <span asp-validation-for="Input.NewEmail" class="text-danger"></span>
+    </div>
+    <button id="change-email-button" type="submit" class="lims-account-btn">Змінити електронну пошту</button>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

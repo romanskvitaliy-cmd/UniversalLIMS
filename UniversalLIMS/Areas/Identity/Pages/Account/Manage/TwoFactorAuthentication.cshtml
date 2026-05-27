@@ -1,0 +1,51 @@
+@page
+@model TwoFactorAuthenticationModel
+@{
+    ViewData["Title"] = "Двофакторна автентифікація";
+    ViewData["ActivePage"] = ManageNavPages.TwoFactorAuthentication;
+}
+
+<h2 class="lims-account-section-title">Двофакторна автентифікація</h2>
+<partial name="_StatusMessage" model="Model.StatusMessage" />
+
+@if (Model.Is2faEnabled)
+{
+    @if (Model.RecoveryCodesLeft == 0)
+    {
+        <p class="lims-account-hint text-danger">
+            У вас не залишилось кодів відновлення. Згенеруйте нові.
+        </p>
+    }
+    else if (Model.RecoveryCodesLeft == 1)
+    {
+        <p class="lims-account-hint">Залишився <strong>1</strong> код відновлення.</p>
+    }
+    else
+    {
+        <p class="lims-account-hint">Залишилось <strong>@Model.RecoveryCodesLeft</strong> кодів відновлення.</p>
+    }
+
+    @if (Model.IsMachineRemembered)
+    {
+        <form method="post" class="mb-3">
+            <button type="submit" class="lims-account-btn">Забути цей браузер</button>
+        </form>
+    }
+
+    <p class="lims-account-hint">
+        <a asp-page="./Disable2fa">Вимкнути 2FA</a> |
+        <a asp-page="./GenerateRecoveryCodes">Згенерувати коди відновлення</a>
+    </p>
+}
+else if (Model.HasAuthenticator)
+{
+    <p class="lims-account-hint">
+        <a asp-page="./EnableAuthenticator">Увімкнути автентифікатор</a>
+    </p>
+}
+else
+{
+    <p class="lims-account-hint">
+        <a asp-page="./EnableAuthenticator">Додати автентифікатор</a>
+    </p>
+}
