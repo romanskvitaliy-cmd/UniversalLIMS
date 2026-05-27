@@ -24,15 +24,16 @@ namespace UniversalLIMS
         {
             var builder = WebApplication.CreateBuilder(args);
 
+            string? syncfusionLicenseWarning = null;
             var syncfusionLicenseKey = builder.Configuration["Syncfusion:LicenseKey"];
             if (!string.IsNullOrWhiteSpace(syncfusionLicenseKey))
             {
                 SyncfusionLicenseProvider.RegisterLicense(syncfusionLicenseKey);
                 if (!SyncfusionLicenseProvider.ValidateLicense(Platform.FileFormats, out var licenseMessage))
                 {
-                    Console.WriteLine(
+                    syncfusionLicenseWarning =
                         "WARNING: Syncfusion:LicenseKey is not valid for the installed Syncfusion packages. " +
-                        $"{licenseMessage} Word to PDF conversion may use evaluation watermarks until a valid key is configured.");
+                        $"{licenseMessage} Word to PDF conversion may use evaluation watermarks until a valid key is configured.";
                 }
             }
 
@@ -124,6 +125,10 @@ namespace UniversalLIMS
                 });
 
             var app = builder.Build();
+            if (!string.IsNullOrWhiteSpace(syncfusionLicenseWarning))
+            {
+                app.Logger.LogWarning(syncfusionLicenseWarning);
+            }
 
             await app.SeedLimsAsync();
 

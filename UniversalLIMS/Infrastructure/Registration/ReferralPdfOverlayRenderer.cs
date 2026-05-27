@@ -6,7 +6,6 @@ using Syncfusion.Pdf;
 using Syncfusion.Pdf.Graphics;
 using Syncfusion.Pdf.Parsing;
 using UniversalLIMS.Application.Registration;
-using UniversalLIMS.Infrastructure.Diagnostics;
 using UniversalLIMS.Domain.Templates;
 
 namespace UniversalLIMS.Infrastructure.Registration;
@@ -101,7 +100,6 @@ public sealed class ReferralPdfOverlayRenderer
             }
 
             var logText = value.Length <= 80 ? value : $"{value[..80]}…";
-            Console.WriteLine($"Drawing segment {key}: '{logText}'");
             _logger?.LogInformation(
                 "Drawing segment {TemplateFieldId} with text: '{Text}'",
                 key,
@@ -174,23 +172,6 @@ public sealed class ReferralPdfOverlayRenderer
     private void LogSkipped(string id, string reason, int segmentIndex, ReferralOverlaySegment segment)
     {
         _logger?.LogInformation("SKIPPED Field {Id}: {Reason}", id, reason);
-
-        // #region agent log
-        AgentDebugLog.Write("SKIP", "RenderWithStats", "SKIPPED", new
-        {
-            fieldId = id,
-            reason,
-            segmentIndex,
-            seq = segment.SegmentSequence,
-            page = segment.PageNumber,
-            textLen = (segment.Text ?? "").Length,
-            textToDrawLen = (segment.TextToDraw ?? "").Length,
-            x = segment.PositionX,
-            y = segment.PositionY,
-            w = segment.Width,
-            h = segment.Height
-        });
-        // #endregion
     }
 
     private void DrawOverlayText(
@@ -210,19 +191,6 @@ public sealed class ReferralPdfOverlayRenderer
             bounds.Y,
             bounds.Width,
             bounds.Height);
-
-        // #region agent log
-        AgentDebugLog.Write("DRAW", "DrawOverlayText", "DRAWING", new
-        {
-            fieldId = idLabel,
-            text = value.Length <= 60 ? value : $"{value[..60]}…",
-            bounds.X,
-            bounds.Y,
-            bounds.Width,
-            bounds.Height,
-            color = segment.TextColor
-        });
-        // #endregion
 
         var brush = ResolveTextBrush(segment.TextColor);
         var (drawX, drawY) = ResolveDrawPoint(value, font, bounds, format);

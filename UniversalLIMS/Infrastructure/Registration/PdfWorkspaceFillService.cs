@@ -2,7 +2,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using UniversalLIMS.Application.Registration;
-using UniversalLIMS.Infrastructure.Diagnostics;
 using UniversalLIMS.Application.Registration.Abstractions;
 using UniversalLIMS.Application.Templates.Abstractions;
 using UniversalLIMS.Domain.Registration;
@@ -57,7 +56,7 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
         var mapped = 0;
         var saved = 0;
         var skippedUnmapped = 0;
-        var skippedEmpty = 0;
+        var cleared = 0;
         var failures = new List<PdfWorkspaceSaveFieldFailure>();
 
         _logger.LogInformation(
@@ -185,14 +184,12 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
                 if (existing is not null && !string.IsNullOrEmpty(existing.StoredValue))
                 {
                     existing.StoredValue = null;
-                    saved++;
+                    cleared++;
                     _logger.LogDebug(
                         "PdfWorkspaceFill cleared empty value: templateField={TemplateFieldId}, dataField={DataFieldId}",
                         templateFieldId,
                         dataFieldId);
                 }
-
-                skippedEmpty++;
                 continue;
             }
 
@@ -253,7 +250,7 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
             saved,
             failures.Count);
 
-        var message = BuildSaveMessage(received, mapped, saved, skippedUnmapped, skippedEmpty, failures);
+        var message = BuildSaveMessage(received, mapped, saved, skippedUnmapped, cleared, failures);
         return new PdfWorkspaceSaveResult
         {
             OrderId = order.Id,
@@ -261,7 +258,7 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
             Mapped = mapped,
             Saved = saved,
             SkippedUnmapped = skippedUnmapped,
-            SkippedEmpty = skippedEmpty,
+            SkippedEmpty = cleared,
             FailedFields = failures,
             Message = message
         };
@@ -389,24 +386,6 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
             fields,
             textById,
             cancellationToken);
-
-        // #region agent log
-        AgentDebugLog.Write("C", "GenerateCalibrationPreviewAsync", "request vs segments", new
-        {
-            requestFields = request.Fields.Select(f => new
-            {
-                id = f.TemplateFieldId,
-                textLen = (f.Text ?? "").Length,
-                textToDrawLen = (f.TextToDraw ?? "").Length,
-                resolvedLen = f.ResolveDrawableText().Length,
-                page = f.Page,
-                x = f.X,
-                y = f.Y
-            }),
-            segmentCount = overlaySegments.Count,
-            emptySegmentText = overlaySegments.Count(s => string.IsNullOrWhiteSpace(s.Text))
-        });
-        // #endregion
 
         await using var originalPdfStream = await _templateDocumentStorage.OpenReadAsync(
             version.StorageKey,
@@ -1207,12 +1186,12 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
         int mapped,
         int saved,
         int skippedUnmapped,
-        int skippedEmpty,
+        int cleared,
         IReadOnlyList<PdfWorkspaceSaveFieldFailure> failures)
     {
         var message =
             $"Прийнято: {received}, зіставлено: {mapped}, збережено: {saved}, " +
-            $"пропущено (без мапінгу): {skippedUnmapped}, очищено порожніх: {skippedEmpty}.";
+            $"пропущено (без мапінгу): {skippedUnmapped}, очищено: {cleared}.";
 
         if (failures.Count == 0)
         {
