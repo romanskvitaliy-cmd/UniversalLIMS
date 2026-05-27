@@ -1,6 +1,6 @@
 # Spec: гібридні теги + мапінг полів у реєстратурі
 
-> Оновлено: 2026-05-26  
+> Оновлено: 2026-05-27  
 > Статус: **Етап 1** — мапінг у реєстратурі (див. `handoff-hybrid-tags-and-registry-mapping.md`)  
 > Репозиторій: UniversalLIMS (.NET 8 MVC)
 
@@ -74,8 +74,9 @@
 
 ### 4.4 Бібліотека текстів
 
-- `FieldTextLibraryEntry`: глобальні через `DataFieldId`; локальні — через той самий `DataField` після seed (`f327_*`, `Food_*`).
-- Опційно пізніше: `TemplateVersionId` для фраз шаблону.
+- `FieldTextLibraryEntry`: **tag-first** (`NormalizedTag` з `TemplateField.Tag`) — окрема бібліотека для кожного тегу (`f327_*`, `Food_*` тощо).
+- `DataFieldId` у бібліотеці — лише fallback для legacy/без-тегових кейсів, не як основний ключ.
+- `TemplateVersionId` — опційний scope фраз для конкретної версії шаблону.
 
 ---
 

@@ -65,6 +65,7 @@
 - Лабораторні PDF links теж передають `orderDocumentId`
 - `Saved` у результаті save рахує тільки фактичні insert/update; очищення порожніх іде окремим лічильником
 - `Order` переводиться в `Registered` після успішного save без помилок полів
+- `FieldTextLibrary`: бібліотека текстів у Fill працює в режимі **tag-first** (`TemplateField.Tag`/`NormalizedTag`); `DataFieldId` лишається fallback для legacy
 
 ### Лабораторія / Admin
 - `LaboratoryJournalService` — журнал: один рядок на пробу
