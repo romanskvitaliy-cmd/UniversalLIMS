@@ -17,28 +17,76 @@
     -webkit-font-smoothing: antialiased;
 }
 
-/* Тема 1 — Сірий (сталь, нейтральний premium) */
+/* Тема 1 — Сірий: графіт, сталь (як portal-theme-1) */
 .workspace-theme-1 {
     --ws-bg: #eceef2;
     --ws-bg-accent: rgba(113, 113, 122, 0.08);
     --ws-border: #d4d4d8;
     --ws-nav-bg: rgba(250, 250, 250, 0.94);
+    --ws-grid-line: rgba(255, 255, 255, 0.04);
+    --ws-atmos-base: linear-gradient(160deg, #09090b 0%, #18181b 35%, #27272a 65%, #3f3f46 100%);
+    --ws-atmos-radial:
+        radial-gradient(ellipse 80% 55% at 50% 15%, rgba(161, 161, 170, 0.2) 0%, transparent 52%),
+        radial-gradient(ellipse 55% 42% at 88% 65%, rgba(113, 113, 122, 0.18) 0%, transparent 48%),
+        radial-gradient(ellipse 48% 38% at 8% 72%, rgba(63, 63, 70, 0.35) 0%, transparent 45%);
+    --ws-glow-a: rgba(161, 161, 170, 0.22);
+    --ws-glow-b: rgba(82, 82, 91, 0.28);
+    --ws-glow-c: rgba(212, 212, 216, 0.1);
+    --ws-theme-from: #fafafa;
+    --ws-theme-to: #d4d4d8;
+    --ws-theme-mid: #a1a1aa;
+    --ws-theme-deep: #52525b;
+    --ws-theme-cta-end: #27272a;
+    --ws-theme-check: #d4d4d8;
+    --ws-theme-menu-active: rgba(161, 161, 170, 0.22);
 }
 
-/* Тема 2 — Медичний (темно-зелений клінічний) */
+/* Тема 2 — Медичний: клінічний зелений (як portal-theme-2) */
 .workspace-theme-2 {
     --ws-bg: #e8f3ef;
     --ws-bg-accent: rgba(20, 83, 45, 0.07);
     --ws-border: #c5e0d4;
     --ws-nav-bg: rgba(248, 252, 250, 0.94);
+    --ws-grid-line: rgba(52, 211, 153, 0.06);
+    --ws-atmos-base: linear-gradient(165deg, #0f172a 0%, #134e4a 42%, #14532d 78%, #052e16 100%);
+    --ws-atmos-radial:
+        radial-gradient(ellipse 75% 50% at 50% 20%, rgba(34, 197, 94, 0.22) 0%, transparent 55%),
+        radial-gradient(ellipse 55% 38% at 88% 70%, rgba(20, 83, 45, 0.35) 0%, transparent 50%),
+        radial-gradient(ellipse 45% 32% at 10% 75%, rgba(6, 78, 59, 0.4) 0%, transparent 45%);
+    --ws-glow-a: rgba(34, 197, 94, 0.24);
+    --ws-glow-b: rgba(20, 83, 45, 0.32);
+    --ws-glow-c: rgba(16, 185, 129, 0.16);
+    --ws-theme-from: #ffffff;
+    --ws-theme-to: #bbf7d0;
+    --ws-theme-mid: #34d399;
+    --ws-theme-deep: #14532d;
+    --ws-theme-cta-end: #22c55e;
+    --ws-theme-check: #6ee7b7;
+    --ws-theme-menu-active: rgba(34, 197, 94, 0.22);
 }
 
-/* Тема 3 — Салатовий (свіжий лайм) */
+/* Тема 3 — Салатовий: темний фон + лайм (як portal-theme-3) */
 .workspace-theme-3 {
     --ws-bg: #edf5e4;
     --ws-bg-accent: rgba(132, 204, 22, 0.1);
     --ws-border: #d9e8c4;
     --ws-nav-bg: rgba(252, 255, 248, 0.94);
+    --ws-grid-line: rgba(190, 242, 100, 0.07);
+    --ws-atmos-base: linear-gradient(160deg, #0f172a 0%, #1a2e05 38%, #365314 72%, #3f6212 100%);
+    --ws-atmos-radial:
+        radial-gradient(ellipse 78% 52% at 50% 16%, rgba(190, 242, 100, 0.3) 0%, transparent 54%),
+        radial-gradient(ellipse 58% 42% at 88% 62%, rgba(132, 204, 22, 0.22) 0%, transparent 50%),
+        radial-gradient(ellipse 50% 36% at 10% 70%, rgba(101, 163, 13, 0.28) 0%, transparent 46%);
+    --ws-glow-a: rgba(190, 242, 100, 0.28);
+    --ws-glow-b: rgba(132, 204, 22, 0.26);
+    --ws-glow-c: rgba(163, 230, 53, 0.18);
+    --ws-theme-from: #ffffff;
+    --ws-theme-to: #d9f99d;
+    --ws-theme-mid: #a3e635;
+    --ws-theme-deep: #65a30d;
+    --ws-theme-cta-end: #bef264;
+    --ws-theme-check: #d9f99d;
+    --ws-theme-menu-active: rgba(190, 242, 100, 0.2);
 }
 
 .lims-workspace-body::before {
@@ -48,8 +96,9 @@
     pointer-events: none;
     z-index: 0;
     background:
-        radial-gradient(ellipse 70% 50% at 100% 0%, var(--ws-bg-accent) 0%, transparent 55%),
-        radial-gradient(ellipse 55% 40% at 0% 100%, var(--ws-bg-accent) 0%, transparent 50%);
+        radial-gradient(ellipse 60% 45% at 100% -5%, var(--ws-bg-accent) 0%, transparent 50%),
+        radial-gradient(ellipse 50% 35% at -5% 100%, var(--ws-bg-accent) 0%, transparent 45%),
+        radial-gradient(ellipse 30% 25% at 50% 0%, color-mix(in srgb, var(--workspace-accent, #6366f1) 4%, transparent) 0%, transparent 60%);
 }
 
 .lims-workspace-body > header,
@@ -63,15 +112,15 @@
 .lims-workspace-navbar {
     background: var(--ws-nav-bg);
     border-bottom: 1px solid var(--ws-border);
-    box-shadow: var(--ws-shadow);
-    padding: 0.55rem 0;
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 1px 12px rgba(15, 23, 42, 0.04);
+    padding: 0.3rem 0;
+    backdrop-filter: blur(16px) saturate(1.4);
+    -webkit-backdrop-filter: blur(16px) saturate(1.4);
 }
 
 .lims-workspace-navbar .navbar-brand {
     font-weight: 800;
-    font-size: 1.15rem;
+    font-size: 1.05rem;
     letter-spacing: -0.03em;
     color: var(--workspace-accent, #0f766e);
     background: linear-gradient(
@@ -86,11 +135,11 @@
 .lims-workspace-navbar .nav-link {
     color: var(--ws-muted);
     font-weight: 500;
-    font-size: 0.875rem;
+    font-size: 0.8125rem;
     display: inline-flex;
     align-items: center;
-    gap: 0.4rem;
-    padding: 0.45rem 0.75rem;
+    gap: 0.35rem;
+    padding: 0.3rem 0.6rem;
     border-radius: 8px;
     transition: color 0.2s ease, background 0.2s ease;
 }
@@ -109,10 +158,10 @@
 .lims-workspace-role-badge {
     display: inline-flex;
     align-items: center;
-    gap: 0.4rem;
-    padding: 0.4rem 0.85rem;
+    gap: 0.35rem;
+    padding: 0.28rem 0.65rem;
     border-radius: 999px;
-    font-size: 0.8125rem;
+    font-size: 0.75rem;
     font-weight: 600;
     color: #fff;
     background: linear-gradient(
@@ -129,12 +178,12 @@
 }
 
 .lims-workspace-change-role {
-    font-size: 0.8125rem;
+    font-size: 0.75rem;
     font-weight: 500;
     color: var(--ws-muted);
     text-decoration: none;
     white-space: nowrap;
-    padding: 0.35rem 0.5rem;
+    padding: 0.25rem 0.4rem;
     border-radius: 8px;
     transition: color 0.2s ease, background 0.2s ease;
 }
@@ -150,22 +199,28 @@
 }
 
 .lims-workspace-user-nav__email {
-    font-size: 0.8125rem;
+    font-size: 0.75rem;
     font-weight: 500;
     color: var(--ws-muted);
-    max-width: 12rem;
+    max-width: 10rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    padding: 0.35rem 0.5rem;
+    padding: 0.25rem 0.35rem;
+}
+
+@media (max-width: 991.98px) {
+    .lims-workspace-user-nav__email {
+        display: none;
+    }
 }
 
 .lims-workspace-user-nav__logout,
 .lims-workspace-user-nav__link {
     border: 1px solid var(--ws-border);
     border-radius: 8px;
-    padding: 0.35rem 0.75rem;
-    font-size: 0.8125rem;
+    padding: 0.25rem 0.6rem;
+    font-size: 0.75rem;
     font-weight: 600;
     color: var(--ws-text);
     background: var(--ws-surface);
@@ -180,10 +235,103 @@
     background: color-mix(in srgb, var(--workspace-accent, #0f766e) 6%, var(--ws-surface));
 }
 
+/* ── Theme picker (workspace) ── */
+.lims-workspace-theme-trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border: 1px solid var(--ws-border);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--ws-surface) 80%, transparent);
+    color: var(--ws-muted);
+    font-size: 1rem;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.lims-workspace-theme-trigger:hover,
+.lims-workspace-theme-trigger:focus-visible {
+    color: var(--workspace-accent, #0f766e);
+    border-color: color-mix(in srgb, var(--workspace-accent, #0f766e) 35%, var(--ws-border));
+    background: color-mix(in srgb, var(--workspace-accent, #0f766e) 8%, var(--ws-surface));
+    transform: scale(1.06);
+    box-shadow: 0 4px 16px color-mix(in srgb, var(--workspace-accent, #0f766e) 18%, transparent);
+}
+
+.lims-workspace-theme-menu {
+    min-width: 13rem;
+    padding: 0.4rem;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 14px;
+    background: rgba(15, 23, 42, 0.94);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+}
+
+.lims-workspace-theme-menu .dropdown-header {
+    color: #94a3b8;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.lims-workspace-theme-form {
+    margin: 0;
+}
+
+.lims-workspace-theme-option {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    width: 100%;
+    border: none;
+    border-radius: 8px;
+    padding: 0.5rem 0.65rem;
+    background: transparent;
+    text-align: left;
+    color: #f1f5f9;
+}
+
+.lims-workspace-theme-option:hover,
+.lims-workspace-theme-option:focus-visible {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+}
+
+.lims-workspace-theme-option.active {
+    background: var(--ws-theme-menu-active, rgba(99, 102, 241, 0.22));
+    font-weight: 600;
+}
+
+.lims-workspace-theme-swatch {
+    flex-shrink: 0;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 999px;
+    border: 2px solid rgba(255, 255, 255, 0.85);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.lims-workspace-theme-label {
+    flex: 1;
+    font-size: 0.875rem;
+}
+
+.lims-workspace-theme-check {
+    color: var(--ws-theme-check, #a5b4fc);
+    font-size: 1rem;
+}
+
 .lims-workspace-main {
     flex: 1;
-    padding-top: 1.75rem;
-    padding-bottom: 2.5rem;
+    padding-top: 0.85rem;
+    padding-bottom: 2rem;
 }
 
 .lims-workspace-footer {
@@ -195,52 +343,683 @@
 }
 
 /* ── Кабінет ── */
-.lims-workspace-welcome {
-    background: var(--ws-surface);
-    border: 1px solid var(--ws-border);
-    border-radius: 20px;
-    padding: 2rem 2.25rem;
-    margin-bottom: 1.75rem;
-    box-shadow: var(--ws-shadow);
-}
 
-.lims-workspace-welcome__icon {
+/* Компактне повідомлення (замість bootstrap alert) */
+.lims-workspace-notice {
     display: flex;
     align-items: center;
-    justify-content: center;
-    width: 60px;
-    height: 60px;
-    border-radius: 16px;
-    background: color-mix(in srgb, var(--workspace-accent, #0d9488) 14%, var(--ws-surface));
-    color: var(--workspace-accent, #0d9488);
-    font-size: 1.75rem;
-    margin-bottom: 1.15rem;
-    border: 1px solid color-mix(in srgb, var(--workspace-accent, #0d9488) 20%, var(--ws-border));
-}
-
-.lims-workspace-welcome h1 {
-    font-size: 1.625rem;
-    font-weight: 800;
-    letter-spacing: -0.03em;
-    margin: 0 0 0.4rem;
+    gap: 0.55rem;
+    padding: 0.45rem 0.85rem;
+    margin-bottom: 0.65rem;
+    border-radius: 10px;
+    border: 1px solid color-mix(in srgb, #0ea5e9 28%, var(--ws-border));
+    background: color-mix(in srgb, #0ea5e9 7%, var(--ws-surface));
+    font-size: 0.8125rem;
+    line-height: 1.35;
     color: var(--ws-text);
 }
 
-.lims-workspace-welcome p {
+.lims-workspace-notice__icon {
+    flex: 0 0 auto;
+    font-size: 0.95rem;
+    color: #0284c7;
+}
+
+.lims-workspace-notice__text {
     margin: 0;
+    min-width: 0;
+}
+
+.lims-workspace-notice__text a {
+    font-weight: 600;
+    color: #0369a1;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.lims-workspace-notice__text a:hover {
+    text-decoration: underline;
+}
+
+/* Компактний hero замість великої welcome-картки */
+.lims-workspace-hero {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.85rem 1.15rem;
+    margin-bottom: 0.85rem;
+    border-radius: 14px;
+    border: 1px solid color-mix(in srgb, var(--workspace-accent, #0d9488) 18%, var(--ws-border));
+    background:
+        linear-gradient(135deg,
+            color-mix(in srgb, var(--workspace-accent, #0d9488) 5%, var(--ws-surface)) 0%,
+            var(--ws-surface) 55%);
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.8) inset,
+        0 4px 20px color-mix(in srgb, var(--workspace-accent, #0d9488) 8%, transparent);
+    overflow: hidden;
+}
+
+.lims-workspace-hero__glow {
+    position: absolute;
+    top: -40%;
+    right: -5%;
+    width: 220px;
+    height: 220px;
+    border-radius: 50%;
+    background: radial-gradient(circle,
+        color-mix(in srgb, var(--workspace-accent, #0d9488) 22%, transparent) 0%,
+        transparent 70%);
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+.lims-workspace-hero__main {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    min-width: 0;
+    flex: 1;
+}
+
+.lims-workspace-hero__avatar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    font-size: 1.2rem;
+    color: var(--workspace-accent, #0d9488);
+    background: color-mix(in srgb, var(--workspace-accent, #0d9488) 12%, var(--ws-surface));
+    border: 1px solid color-mix(in srgb, var(--workspace-accent, #0d9488) 22%, var(--ws-border));
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--workspace-accent, #0d9488) 15%, transparent);
+}
+
+.lims-workspace-hero__text {
+    min-width: 0;
+}
+
+.lims-workspace-hero__title {
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.25;
+    color: var(--ws-text);
+}
+
+.lims-workspace-hero__greeting {
+    font-weight: 600;
     color: var(--ws-muted);
-    line-height: 1.55;
-    max-width: 36rem;
+}
+
+.lims-workspace-hero__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.45rem 0.75rem;
+    margin: 0.2rem 0 0;
+    font-size: 0.8125rem;
+    color: var(--ws-muted);
+}
+
+.lims-workspace-hero__role-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 0.75rem;
+    color: var(--workspace-accent, #0d9488);
+    background: color-mix(in srgb, var(--workspace-accent, #0d9488) 10%, var(--ws-surface));
+    border: 1px solid color-mix(in srgb, var(--workspace-accent, #0d9488) 20%, var(--ws-border));
+}
+
+.lims-workspace-hero__role-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--workspace-accent, #0d9488);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--workspace-accent, #0d9488) 25%, transparent);
+    animation: lims-hero-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes lims-hero-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.65; transform: scale(0.85); }
+}
+
+.lims-workspace-hero__hint {
+    font-size: 0.75rem;
+    color: var(--ws-muted);
+}
+
+@media (max-width: 575.98px) {
+    .lims-workspace-hero__hint {
+        display: none;
+    }
+
+    .lims-workspace-hero__title {
+        font-size: 1rem;
+    }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Кабінет — premium «вау» + атмосфера порталу (3 різні теми)
+   ══════════════════════════════════════════════════════════════ */
+
+@property --lims-border-angle {
+    syntax: "<angle>";
+    initial-value: 0deg;
+    inherits: false;
+}
+
+/* Кабінет: темний фон як на порталі + сітка */
+.lims-workspace-body.lims-workspace--dashboard {
+    background: var(--ws-atmos-base);
+    color: #f8fafc;
+}
+
+.lims-workspace-body.lims-workspace--dashboard::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background: var(--ws-atmos-radial);
+    animation: none;
+}
+
+.lims-workspace-body.lims-workspace--dashboard::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 1;
+    background-image:
+        linear-gradient(var(--ws-grid-line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--ws-grid-line) 1px, transparent 1px),
+        radial-gradient(circle 300px at 12% 18%, var(--ws-glow-a), transparent 68%),
+        radial-gradient(circle 240px at 90% 78%, var(--ws-glow-b), transparent 62%),
+        radial-gradient(circle 180px at 55% 92%, var(--ws-glow-c), transparent 58%);
+    background-size: 48px 48px, 48px 48px, auto, auto, auto;
+    mask-image: radial-gradient(ellipse 95% 85% at 50% 35%, black 15%, transparent 78%);
+    -webkit-mask-image: radial-gradient(ellipse 95% 85% at 50% 35%, black 15%, transparent 78%);
+    animation: lims-orb-drift 20s ease-in-out infinite alternate;
+}
+
+@keyframes lims-orb-drift {
+    0% { transform: translate(0, 0) scale(1); }
+    100% { transform: translate(-1.5%, 2%) scale(1.04); }
+}
+
+/* Темна скляна шапка на кабінеті */
+.lims-workspace-body.lims-workspace--dashboard {
+    --ws-nav-bg: rgba(9, 9, 11, 0.72);
+    --ws-border: rgba(255, 255, 255, 0.1);
+    --ws-surface: rgba(255, 255, 255, 0.96);
+    --ws-text: #0f172a;
+    --ws-muted: #64748b;
+    --ws-shadow: 0 8px 32px rgba(0, 0, 0, 0.22);
+}
+
+.lims-workspace-body.lims-workspace--dashboard .lims-workspace-navbar {
+    position: relative;
+    border-bottom: none;
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.06) inset,
+        0 12px 40px rgba(0, 0, 0, 0.28);
+}
+
+.lims-workspace-body.lims-workspace--dashboard .lims-workspace-navbar::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        var(--ws-theme-mid) 22%,
+        color-mix(in srgb, var(--ws-theme-mid) 55%, var(--workspace-accent, #0d9488)) 50%,
+        var(--ws-theme-mid) 78%,
+        transparent 100%);
+    opacity: 0.9;
+}
+
+.lims-workspace-body.lims-workspace--dashboard .lims-workspace-navbar .navbar-brand {
+    background: linear-gradient(135deg, var(--ws-theme-from) 0%, var(--ws-theme-to) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    filter: drop-shadow(0 2px 10px color-mix(in srgb, var(--ws-theme-mid) 35%, transparent));
+}
+
+.lims-workspace-body.lims-workspace--dashboard .lims-workspace-navbar .nav-link {
+    color: #d4d4d8;
+}
+
+.lims-workspace-body.lims-workspace--dashboard .lims-workspace-navbar .nav-link:hover,
+.lims-workspace-body.lims-workspace--dashboard .lims-workspace-navbar .nav-link.active {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.lims-workspace-body.lims-workspace--dashboard .lims-workspace-change-role {
+    color: #cbd5e1;
+}
+
+.lims-workspace-body.lims-workspace--dashboard .lims-workspace-change-role:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.lims-workspace-body.lims-workspace--dashboard .lims-workspace-user-nav__email {
+    color: #94a3b8;
+}
+
+.lims-workspace-body.lims-workspace--dashboard .lims-workspace-user-nav__logout {
+    color: #e2e8f0;
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.14);
+}
+
+.lims-workspace-body.lims-workspace--dashboard .lims-workspace-user-nav__logout:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.22);
+}
+
+.lims-workspace-body.lims-workspace--dashboard .lims-workspace-theme-trigger {
+    border-color: rgba(255, 255, 255, 0.16);
+    background: rgba(255, 255, 255, 0.06);
+    color: #e2e8f0;
+}
+
+.lims-workspace-body.lims-workspace--dashboard .lims-workspace-theme-trigger:hover,
+.lims-workspace-body.lims-workspace--dashboard .lims-workspace-theme-trigger:focus-visible {
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.28);
+    background: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ws-theme-mid) 35%, transparent);
+}
+
+.lims-workspace-body.lims-workspace--dashboard .lims-workspace-footer {
+    color: #94a3b8;
+    background: rgba(9, 9, 11, 0.55);
+    border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+.lims-workspace-body.lims-workspace--dashboard .lims-section-title {
+    color: #cbd5e1;
+}
+
+.lims-workspace-body.lims-workspace--dashboard .lims-workspace-role-badge {
+    animation: lims-badge-glow 3s ease-in-out infinite;
+}
+
+@keyframes lims-badge-glow {
+    0%, 100% {
+        box-shadow:
+            0 1px 0 rgba(255, 255, 255, 0.25) inset,
+            0 4px 14px color-mix(in srgb, var(--workspace-accent, #6366f1) 35%, transparent);
+    }
+    50% {
+        box-shadow:
+            0 1px 0 rgba(255, 255, 255, 0.3) inset,
+            0 6px 22px color-mix(in srgb, var(--workspace-accent, #6366f1) 48%, transparent);
+    }
+}
+
+.lims-workspace-body.lims-workspace--dashboard .lims-workspace-notice {
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-left: 3px solid var(--ws-theme-mid);
+    background: rgba(255, 255, 255, 0.07);
+    color: #e2e8f0;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.lims-workspace-body.lims-workspace--dashboard .lims-workspace-notice__icon {
+    color: var(--ws-theme-mid);
+    filter: drop-shadow(0 0 8px color-mix(in srgb, var(--ws-theme-mid) 55%, transparent));
+}
+
+.lims-workspace-body.lims-workspace--dashboard .lims-workspace-notice__text a {
+    color: var(--ws-theme-to);
+}
+
+/* Hero — темне скло на атмосферному фоні */
+.lims-workspace-body.lims-workspace--dashboard .lims-workspace-hero {
+    --lims-border-angle: 0deg;
+    backdrop-filter: blur(22px) saturate(1.4);
+    -webkit-backdrop-filter: blur(22px) saturate(1.4);
+    background:
+        linear-gradient(135deg,
+            rgba(255, 255, 255, 0.12) 0%,
+            rgba(255, 255, 255, 0.04) 55%,
+            rgba(255, 255, 255, 0.07) 100%);
+    border: none;
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.14) inset,
+        0 16px 48px rgba(0, 0, 0, 0.28);
+}
+
+.lims-workspace-body.lims-workspace--dashboard .lims-workspace-hero::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1.5px;
+    background: conic-gradient(
+        from var(--lims-border-angle),
+        transparent 0deg,
+        color-mix(in srgb, var(--ws-theme-mid) 80%, #fff) 55deg,
+        var(--ws-theme-mid) 130deg,
+        color-mix(in srgb, var(--ws-theme-mid) 45%, var(--workspace-accent, #0d9488)) 210deg,
+        transparent 290deg);
+    -webkit-mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    pointer-events: none;
+    animation: lims-border-spin 6s linear infinite;
+}
+
+@keyframes lims-border-spin {
+    to { --lims-border-angle: 360deg; }
+}
+
+.lims-workspace-body.lims-workspace--dashboard .lims-workspace-hero__main {
+    z-index: 1;
+}
+
+.lims-workspace-body.lims-workspace--dashboard .lims-workspace-hero__glow {
+    width: 280px;
+    height: 280px;
+    z-index: 0;
+    background: radial-gradient(circle, var(--ws-glow-a) 0%, transparent 70%);
+    animation: lims-hero-glow-pulse 4s ease-in-out infinite;
+}
+
+@keyframes lims-hero-glow-pulse {
+    0%, 100% { opacity: 0.45; transform: scale(1); }
+    50% { opacity: 0.85; transform: scale(1.08); }
+}
+
+.lims-workspace-body.lims-workspace--dashboard .lims-workspace-hero__avatar {
+    color: var(--ws-theme-mid);
+    background:
+        linear-gradient(145deg,
+            color-mix(in srgb, var(--ws-theme-mid) 22%, rgba(255, 255, 255, 0.12)),
+            rgba(255, 255, 255, 0.04));
+    border-color: rgba(255, 255, 255, 0.18);
+    box-shadow:
+        0 4px 16px rgba(0, 0, 0, 0.25),
+        0 0 20px color-mix(in srgb, var(--ws-theme-mid) 25%, transparent);
+}
+
+.lims-workspace-body.lims-workspace--dashboard .lims-workspace-hero__greeting {
+    color: #a1a1aa;
+}
+
+.lims-workspace-body.lims-workspace--dashboard .lims-workspace-hero__name {
+    background: linear-gradient(
+        120deg,
+        #fafafa 0%,
+        var(--ws-theme-to) 50%,
+        var(--ws-theme-mid) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    text-shadow: none;
+}
+
+.lims-workspace-body.lims-workspace--dashboard .lims-workspace-hero__role-pill {
+    color: var(--ws-theme-to);
+    background: color-mix(in srgb, var(--ws-theme-mid) 14%, rgba(255, 255, 255, 0.06));
+    border-color: color-mix(in srgb, var(--ws-theme-mid) 30%, rgba(255, 255, 255, 0.12));
+    box-shadow: 0 2px 12px color-mix(in srgb, var(--ws-theme-mid) 18%, transparent);
+}
+
+.lims-workspace-body.lims-workspace--dashboard .lims-workspace-hero__role-dot {
+    background: var(--ws-theme-mid);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--ws-theme-mid) 30%, transparent);
+}
+
+.lims-workspace-body.lims-workspace--dashboard .lims-workspace-hero__hint {
+    color: #94a3b8;
+}
+
+/* CTA — унікальний градієнт кожної теми + акцент ролі */
+.lims-workspace-body.lims-workspace--dashboard .lims-workspace-primary-action {
+    background-size: 220% 220%;
+    background-image:
+        radial-gradient(circle at 18% 0%, rgba(255, 255, 255, 0.38), transparent 42%),
+        radial-gradient(circle at 82% 100%, rgba(255, 255, 255, 0.1), transparent 48%),
+        linear-gradient(
+            125deg,
+            var(--ws-theme-deep) 0%,
+            color-mix(in srgb, var(--workspace-accent, #0d9488) 65%, var(--ws-theme-deep)) 38%,
+            var(--ws-theme-cta-end) 72%,
+            color-mix(in srgb, var(--ws-theme-mid) 70%, var(--workspace-accent, #0d9488)) 100%);
+    animation: lims-cta-gradient 9s ease infinite;
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.35) inset,
+        0 22px 56px color-mix(in srgb, var(--ws-theme-mid) 28%, transparent),
+        0 8px 20px rgba(0, 0, 0, 0.22);
+}
+
+@keyframes lims-cta-gradient {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+}
+
+.lims-workspace-body.lims-workspace--dashboard .lims-workspace-primary-action::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    border-radius: inherit;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    opacity: 0.35;
+    pointer-events: none;
+    mix-blend-mode: overlay;
+}
+
+.lims-workspace-body.lims-workspace--dashboard .lims-workspace-primary-action > * {
+    position: relative;
+    z-index: 1;
+}
+
+.lims-workspace-body.lims-workspace--dashboard .lims-workspace-primary-action__cta {
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    transition: transform 0.25s ease, background 0.25s ease;
+}
+
+.lims-workspace-body.lims-workspace--dashboard a.lims-workspace-primary-action:hover .lims-workspace-primary-action__cta {
+    transform: translateX(3px);
+    background: rgba(255, 255, 255, 0.32);
+}
+
+.lims-workspace-body.lims-workspace--dashboard .lims-section-title {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+}
+
+.lims-workspace-body.lims-workspace--dashboard .lims-section-title::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--ws-theme-mid) 55%, transparent),
+        transparent);
+}
+
+/* Картки — світлі «острови» на темному фоні */
+.lims-workspace-body.lims-workspace--dashboard a.lims-workspace-quicklink,
+.lims-workspace-body.lims-workspace--dashboard .lims-workspace-metric {
+    background: var(--ws-surface);
+    border-color: rgba(255, 255, 255, 0.14);
+}
+
+.lims-workspace-body.lims-workspace--dashboard a.lims-workspace-quicklink {
+    position: relative;
+    overflow: hidden;
+    transition:
+        border-color 0.3s ease,
+        box-shadow 0.3s ease,
+        transform 0.3s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+.lims-workspace-body.lims-workspace--dashboard a.lims-workspace-quicklink::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(
+        90deg,
+        var(--ws-theme-mid),
+        color-mix(in srgb, var(--ws-theme-mid) 45%, var(--workspace-accent, #0d9488)));
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.35s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+.lims-workspace-body.lims-workspace--dashboard a.lims-workspace-quicklink:hover::before {
+    transform: scaleX(1);
+}
+
+.lims-workspace-body.lims-workspace--dashboard a.lims-workspace-quicklink:hover {
+    transform: translateY(-4px) scale(1.01);
+    box-shadow:
+        0 18px 44px rgba(0, 0, 0, 0.28),
+        0 0 0 1px color-mix(in srgb, var(--ws-theme-mid) 25%, rgba(255, 255, 255, 0.14));
+}
+
+.lims-workspace-body.lims-workspace--dashboard a.lims-workspace-quicklink:hover .lims-workspace-quicklink__icon {
+    transform: scale(1.08);
+    box-shadow: 0 4px 16px color-mix(in srgb, var(--ws-theme-mid) 22%, transparent);
+}
+
+.lims-workspace-body.lims-workspace--dashboard .lims-workspace-quicklink__icon {
+    background: color-mix(in srgb, var(--ws-theme-mid) 12%, #f8fafc);
+    color: color-mix(in srgb, var(--ws-theme-deep) 55%, var(--workspace-accent, #0d9488));
+    transition: transform 0.3s cubic-bezier(0.34, 1.4, 0.64, 1), box-shadow 0.3s ease;
+}
+
+.lims-workspace-body.lims-workspace--dashboard .lims-workspace-metric {
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.lims-workspace-body.lims-workspace--dashboard .lims-workspace-metric:hover {
+    transform: translateY(-2px);
+    box-shadow:
+        0 12px 32px rgba(0, 0, 0, 0.22),
+        0 0 0 1px color-mix(in srgb, var(--ws-theme-mid) 18%, rgba(255, 255, 255, 0.12));
+}
+
+.lims-workspace-body.lims-workspace--dashboard .lims-workspace-metric__icon {
+    background: color-mix(in srgb, var(--ws-theme-mid) 12%, #f8fafc);
+    color: color-mix(in srgb, var(--ws-theme-deep) 50%, var(--workspace-accent, #0d9488));
+}
+
+/* ── Тема 1: Сірий — сталь, мінімалізм, холодне сяйво ── */
+.lims-workspace-body.lims-workspace--dashboard.workspace-theme-1 .lims-workspace-hero__name {
+    text-shadow: 0 0 32px rgba(212, 212, 216, 0.18);
+}
+
+.lims-workspace-body.lims-workspace--dashboard.workspace-theme-1 a.lims-workspace-quicklink:hover {
+    box-shadow:
+        0 18px 44px rgba(0, 0, 0, 0.32),
+        0 0 0 1px rgba(161, 161, 170, 0.25);
+}
+
+/* ── Тема 2: Медичний — клінічний glow, emerald aura ── */
+.lims-workspace-body.lims-workspace--dashboard.workspace-theme-2 .lims-workspace-hero__name {
+    text-shadow: 0 0 40px rgba(34, 197, 94, 0.22);
+}
+
+.lims-workspace-body.lims-workspace--dashboard.workspace-theme-2 .lims-workspace-hero {
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.14) inset,
+        0 16px 48px rgba(0, 0, 0, 0.28),
+        0 0 60px rgba(34, 197, 94, 0.08);
+}
+
+.lims-workspace-body.lims-workspace--dashboard.workspace-theme-2 .lims-workspace-primary-action {
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.35) inset,
+        0 22px 56px rgba(20, 83, 45, 0.35),
+        0 0 48px rgba(34, 197, 94, 0.15);
+}
+
+/* ── Тема 3: Салатовий — енергійний лайм, яскраві акценти ── */
+.lims-workspace-body.lims-workspace--dashboard.workspace-theme-3 .lims-workspace-hero__name {
+    text-shadow: 0 0 44px rgba(190, 242, 100, 0.28);
+}
+
+.lims-workspace-body.lims-workspace--dashboard.workspace-theme-3 .lims-workspace-hero {
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.14) inset,
+        0 16px 48px rgba(0, 0, 0, 0.28),
+        0 0 70px rgba(190, 242, 100, 0.1);
+}
+
+.lims-workspace-body.lims-workspace--dashboard.workspace-theme-3 .lims-workspace-primary-action {
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.35) inset,
+        0 22px 56px rgba(101, 163, 13, 0.32),
+        0 0 52px rgba(190, 242, 100, 0.18);
+}
+
+.lims-workspace-body.lims-workspace--dashboard.workspace-theme-3 a.lims-workspace-quicklink::before {
+    background: linear-gradient(90deg, #bef264, #84cc16);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .lims-workspace-body.lims-workspace--dashboard::after,
+    .lims-workspace-body.lims-workspace--dashboard .lims-workspace-hero::before,
+    .lims-workspace-body.lims-workspace--dashboard .lims-workspace-hero__glow,
+    .lims-workspace-body.lims-workspace--dashboard .lims-workspace-role-badge,
+    .lims-workspace-body.lims-workspace--dashboard .lims-workspace-primary-action {
+        animation: none;
+    }
+
+    .lims-workspace-body.lims-workspace--dashboard a.lims-workspace-quicklink:hover {
+        transform: translateY(-2px);
+    }
 }
 
 .lims-workspace-primary-action {
+    position: relative;
     display: grid;
     grid-template-columns: auto 1fr auto;
     align-items: center;
-    gap: 1rem;
-    padding: 1.25rem 1.5rem;
-    margin: -0.5rem 0 1.75rem;
-    border-radius: 18px;
+    gap: 0.85rem;
+    padding: 0.9rem 1.15rem;
+    margin: 0 0 1.1rem;
+    border-radius: 14px;
+    overflow: hidden;
     text-decoration: none;
     color: #ffffff;
     background:
@@ -254,22 +1033,37 @@
 
 a.lims-workspace-primary-action:hover {
     color: #ffffff;
-    transform: translateY(-3px);
+    transform: translateY(-2px);
     box-shadow:
-        0 22px 52px color-mix(in srgb, var(--workspace-accent, #0d9488) 32%, transparent),
+        0 18px 44px color-mix(in srgb, var(--workspace-accent, #0d9488) 32%, transparent),
         var(--ws-shadow);
+}
+
+a.lims-workspace-primary-action::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, 0.12) 50%, transparent 60%);
+    transform: translateX(-100%);
+    transition: transform 0.55s ease;
+    pointer-events: none;
+}
+
+a.lims-workspace-primary-action:hover::after {
+    transform: translateX(100%);
 }
 
 .lims-workspace-primary-action__icon {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 58px;
-    height: 58px;
-    border-radius: 16px;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
     background: rgba(255, 255, 255, 0.18);
     border: 1px solid rgba(255, 255, 255, 0.32);
-    font-size: 1.65rem;
+    font-size: 1.35rem;
 }
 
 .lims-workspace-primary-action__body {
@@ -286,13 +1080,13 @@ a.lims-workspace-primary-action:hover {
 }
 
 .lims-workspace-primary-action__title {
-    font-size: 1.35rem;
+    font-size: 1.05rem;
     font-weight: 800;
     letter-spacing: -0.03em;
 }
 
 .lims-workspace-primary-action__desc {
-    font-size: 0.9rem;
+    font-size: 0.8125rem;
     opacity: 0.88;
 }
 
@@ -320,8 +1114,8 @@ a.lims-workspace-primary-action:hover {
 .lims-workspace-metrics {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 1rem;
-    margin-bottom: 1.75rem;
+    gap: 0.65rem;
+    margin-bottom: 1.1rem;
 }
 
 @media (min-width: 768px) {
@@ -333,11 +1127,11 @@ a.lims-workspace-primary-action:hover {
 .lims-workspace-metric {
     display: flex;
     align-items: center;
-    gap: 0.95rem;
-    padding: 1rem 1.1rem;
+    gap: 0.75rem;
+    padding: 0.75rem 0.9rem;
     background: var(--ws-surface);
     border: 1px solid var(--ws-border);
-    border-radius: 16px;
+    border-radius: 12px;
     box-shadow: var(--ws-shadow);
 }
 
@@ -376,18 +1170,18 @@ a.lims-workspace-primary-action:hover {
 }
 
 .lims-section-title {
-    font-size: 0.75rem;
+    font-size: 0.6875rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: var(--ws-muted);
-    margin: 0 0 1rem;
+    margin: 0 0 0.65rem;
 }
 
 .lims-workspace-quicklinks {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 1rem;
+    gap: 0.65rem;
 }
 
 @media (min-width: 768px) {
@@ -406,10 +1200,10 @@ a.lims-workspace-primary-action:hover {
     display: flex;
     flex-direction: column;
     height: 100%;
-    padding: 1.35rem 1.5rem;
+    padding: 0.9rem 1rem;
     background: var(--ws-surface);
     border: 1px solid var(--ws-border);
-    border-radius: 16px;
+    border-radius: 12px;
     text-decoration: none;
     color: inherit;
     box-shadow: var(--ws-shadow);
@@ -435,28 +1229,28 @@ a.lims-workspace-quicklink:hover {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 48px;
-    height: 48px;
-    margin-bottom: 0.9rem;
-    border-radius: 12px;
+    width: 38px;
+    height: 38px;
+    margin-bottom: 0.55rem;
+    border-radius: 10px;
     background: color-mix(in srgb, var(--workspace-accent, #0d9488) 10%, var(--ws-bg));
     color: var(--workspace-accent, #0d9488);
-    font-size: 1.4rem;
+    font-size: 1.15rem;
 }
 
 .lims-workspace-quicklink__title {
-    font-size: 1.0625rem;
+    font-size: 0.9375rem;
     font-weight: 700;
     color: var(--ws-text);
-    margin: 0 0 0.35rem;
+    margin: 0 0 0.2rem;
     letter-spacing: -0.02em;
 }
 
 .lims-workspace-quicklink__desc {
-    font-size: 0.875rem;
+    font-size: 0.8125rem;
     color: var(--ws-muted);
     margin: 0;
-    line-height: 1.5;
+    line-height: 1.45;
     flex: 1;
 }
 

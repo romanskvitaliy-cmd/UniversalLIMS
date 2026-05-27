@@ -1,0 +1,35 @@
+@model IReadOnlyList<PortalThemeOptionVm>
+@{
+    var returnUrl = Context.Request.Path + Context.Request.QueryString;
+}
+
+<div class="dropdown lims-workspace-theme-dropdown">
+    <button type="button"
+            class="btn lims-workspace-theme-trigger"
+            data-bs-toggle="dropdown"
+            aria-expanded="false"
+            aria-label="Змінити фон порталу"
+            title="Фон порталу">
+        <i class="bi bi-palette2" aria-hidden="true"></i>
+    </button>
+    <div class="dropdown-menu dropdown-menu-end lims-workspace-theme-menu">
+        <h6 class="dropdown-header">Фон порталу</h6>
+        @foreach (var option in Model)
+        {
+            <form asp-controller="Home" asp-action="SetPortalTheme" method="post" class="lims-workspace-theme-form">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="theme" value="@option.Id" />
+                <input type="hidden" name="returnUrl" value="@returnUrl" />
+                <button type="submit"
+                        class="dropdown-item lims-workspace-theme-option @(option.IsSelected ? "active" : "")">
+                    <span class="lims-workspace-theme-swatch" style="background: @option.SwatchGradient"></span>
+                    <span class="lims-workspace-theme-label">@option.DisplayName</span>
+                    @if (option.IsSelected)
+                    {
+                        <i class="bi bi-check-lg lims-workspace-theme-check" aria-hidden="true"></i>
+                    }
+                </button>
+            </form>
+        }
+    </div>
+</div>

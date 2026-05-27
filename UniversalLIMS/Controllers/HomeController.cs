@@ -67,7 +67,7 @@ public class HomeController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public IActionResult SetPortalTheme(int theme)
+    public IActionResult SetPortalTheme(int theme, string? returnUrl = null)
     {
         if (!PortalThemes.IsValid(theme))
         {
@@ -75,6 +75,12 @@ public class HomeController : Controller
         }
 
         _portalTheme.SetTheme(theme);
+
+        if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
+        {
+            return Redirect(returnUrl);
+        }
+
         return RedirectToAction(nameof(Index));
     }
 
