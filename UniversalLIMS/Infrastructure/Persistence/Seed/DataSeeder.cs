@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using UniversalLIMS.Application.Abstractions;
 using UniversalLIMS.Application.Security;
 using UniversalLIMS.Domain.Identity;
@@ -14,16 +16,25 @@ public sealed class DataSeeder
 {
     private readonly ApplicationDbContext _context;
     private readonly RoleManager<IdentityRole> _roleManager;
+    private readonly UserManager<ApplicationUser> _userManager;
     private readonly ISystemOperationContext _systemOperationContext;
+    private readonly IHostEnvironment _environment;
+    private readonly ILogger<DataSeeder> _logger;
 
     public DataSeeder(
         ApplicationDbContext context,
         RoleManager<IdentityRole> roleManager,
-        ISystemOperationContext systemOperationContext)
+        UserManager<ApplicationUser> userManager,
+        ISystemOperationContext systemOperationContext,
+        IHostEnvironment environment,
+        ILogger<DataSeeder> logger)
     {
         _context = context;
         _roleManager = roleManager;
+        _userManager = userManager;
         _systemOperationContext = systemOperationContext;
+        _environment = environment;
+        _logger = logger;
     }
 
     public async Task SeedAsync(CancellationToken cancellationToken = default)
@@ -35,6 +46,8 @@ public sealed class DataSeeder
         await SeedDataFieldsAsync(cancellationToken);
         await SeedInvestigationTypesAsync(cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
+
+        await EnsureRoleTestUsersAsync(cancellationToken);
         await AssignDefaultBranchesToUsersAsync(cancellationToken);
     }
 
@@ -88,6 +101,91 @@ public sealed class DataSeeder
         foreach (var branch in branches.Where(branch => !existingCodes.Contains(branch.Code)))
         {
             _context.Branches.Add(branch);
+        }
+    }
+
+    private async Task EnsureRoleTestUsersAsync(CancellationToken cancellationToken)
+    {
+        // Security: test accounts are created/updated only in Development.
+        if (!_environment.IsDevelopment())
+        {
+            return;
+        }
+
+        var testUsers = new[]
+        {
+            new { Email = "adminLIMS@gmail.com", Password = "LIMS147", Role = LimsRoles.SystemAdministrator, RoleUa = "Адміністратор" },
+            new { Email = "registrarLIMS@gmail.com", Password = "LIMS258", Role = LimsRoles.Registrar, RoleUa = "Реєстратор" },
+            new { Email = "labLIMS@gmail.com", Password = "LIMS456", Role = LimsRoles.LaboratoryTechnician, RoleUa = "Лаборант" },
+            new { Email = "expertLIMS@gmail.com", Password = "LIMS159", Role = LimsRoles.Specialist, RoleUa = "Експерт" }
+        };
+
+        foreach (var item in testUsers)
+        {
+            var user = await _userManager.FindByEmailAsync(item.Email);
+            if (user == null)
+            {
+                user = new ApplicationUser
+                {
+                    Email = item.Email,
+                    UserName = item.Email,
+                    FullName = item.Email,
+                    EmailConfirmed = true,
+                    IsActive = true
+                };
+
+                var createResult = await _userManager.CreateAsync(user, item.Password);
+                if (!createResult.Succeeded)
+                {
+                    var errors = string.Join("; ", createResult.Errors.Select(e => e.Description));
+                    throw new InvalidOperationException($"Failed to create test user '{item.Email}': {errors}");
+                }
+            }
+            else
+            {
+                // Keep email/user name aligned with requested test email.
+                user.Email = item.Email;
+                user.UserName = item.Email;
+                user.FullName = item.Email;
+                user.EmailConfirmed = true;
+
+                await _userManager.UpdateAsync(user);
+
+                // Update password without having the old one.
+                try
+                {
+                    await _userManager.RemovePasswordAsync(user);
+                }
+                catch
+                {
+                    // Ignore; AddPasswordAsync will be the source of truth.
+                }
+
+                var addPasswordResult = await _userManager.AddPasswordAsync(user, item.Password);
+                if (!addPasswordResult.Succeeded)
+                {
+                    var errors = string.Join("; ", addPasswordResult.Errors.Select(e => e.Description));
+                    throw new InvalidOperationException($"Failed to update password for '{item.Email}': {errors}");
+                }
+            }
+
+            // Assign ONLY the requested role.
+            var roles = await _userManager.GetRolesAsync(user);
+            if (roles.Count > 0)
+            {
+                await _userManager.RemoveFromRolesAsync(user, roles);
+            }
+
+            var addRoleResult = await _userManager.AddToRoleAsync(user, item.Role);
+            if (!addRoleResult.Succeeded)
+            {
+                var errors = string.Join("; ", addRoleResult.Errors.Select(e => e.Description));
+                throw new InvalidOperationException($"Failed to assign role '{item.Role}' to '{item.Email}': {errors}");
+            }
+
+            // Req: print Email + Password + Role.
+            Console.WriteLine($"[TEST-USER] {item.Email} | {item.Password} | {item.RoleUa}");
+            _logger.LogInformation("Ensured test user {Email} with role {RoleUa}", item.Email, item.RoleUa);
         }
     }
 

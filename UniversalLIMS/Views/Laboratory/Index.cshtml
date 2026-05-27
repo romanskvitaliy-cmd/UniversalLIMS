@@ -14,10 +14,13 @@
             Номер проби та ПІБ замовника — з SSOT (<code>Samples</code>, <code>Customers</code>).
         </p>
     </div>
-    @if (Model.CanSelectLaboratoryBranch)
-    {
-        <a class="btn btn-outline-secondary btn-sm" asp-controller="Laboratories" asp-action="Index">← Лабораторії</a>
-    }
+    <div class="d-flex flex-wrap gap-2 align-items-start">
+        <partial name="_WorkspaceCabinetLink" />
+        @if (Model.CanSelectLaboratoryBranch)
+        {
+            <a class="btn btn-outline-secondary btn-sm" asp-controller="Laboratories" asp-action="Index">← Лабораторії</a>
+        }
+    </div>
 </div>
 
 @if (Model.CanSelectLaboratoryBranch)

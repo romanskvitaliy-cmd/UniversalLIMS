@@ -1,6 +1,10 @@
 @model IReadOnlyList<PortalThemeOptionVm>
+@{
+    var returnUrl = Context.Request.Path + Context.Request.QueryString;
+}
 
-<div class="dropdown lims-portal-theme-dropdown">
+<div class="dropdown lims-portal-theme-dropdown"
+     data-bs-popper-config='{"strategy":"fixed","modifiers":[{"name":"offset","options":{"offset":[0,8]}}]}'>
     <button type="button"
             class="btn lims-portal-theme-trigger"
             data-bs-toggle="dropdown"
@@ -13,19 +17,18 @@
         <h6 class="dropdown-header">Фон порталу</h6>
         @foreach (var option in Model)
         {
-            <form asp-controller="Home" asp-action="SetPortalTheme" method="post" class="lims-portal-theme-form">
-                @Html.AntiForgeryToken()
-                <input type="hidden" name="theme" value="@option.Id" />
-                <button type="submit"
-                        class="dropdown-item lims-portal-theme-option @(option.IsSelected ? "active" : "")">
-                    <span class="lims-portal-theme-swatch" style="background: @option.SwatchGradient"></span>
-                    <span class="lims-portal-theme-label">@option.DisplayName</span>
-                    @if (option.IsSelected)
-                    {
-                        <i class="bi bi-check-lg lims-portal-theme-check" aria-hidden="true"></i>
-                    }
-                </button>
-            </form>
+            <a class="dropdown-item lims-portal-theme-option @(option.IsSelected ? "active" : "")"
+               asp-controller="Home"
+               asp-action="SetPortalTheme"
+               asp-route-theme="@option.Id"
+               asp-route-returnUrl="@returnUrl">
+                <span class="lims-portal-theme-swatch" style="background: @option.SwatchGradient"></span>
+                <span class="lims-portal-theme-label">@option.DisplayName</span>
+                @if (option.IsSelected)
+                {
+                    <i class="bi bi-check-lg lims-portal-theme-check" aria-hidden="true"></i>
+                }
+            </a>
         }
     </div>
 </div>

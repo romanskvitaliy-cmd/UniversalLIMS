@@ -37,11 +37,32 @@
                     <span class="lims-workspace-hero__role-dot" aria-hidden="true"></span>
                     @Model.RoleDisplayName
                 </span>
-                <span class="lims-workspace-hero__hint">Оберіть дію нижче або меню зверху</span>
+                <span class="lims-workspace-hero__hint">Ви на головній · оберіть дію нижче або пункт меню зліва</span>
             </p>
         </div>
     </div>
+    <div class="lims-workspace-hero__calendar-toggle-wrap">
+        <button type="button"
+                class="lims-workspace-calendar-toggle"
+                data-calendar-toggle
+                aria-pressed="false"
+                title="Увімкнути календар-фон">
+            <i class="bi bi-calendar3-week" aria-hidden="true"></i>
+            <span>Календар-фон</span>
+        </button>
+    </div>
 </div>
+
+<section class="lims-workspace-calendar-overlay" data-calendar-overlay hidden aria-hidden="true">
+    <div class="lims-workspace-calendar-overlay__head">
+        <span class="lims-workspace-calendar-overlay__month" data-calendar-month>—</span>
+        <span class="lims-workspace-calendar-overlay__year" data-calendar-year>—</span>
+    </div>
+    <div class="lims-workspace-calendar-overlay__weekdays" aria-hidden="true">
+        <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Нд</span>
+    </div>
+    <div class="lims-workspace-calendar-overlay__grid" data-calendar-grid></div>
+</section>
 
 @if (isRegistrar)
 {

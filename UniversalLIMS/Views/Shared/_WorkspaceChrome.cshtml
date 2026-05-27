@@ -2,7 +2,7 @@
 @using UniversalLIMS.Application.Security
 @inject IActiveLimsRoleService ActiveLimsRole
 @{
-    var chrome = WorkspaceChromeViewModel.TryFromRole(ActiveLimsRole.GetActiveRole());
+    var chrome = WorkspaceChromeViewModel.TryFromRole(ActiveLimsRole.ResolveActiveRole(User));
 }
 
 @if (chrome is not null)
@@ -12,10 +12,14 @@
         <i class="bi @chrome.IconClass" aria-hidden="true"></i>
         Робота: @chrome.RoleDisplayName
     </span>
-    <a class="lims-workspace-change-role ms-2"
-       asp-controller="Home"
-       asp-action="ClearRole"
-       title="Повернутися до порталу ролей">
-        Змінити роль
-    </a>
+    @if (PortalEntryFlow.CanSwitchRole(User))
+    {
+        <a class="lims-workspace-change-role ms-2"
+           asp-controller="Home"
+           asp-action="ClearRole"
+           title="Обрати іншу роль на порталі">
+            <i class="bi bi-arrow-repeat" aria-hidden="true"></i>
+            Змінити роль
+        </a>
+    }
 }

@@ -19,7 +19,10 @@
             · <strong>@detail.WorkflowSummaryUk</strong>
         </p>
     </div>
-    <a class="btn btn-sm btn-outline-secondary" asp-action="Index">← До реєстру</a>
+    <div class="d-flex flex-wrap gap-2 align-items-start">
+        <partial name="_WorkspaceCabinetLink" />
+        <a class="btn btn-sm btn-outline-secondary" asp-action="Index">← До реєстру</a>
+    </div>
 </div>
 
 @if (TempData["OrderDetailSuccess"] is string successMessage)

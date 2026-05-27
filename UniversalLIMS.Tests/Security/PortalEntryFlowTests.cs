@@ -6,6 +6,41 @@ namespace UniversalLIMS.Tests.Security;
 public sealed class PortalEntryFlowTests
 {
     [Fact]
+    public void CanAccessRolePortal_ForAnyUserWithPickableRole()
+    {
+        Assert.True(PortalEntryFlow.CanAccessRolePortal(UserWithRoles(LimsRoles.SystemAdministrator)));
+        Assert.True(PortalEntryFlow.CanAccessRolePortal(UserWithRoles(LimsRoles.Registrar)));
+        Assert.True(PortalEntryFlow.CanAccessRolePortal(UserWithRoles(LimsRoles.LaboratoryTechnician)));
+        Assert.True(PortalEntryFlow.CanAccessRolePortal(UserWithRoles(LimsRoles.Specialist)));
+    }
+
+    [Fact]
+    public void CanSwitchRole_OnlyWhenMultiplePickableRoles()
+    {
+        Assert.True(PortalEntryFlow.CanSwitchRole(UserWithRoles(LimsRoles.SystemAdministrator)));
+        Assert.False(PortalEntryFlow.CanSwitchRole(UserWithRoles(LimsRoles.Registrar)));
+        Assert.True(PortalEntryFlow.CanSwitchRole(UserWithRoles(LimsRoles.Registrar, LimsRoles.LaboratoryTechnician)));
+    }
+
+    [Fact]
+    public void GetDefaultLandingPath_AdminToPortal_OthersToWorkspace()
+    {
+        Assert.Equal("/", PortalEntryFlow.GetDefaultLandingPath(UserWithRoles(LimsRoles.SystemAdministrator)));
+        Assert.Equal("/Home/Workspace", PortalEntryFlow.GetDefaultLandingPath(UserWithRoles(LimsRoles.Registrar)));
+    }
+
+    [Fact]
+    public void ResolveWorkspaceEntryRole_ReturnsSingleOrFirstAssumable()
+    {
+        Assert.Equal(
+            LimsRoles.LaboratoryTechnician,
+            PortalEntryFlow.ResolveWorkspaceEntryRole(UserWithRoles(LimsRoles.LaboratoryTechnician)));
+
+        var multi = UserWithRoles(LimsRoles.Registrar, LimsRoles.LaboratoryTechnician);
+        Assert.Equal(LimsRoles.Registrar, PortalEntryFlow.ResolveWorkspaceEntryRole(multi));
+    }
+
+    [Fact]
     public void TryGetSingleAssumableRole_ReturnsRole_WhenOnlyRegistrar()
     {
         var user = UserWithRoles(LimsRoles.Registrar);

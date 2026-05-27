@@ -4,11 +4,12 @@
 @inject IPortalThemeService PortalTheme
 @inject IWebHostEnvironment HostEnvironment
 @{
+    var activeRole = ActiveLimsRole.ResolveActiveRole(User);
     var chrome = WorkspaceChromeViewModel.TryFromRole(
-        ActiveLimsRole.ResolveActiveRole(User),
+        activeRole,
         HostEnvironment.IsDevelopment());
     var accent = chrome?.AccentColor ?? "#0d9488";
-    var currentTheme = PortalTheme.GetTheme();
+    var currentTheme = PortalTheme.GetTheme(activeRole);
     var themeClass = PortalThemes.ToCssClass(currentTheme).Replace("portal-", "workspace-", StringComparison.Ordinal);
     var themeOptions = PortalThemeCatalog.All
         .Select(t => new PortalThemeOptionVm
@@ -20,6 +21,10 @@
             IsSelected = t.Id == PortalThemes.Normalize(currentTheme)
         })
         .ToList();
+    var routeController = ViewContext.RouteData.Values["controller"]?.ToString();
+    var routeAction = ViewContext.RouteData.Values["action"]?.ToString();
+    var logoPortalUrl = Url.Action("Index", "Home") ?? "/";
+    var logoTitle = "UniversalLIMS — портал ролі";
 }
 <!DOCTYPE html>
 <html lang="uk">
@@ -40,7 +45,12 @@
     <header>
         <nav class="navbar navbar-expand-md lims-workspace-navbar">
             <div class="container-fluid px-3 px-md-4">
-                <a class="navbar-brand" asp-controller="Home" asp-action="Workspace">UniversalLIMS</a>
+                <a class="navbar-brand lims-workspace-brand-portal"
+                   href="@logoPortalUrl"
+                   title="@logoTitle"
+                   aria-label="@logoTitle">
+                    <span class="navbar-brand__text">UniversalLIMS</span>
+                </a>
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#workspaceNav"
                         aria-controls="workspaceNav" aria-expanded="false" aria-label="Меню">
                     <span class="navbar-toggler-icon"></span>
@@ -51,10 +61,13 @@
                         <ul class="navbar-nav me-auto mb-2 mb-md-0">
                             @foreach (var item in chrome.NavItems)
                             {
+                                var isNavActive = string.Equals(item.Controller, routeController, StringComparison.OrdinalIgnoreCase)
+                                    && string.Equals(item.Action, routeAction, StringComparison.OrdinalIgnoreCase);
                                 <li class="nav-item">
-                                    <a class="nav-link"
+                                    <a class="nav-link@(isNavActive ? " active" : "")"
                                        asp-controller="@item.Controller"
-                                       asp-action="@item.Action">
+                                       asp-action="@item.Action"
+                                       aria-current="@(isNavActive ? "page" : null)">
                                         <i class="bi @item.IconClass" aria-hidden="true"></i>
                                         @item.Title
                                     </a>
@@ -67,8 +80,8 @@
                         <ul class="navbar-nav me-auto mb-2 mb-md-0">
                             <li class="nav-item">
                                 <a class="nav-link active" asp-controller="Home" asp-action="Workspace">
-                                    <i class="bi bi-house-door" aria-hidden="true"></i>
-                                    Кабінет
+                                    <i class="bi bi-house-door-fill" aria-hidden="true"></i>
+                                    Головна
                                 </a>
                             </li>
                         </ul>

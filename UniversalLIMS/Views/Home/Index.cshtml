@@ -2,6 +2,7 @@
 @{
     Layout = "_LayoutPortal";
     ViewData["Title"] = "Портал ролей";
+    var isGuest = User.Identity?.IsAuthenticated != true;
 }
 
 <div class="lims-portal-page @Model.ThemeCssClass">
@@ -20,7 +21,7 @@
         <header class="lims-portal-topbar">
             <a class="lims-portal-logo" asp-controller="Home" asp-action="Index">UniversalLIMS</a>
             <div class="lims-portal-topbar__actions">
-                @if (Model.HasActiveRole)
+                @if (Model.HasActiveRole && Model.CanSwitchRole)
                 {
                     <a class="lims-portal-change-role"
                        asp-controller="Home"
@@ -64,10 +65,11 @@
                 </div>
             </header>
 
-            <div class="lims-portal-roles @(Model.HasActiveRole ? "" : "lims-portal-roles--picking")" role="list">
+            <div class="lims-portal-roles @(Model.HasActiveRole ? "" : "lims-portal-roles--picking") @(isGuest ? "lims-portal-roles--guest" : "")" role="list">
                 @foreach (var card in Model.Cards)
                 {
-                    var cardClass = card.IsGranted ? "lims-role-card--granted" : "lims-role-card--locked";
+                    var showGuestLogin = isGuest && !Model.HasActiveRole;
+                    var cardClass = (card.IsGranted || showGuestLogin) ? "lims-role-card--granted" : "lims-role-card--locked";
                     if (card.IsActiveRole)
                     {
                         cardClass += " lims-role-card--active";
@@ -102,16 +104,6 @@
                                 Продовжити роботу
                             </a>
                         }
-                        else if (card.IsGranted && Model.HasActiveRole && !card.IsActiveRole)
-                        {
-                            <form asp-action="SelectRole" method="post" class="mt-auto">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="role" value="@card.RoleCode" />
-                                <button type="submit" class="lims-role-card__btn lims-role-card__btn--switch">
-                                    Перейти як @card.DisplayName
-                                </button>
-                            </form>
-                        }
                         else if (card.IsGranted && !Model.HasActiveRole)
                         {
                             <form asp-action="SelectRole" method="post" class="mt-auto">
@@ -122,12 +114,14 @@
                                 </button>
                             </form>
                         }
-                        else if (!card.IsGranted)
+                        else if (showGuestLogin)
                         {
-                            <p class="lims-role-card__lock">
-                                <i class="bi bi-lock-fill" aria-hidden="true"></i>
-                                Роль не призначена
-                            </p>
+                            <a asp-area="Identity"
+                               asp-page="/Account/Login"
+                               asp-route-returnUrl="/Home/Index"
+                               class="lims-role-card__btn lims-role-card__btn--login mt-auto">
+                                Увійти як @card.DisplayName
+                            </a>
                         }
                     </article>
                 }

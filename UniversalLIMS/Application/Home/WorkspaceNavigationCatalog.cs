@@ -16,19 +16,19 @@ public static class WorkspaceNavigationCatalog
             LimsRoles.SystemAdministrator => BuildAdminNav(isDevelopment),
             LimsRoles.Registrar =>
             [
-                new("Кабінет", "Home", "Workspace", "bi-house-door"),
+                new("Головна", "Home", "Workspace", "bi-house-door-fill"),
                 new("Нова проба", "Orders", "Create", "bi-plus-circle"),
                 new("Реєстр", "Orders", "Index", "bi-journal-plus"),
                 new("PDF Workspace", "PdfWorkspace", "Index", "bi-file-earmark-pdf"),
             ],
             LimsRoles.LaboratoryTechnician =>
             [
-                new("Кабінет", "Home", "Workspace", "bi-house-door"),
+                new("Головна", "Home", "Workspace", "bi-house-door-fill"),
                 new("Журнал проб", "Laboratory", "Index", "bi-droplet-half"),
             ],
             LimsRoles.Specialist =>
             [
-                new("Кабінет", "Home", "Workspace", "bi-house-door"),
+                new("Головна", "Home", "Workspace", "bi-house-door-fill"),
                 new("Черга експерта", "Expert", "Index", "bi-clipboard2-check"),
             ],
             _ => []
@@ -82,7 +82,7 @@ public static class WorkspaceNavigationCatalog
     {
         var items = new List<WorkspaceNavItem>
         {
-            new("Кабінет", "Home", "Workspace", "bi-house-door"),
+            new("Головна", "Home", "Workspace", "bi-house-door-fill"),
             new("Лабораторії", "Laboratories", "Index", "bi-building"),
             new("Журнал проб", "Laboratory", "Index", "bi-droplet-half"),
             new("Шаблони", "Templates", "Index", "bi-layout-text-window-reverse"),

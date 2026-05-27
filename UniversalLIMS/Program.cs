@@ -57,7 +57,19 @@ namespace UniversalLIMS
             builder.Services.AddOptions<LimsPortalOptions>()
                 .Bind(builder.Configuration.GetSection(LimsPortalOptions.SectionName));
 
-            builder.Services.AddDefaultIdentity<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = true)
+            builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
+                {
+                    options.SignIn.RequireConfirmedAccount = true;
+
+                    // Development-only: allow simple role testing passwords.
+                    // Your requested passwords (e.g. LIMS147) don't contain lowercase/special symbols.
+                    if (builder.Environment.IsDevelopment())
+                    {
+                        options.Password.RequireNonAlphanumeric = false;
+                        options.Password.RequireLowercase = false;
+                        options.Password.RequireUppercase = false;
+                    }
+                })
                 .AddRoles<IdentityRole>()
                 .AddEntityFrameworkStores<ApplicationDbContext>();
             builder.Services.AddTransient<IEmailSender, IdentityEmailSender>();
@@ -139,6 +151,15 @@ namespace UniversalLIMS
             }
 
             await app.SeedLimsAsync();
+
+            // One-off seed runner (dev/test):
+            // dotnet run -- --seed-test-users
+            var seedTestUsersOnly = args.Any(a => string.Equals(a, "--seed-test-users", StringComparison.OrdinalIgnoreCase));
+            if (seedTestUsersOnly)
+            {
+                app.Logger.LogInformation("Seed-only mode enabled (--seed-test-users). Exiting without starting web server.");
+                return;
+            }
 
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())

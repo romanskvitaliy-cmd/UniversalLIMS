@@ -20,13 +20,16 @@
             }
         </p>
     </div>
-    @if (Model.IsRegistrarMode)
-    {
-        <a class="btn btn-sm btn-primary" asp-controller="Orders" asp-action="Create">
-            <i class="bi bi-clipboard2-plus me-1"></i>
-            Прийняти нову пробу
-        </a>
-    }
+    <div class="d-flex flex-wrap gap-2 align-items-start">
+        <partial name="_WorkspaceCabinetLink" />
+        @if (Model.IsRegistrarMode)
+        {
+            <a class="btn btn-sm btn-primary" asp-controller="Orders" asp-action="Create">
+                <i class="bi bi-clipboard2-plus me-1"></i>
+                Прийняти нову пробу
+            </a>
+        }
+    </div>
 </div>
 
 @if (!Model.Versions.Any())

@@ -45,13 +45,12 @@ public class HomeController : Controller
         _portalOptions = portalOptions.Value;
     }
 
+    [AllowAnonymous]
     [HttpGet]
     public IActionResult Index()
     {
-        if (PortalEntryFlow.ShouldAutoRedirectToWorkspace(User, _portalOptions.AutoRedirectSingleRole))
+        if (User.Identity?.IsAuthenticated == true && !PortalEntryFlow.CanAccessRolePortal(User))
         {
-            var singleRole = PortalEntryFlow.TryGetSingleAssumableRole(User)!;
-            _activeLimsRole.SetActiveRole(singleRole);
             return RedirectToAction(nameof(Workspace));
         }
 
@@ -60,34 +59,47 @@ public class HomeController : Controller
             _currentUser,
             _dateTime.UtcNow.ToLocalTime(),
             _activeLimsRole.GetActiveRole(),
-            _portalTheme.GetTheme());
+            _portalTheme.GetTheme(_activeLimsRole.ResolveActiveRole(User)));
 
         return View(model);
     }
 
+    [AllowAnonymous]
+    [HttpGet]
+    public IActionResult SetPortalTheme(int theme, string? returnUrl = null) =>
+        ApplyPortalTheme(theme, returnUrl);
+
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public IActionResult SetPortalTheme(int theme, string? returnUrl = null)
+    public IActionResult SetPortalThemePost(int theme, string? returnUrl = null) =>
+        ApplyPortalTheme(theme, returnUrl);
+
+    private IActionResult ApplyPortalTheme(int theme, string? returnUrl)
     {
         if (!PortalThemes.IsValid(theme))
         {
             return BadRequest();
         }
 
-        _portalTheme.SetTheme(theme);
+        _portalTheme.SetTheme(theme, _activeLimsRole.ResolveActiveRole(User));
 
         if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
         {
             return Redirect(returnUrl);
         }
 
-        return RedirectToAction(nameof(Index));
+        return RedirectToAction(nameof(Workspace));
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
     public IActionResult SelectRole(string role)
     {
+        if (!PortalEntryFlow.CanAccessRolePortal(User))
+        {
+            return Forbid();
+        }
+
         if (string.IsNullOrWhiteSpace(role) || !LimsRoles.All.Contains(role, StringComparer.Ordinal))
         {
             return BadRequest();
@@ -109,7 +121,12 @@ public class HomeController : Controller
         var activeRole = _activeLimsRole.ResolveActiveRole(User);
         if (string.IsNullOrWhiteSpace(activeRole))
         {
-            return RedirectToAction(nameof(Index));
+            if (PortalEntryFlow.CanAccessRolePortal(User))
+            {
+                return RedirectToAction(nameof(Index));
+            }
+
+            return RedirectToWorkspaceEntry();
         }
 
         var model = WorkspaceViewModelBuilder.TryBuild(activeRole, _currentUser, _environment.IsDevelopment());
@@ -247,7 +264,25 @@ public class HomeController : Controller
     public IActionResult ClearRole()
     {
         _activeLimsRole.ClearActiveRole();
+
+        if (!PortalEntryFlow.CanAccessRolePortal(User))
+        {
+            return RedirectToWorkspaceEntry();
+        }
+
         return RedirectToAction(nameof(Index));
+    }
+
+    private IActionResult RedirectToWorkspaceEntry()
+    {
+        var role = PortalEntryFlow.ResolveWorkspaceEntryRole(User);
+        if (string.IsNullOrWhiteSpace(role))
+        {
+            return Forbid();
+        }
+
+        _activeLimsRole.SetActiveRole(role);
+        return RedirectToAction(nameof(Workspace));
     }
 
     [AllowAnonymous]

@@ -1,0 +1,29 @@
+@using UniversalLIMS.Application.Home
+@using UniversalLIMS.Application.Security
+@inject IActiveLimsRoleService ActiveLimsRole
+@{
+    var roleCode = ActiveLimsRole.ResolveActiveRole(User);
+    if (string.IsNullOrWhiteSpace(roleCode))
+    {
+        return;
+    }
+
+    var controller = ViewContext.RouteData.Values["controller"]?.ToString();
+    var action = ViewContext.RouteData.Values["action"]?.ToString();
+    var onCabinetHome = string.Equals(controller, "Home", StringComparison.OrdinalIgnoreCase)
+        && string.Equals(action, "Workspace", StringComparison.OrdinalIgnoreCase);
+
+    if (onCabinetHome)
+    {
+        return;
+    }
+
+    var label = WorkspaceCabinetLabels.GetBackLinkLabel(roleCode);
+}
+
+<a class="btn btn-outline-secondary btn-sm lims-workspace-cabinet-link"
+   asp-controller="Home"
+   asp-action="Workspace"
+   title="Повернутися на головну сторінку кабінету">
+    @label
+</a>

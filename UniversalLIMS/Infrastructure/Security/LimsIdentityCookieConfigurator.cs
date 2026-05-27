@@ -13,7 +13,8 @@ public static class LimsIdentityCookieConfigurator
             {
                 if (PortalEntryFlow.ShouldRedirectToPortalHome(context.RedirectUri))
                 {
-                    context.Response.Redirect("/");
+                    context.Response.Redirect(
+                        PortalEntryFlow.GetDefaultLandingPath(context.HttpContext.User));
                 }
                 else
                 {

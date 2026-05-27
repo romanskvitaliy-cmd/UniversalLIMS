@@ -2,7 +2,7 @@ namespace UniversalLIMS.Application.Security;
 
 public interface IPortalThemeService
 {
-    int GetTheme();
+    int GetTheme(string? role = null);
 
-    void SetTheme(int theme);
+    void SetTheme(int theme, string? role = null);
 }

@@ -13,7 +13,7 @@
             або перегляньте зведення по всій мережі.
         </p>
     </div>
-    <a class="btn btn-outline-secondary btn-sm" asp-controller="Home" asp-action="Workspace">← Кабінет адміністратора</a>
+    <partial name="_WorkspaceCabinetLink" />
 </div>
 
 @if (overview.ActiveBranchId is Guid activeBranchId)

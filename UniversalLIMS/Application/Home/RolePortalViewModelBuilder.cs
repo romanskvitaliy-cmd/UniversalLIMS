@@ -23,6 +23,7 @@ public static class RolePortalViewModelBuilder
         foreach (var definition in RolePortalCatalog.All)
         {
             var isGranted = LimsRoleAccess.CanAssumeRole(user, definition.RoleCode);
+
             cards.Add(new RolePortalCardVm
             {
                 RoleCode = definition.RoleCode,
@@ -54,10 +55,11 @@ public static class RolePortalViewModelBuilder
         return new RolePortalViewModel
         {
             GreetingText = GetGreeting(now),
-            UserDisplayName = currentUser.UserFullName ?? user.Identity?.Name ?? "користувач",
+            UserDisplayName = currentUser.UserFullName ?? user.Identity?.Name ?? "Гість порталу",
             FormattedDate = now.ToString("d MMMM yyyy", UkrainianCulture),
             Cards = cards,
             HasActiveRole = hasActiveRole,
+            CanSwitchRole = PortalEntryFlow.CanSwitchRole(user),
             BackgroundVariant = theme,
             ThemeCssClass = PortalThemes.ToCssClass(theme),
             ThemeOptions = themeOptions

@@ -66,12 +66,17 @@
 /* ── Top bar ── */
 .lims-portal-topbar {
     position: relative;
-    z-index: 10;
+    z-index: 1030;
     flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 0.85rem clamp(1.25rem, 4vw, 2.5rem);
+    overflow: visible;
+}
+
+.lims-portal-theme-dropdown {
+    position: relative;
 }
 
 .lims-portal-topbar__actions {
@@ -143,6 +148,7 @@
 }
 
 .lims-portal-theme-menu {
+    z-index: 1090;
     min-width: 13rem;
     padding: 0.4rem;
     border: 1px solid rgba(255, 255, 255, 0.12);
@@ -151,6 +157,30 @@
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+}
+
+.portal-theme-4 .lims-portal-theme-menu {
+    border-color: #e2e8f0;
+    background: #ffffff;
+    box-shadow: 0 16px 40px rgba(15, 23, 42, 0.12);
+}
+
+.portal-theme-4 .lims-portal-theme-menu .dropdown-header {
+    color: #64748b;
+}
+
+.portal-theme-4 .lims-portal-theme-option {
+    color: #334155;
+}
+
+.portal-theme-4 .lims-portal-theme-option:hover,
+.portal-theme-4 .lims-portal-theme-option:focus-visible {
+    color: #0f172a;
+    background: #f1f5f9;
+}
+
+.portal-theme-4 .lims-portal-theme-swatch {
+    border-color: #e2e8f0;
 }
 
 .lims-portal-theme-menu .dropdown-header {
@@ -165,7 +195,8 @@
     margin: 0;
 }
 
-.lims-portal-theme-option {
+.lims-portal-theme-option,
+a.lims-portal-theme-option {
     display: flex;
     align-items: center;
     gap: 0.65rem;
@@ -175,6 +206,8 @@
     padding: 0.5rem 0.65rem;
     background: transparent;
     text-align: left;
+    text-decoration: none;
+    color: #f1f5f9;
 }
 
 .lims-portal-theme-option:hover,
@@ -1204,6 +1237,112 @@
     font-size: 1.05rem;
 }
 
+.lims-role-card__btn--login {
+    position: relative;
+    overflow: hidden;
+    text-decoration: none;
+    background: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--role-accent) 82%, #38bdf8) 0%,
+        color-mix(in srgb, var(--role-accent) 92%, #1d4ed8) 100%);
+}
+
+.lims-role-card__btn--login::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -140%;
+    width: 80%;
+    height: 100%;
+    background: linear-gradient(100deg, transparent 0%, rgba(255, 255, 255, 0.45) 50%, transparent 100%);
+    transition: left 0.45s ease;
+}
+
+.lims-role-card__btn--login:hover::before {
+    left: 180%;
+}
+
+.lims-role-card__btn--login:hover {
+    color: #fff;
+    text-decoration: none;
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.28) inset,
+        0 10px 30px rgba(var(--role-accent-rgb), 0.56),
+        0 0 48px rgba(var(--role-accent-rgb), 0.35);
+}
+
+.lims-portal-roles--guest .lims-role-card--granted:hover {
+    transform: translateY(-10px) scale(1.01);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.2),
+        0 0 0 1px rgba(var(--role-accent-rgb), 0.24),
+        0 0 72px rgba(var(--role-accent-rgb), 0.28),
+        0 28px 56px rgba(0, 0, 0, 0.4);
+}
+
+.lims-portal-roles--guest .lims-role-card--granted {
+    isolation: isolate;
+}
+
+.lims-portal-roles--guest .lims-role-card--granted::before {
+    opacity: 0.22;
+}
+
+.lims-portal-roles--guest .lims-role-card--granted:hover .lims-role-card__icon-wrap .bi {
+    animation: lims-role-icon-pop 0.45s ease;
+}
+
+/* Role-specific hover mood */
+.lims-portal-roles--guest .lims-role-card:nth-child(1).lims-role-card--granted:hover {
+    transform: translateY(-10px) scale(1.012) rotate(-0.15deg);
+}
+
+.lims-portal-roles--guest .lims-role-card:nth-child(2).lims-role-card--granted:hover {
+    transform: translateY(-11px) scale(1.012);
+}
+
+.lims-portal-roles--guest .lims-role-card:nth-child(3).lims-role-card--granted:hover {
+    transform: translateY(-9px) scale(1.011) rotate(0.12deg);
+}
+
+.lims-portal-roles--guest .lims-role-card:nth-child(4).lims-role-card--granted:hover {
+    transform: translateY(-10px) scale(1.013);
+}
+
+.lims-portal-roles--guest .lims-role-card:nth-child(1).lims-role-card--granted:hover .lims-role-card__btn--login {
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.28) inset,
+        0 12px 32px rgba(99, 102, 241, 0.55),
+        0 0 52px rgba(99, 102, 241, 0.38);
+}
+
+.lims-portal-roles--guest .lims-role-card:nth-child(2).lims-role-card--granted:hover .lims-role-card__btn--login {
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.28) inset,
+        0 12px 32px rgba(14, 165, 233, 0.58),
+        0 0 52px rgba(14, 165, 233, 0.4);
+}
+
+.lims-portal-roles--guest .lims-role-card:nth-child(3).lims-role-card--granted:hover .lims-role-card__btn--login {
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.28) inset,
+        0 12px 32px rgba(16, 185, 129, 0.56),
+        0 0 52px rgba(16, 185, 129, 0.38);
+}
+
+.lims-portal-roles--guest .lims-role-card:nth-child(4).lims-role-card--granted:hover .lims-role-card__btn--login {
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.28) inset,
+        0 12px 32px rgba(245, 158, 11, 0.56),
+        0 0 52px rgba(245, 158, 11, 0.36);
+}
+
+@keyframes lims-role-icon-pop {
+    0% { transform: scale(1); }
+    35% { transform: scale(1.16); }
+    100% { transform: scale(1.06); }
+}
+
 .lims-role-card__btn--switch {
     background: var(--portal-switch-bg);
     border: 1px solid color-mix(in srgb, var(--role-accent) 62%, rgba(255, 255, 255, 0.52));
@@ -1416,3 +1555,4 @@
         transition: none;
     }
 }
+
