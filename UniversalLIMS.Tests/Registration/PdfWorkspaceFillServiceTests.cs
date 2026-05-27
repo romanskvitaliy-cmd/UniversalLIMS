@@ -138,9 +138,12 @@ public sealed class PdfWorkspaceFillServiceTests
 
         var stored = await context.OrderFieldValues
             .SingleAsync(fieldValue => fieldValue.OrderId == result.OrderId);
+        var savedOrder = await context.Orders.SingleAsync(order => order.Id == result.OrderId);
 
         Assert.Equal(dataFieldId, stored.DataFieldId);
         Assert.Equal("м. Житомир", stored.StoredValue);
+        Assert.Equal(OrderStatus.Registered, savedOrder.Status);
+        Assert.True(savedOrder.RegisteredAtUtc.HasValue);
     }
 
     [Fact]
@@ -1573,7 +1576,7 @@ public sealed class PdfWorkspaceFillServiceTests
             [new PdfWorkspaceFieldValueDto { TemplateFieldId = templateFieldId, Value = "   " }]);
 
         Assert.Equal(1, result.Mapped);
-        Assert.Equal(1, result.Saved);
+        Assert.Equal(0, result.Saved);
         Assert.Equal(1, result.SkippedEmpty);
 
         var cleared = await context.OrderFieldValues.SingleAsync(fieldValue => fieldValue.OrderId == orderId);

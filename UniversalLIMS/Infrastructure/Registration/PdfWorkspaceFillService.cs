@@ -226,6 +226,18 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
             saved++;
         }
 
+        var promoteOrderToRegistered = failures.Count == 0
+            && (saved > 0 || cleared > 0)
+            && order.Status == OrderStatus.Draft;
+        if (promoteOrderToRegistered)
+        {
+            order.Status = OrderStatus.Registered;
+            order.RegisteredAtUtc ??= DateTime.UtcNow;
+            _logger.LogInformation(
+                "PdfWorkspaceFill promoted order to Registered: order={OrderId}",
+                order.Id);
+        }
+
         if (mapped > 0)
         {
             await _context.SaveChangesAsync(cancellationToken);
