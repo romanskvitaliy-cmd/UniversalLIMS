@@ -29,8 +29,12 @@
 | Лабораторний журнал + PDF Workspace | Закрито базовий цикл |
 | Admin `/Laboratories` + контекст філії | Закрито |
 | UX для lab counts: workflow vs awaiting send | Закрито локальними комітами |
+| `savedCount` у PDF save (реально збережені) + cleanup debug/logging | Закрито |
+| `Order` -> `Registered` після успішного PDF fill save | Закрито |
+| Редагування клієнта зі сторінки справи (`Orders/Details`) | Закрито |
+| Inline валідація форми редагування клієнта | Закрито |
 
-**Поточна гілка:** `main`, локально попереду `origin/main` на кілька комітів. `debug-40b8bf.log` змінений локально автоматично, але його **не комітити**.
+**Поточна гілка:** `main`, локально попереду `origin/main` на кілька комітів. `debug-40b8bf.log` може оновлюватися локально автоматично, але його **не комітити**.
 
 ---
 
@@ -39,6 +43,7 @@
 ### Реєстратура
 - `IOrderRegistrationService` / `OrderRegistrationService` — список, створення multi-sample, details, send to lab
 - `ICustomerService` — пошук/створення клієнта
+- Редагування клієнта доступне прямо в `Views/Orders/Details.cshtml` (POST `Orders/UpdateCustomer`)
 - `INumberingService` — `ReferralNumber`, `Sample.Number`; враховує pending Added samples у ChangeTracker
 - `OrderPostCreateNavigation` — redirect у PDF Fill для single-document create
 
@@ -58,6 +63,8 @@
 - Fill values scoped by `OrderDocumentId` → `OrderDocument.SampleId`
 - Legacy без `orderDocumentId`: order-level (`SampleId = null`)
 - Лабораторні PDF links теж передають `orderDocumentId`
+- `Saved` у результаті save рахує тільки фактичні insert/update; очищення порожніх іде окремим лічильником
+- `Order` переводиться в `Registered` після успішного save без помилок полів
 
 ### Лабораторія / Admin
 - `LaboratoryJournalService` — журнал: один рядок на пробу
@@ -163,14 +170,14 @@ dotnet test UniversalLIMS.Tests/UniversalLIMS.Tests.csproj --filter "FullyQualif
 - [ ] Етап 3–4: експерт, протоколи, висновки.
 
 ### Реєстратура
-- [ ] `Order` → Registered після успішного PDF fill, якщо потрібна окрема статусна подія.
-- [ ] Редагування клієнта з реєстру.
+- [x] `Order` → Registered після успішного PDF fill.
+- [x] Редагування клієнта з реєстру.
 
 ### PDF Workspace
 - Детально: **`docs/handoff-pdf-fill-panel-and-template-lifecycle.md`** (панель, layout save, версії)
 - Значення замовлення: `docs/handoff-pdf-workspace-fill.md`
-- [ ] `savedCount` = реально збережені записи (не `Received`)
-- [ ] Прибрати тимчасові `Console.WriteLine` / debug log
+- [x] `savedCount` = реально збережені записи (не `Received`)
+- [x] Прибрати тимчасові `Console.WriteLine` / debug log
 - [x] **Republish** — `RepublishAsync` для Superseded
 - [x] **Дві дати публікації** — `FirstPublishedAtUtc` + `RepublishedAtUtc`
 - [x] Unit-тест `SaveFillLayoutRefinementAsync` для Published
@@ -224,7 +231,10 @@ taskkill /F /IM UniversalLIMS.exe
 post-create redirect, portal role switch, sample numbering fix. НЕ інжектуй ApplicationDbContext в CurrentUserService.
 
 Задача: [уточнити — QA або беклог §6].
-Правила: не відкатувати чужі зміни; не комітити debug-40b8bf.log; після етапу дати короткий звіт і commit message.
+Правила: не відкатувати чужі зміни; не комітити debug-40b8bf.log.
+Режим роботи: комітити не після кожного мікрокроку, а після завершеного логічного блоку (30-90 хв).
+Формат коміту: багаторядковий (subject + 3-6 bullets з описом змін).
+Після етапу дати короткий звіт і текст commit message.
 ```
 
 ---
