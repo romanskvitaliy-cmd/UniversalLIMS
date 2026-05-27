@@ -205,7 +205,7 @@
 
     function getSelectedTemplateVersionIds() {
         return Array.from(
-            form?.querySelectorAll('input[name^="CreateInput.SelectedTemplateVersionIds"]') ?? []
+            form?.querySelectorAll('input[name*=".SelectedTemplateVersionIds"]') ?? []
         )
             .map((input) => input.value)
             .filter(Boolean);

@@ -66,7 +66,7 @@ public sealed class OrdersController : Controller
         if (selectedTemplateVersionIds.Count < 2)
         {
             ModelState.AddModelError(
-                nameof(input.SelectedTemplateVersionIds),
+                nameof(input.Samples),
                 "Мапінг спільних полів доступний для двох і більше шаблонів.");
         }
 
@@ -366,7 +366,7 @@ public sealed class OrdersController : Controller
 
     private void ValidateDocumentSelection(OrderCreateInputModel input, OrderCreateFormDto form)
     {
-        var samples = GetEffectiveSamples(input);
+        var samples = GetSubmittedSamples(input);
         if (samples.Count == 0)
         {
             ModelState.AddModelError(string.Empty, "Додайте хоча б одне дослідження.");
@@ -400,14 +400,14 @@ public sealed class OrdersController : Controller
             if (selectedTemplateVersionIds.Any(id => !allowedIds.Contains(id)))
             {
                 ModelState.AddModelError(
-                    nameof(input.SelectedTemplateVersionIds),
+                    nameof(input.Samples),
                     $"У рядку {sampleIndex + 1} обрано недоступний шаблон для цього типу дослідження.");
             }
 
             if (selectedTemplateVersionIds.Distinct().Count() != selectedTemplateVersionIds.Count)
             {
                 ModelState.AddModelError(
-                    nameof(input.SelectedTemplateVersionIds),
+                    nameof(input.Samples),
                     $"У рядку {sampleIndex + 1} кожен шаблон можна обрати лише один раз.");
             }
         }
@@ -418,7 +418,7 @@ public sealed class OrdersController : Controller
         var useExisting = string.Equals(input.CustomerMode, "existing", StringComparison.OrdinalIgnoreCase);
         var defaultBranchId = form.DefaultBranchId ?? Guid.Empty;
 
-        var samples = GetEffectiveSamples(input)
+        var samples = GetSubmittedSamples(input)
             .Select(sample => new CreateOrderSampleRequest
             {
                 InvestigationTypeId = sample.InvestigationTypeId,
@@ -427,7 +427,6 @@ public sealed class OrdersController : Controller
             })
             .ToList();
 
-        var legacySample = samples.FirstOrDefault();
         return new CreateOrderRequest
         {
             CustomerId = useExisting ? input.SelectedCustomerId : null,
@@ -442,9 +441,6 @@ public sealed class OrdersController : Controller
                     Address = input.NewCustomerAddress,
                     Edrpou = input.NewCustomerEdrpou
                 },
-            InvestigationTypeId = legacySample?.InvestigationTypeId ?? Guid.Empty,
-            TemplateVersionId = legacySample?.TemplateVersionId,
-            Documents = legacySample?.Documents ?? [],
             Samples = samples
         };
     }
@@ -472,9 +468,9 @@ public sealed class OrdersController : Controller
         return documents;
     }
 
-    private static List<OrderCreateSampleInputModel> GetEffectiveSamples(OrderCreateInputModel input)
+    private static List<OrderCreateSampleInputModel> GetSubmittedSamples(OrderCreateInputModel input)
     {
-        var samples = input.Samples
+        return input.Samples
             .Where(sample => sample.InvestigationTypeId != Guid.Empty
                 || sample.TemplateVersionId.HasValue
                 || sample.SelectedTemplateVersionIds.Any(id => id != Guid.Empty))
@@ -488,33 +484,10 @@ public sealed class OrdersController : Controller
                 return sample;
             })
             .ToList();
-
-        if (samples.Count > 0)
-        {
-            return samples;
-        }
-
-        if (input.InvestigationTypeId == Guid.Empty
-            && input.TemplateVersionId is null
-            && input.SelectedTemplateVersionIds.Count == 0)
-        {
-            return [];
-        }
-
-        return
-        [
-            new OrderCreateSampleInputModel
-            {
-                InvestigationTypeId = input.InvestigationTypeId,
-                TemplateVersionId = input.TemplateVersionId,
-                SelectedTemplateVersionIds = input.SelectedTemplateVersionIds,
-                DocumentTargetBranchIds = input.DocumentTargetBranchIds
-            }
-        ];
     }
 
     private static IReadOnlyList<Guid> GetSelectedTemplateVersionIds(OrderCreateInputModel input) =>
-        GetEffectiveSamples(input)
+        GetSubmittedSamples(input)
             .SelectMany(sample => sample.SelectedTemplateVersionIds)
             .Where(id => id != Guid.Empty)
             .ToList();

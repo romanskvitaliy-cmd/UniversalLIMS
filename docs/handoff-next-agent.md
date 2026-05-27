@@ -154,7 +154,6 @@ dotnet test UniversalLIMS.Tests/UniversalLIMS.Tests.csproj --filter "FullyQualif
 - [ ] Етап 3–4: експерт, протоколи, висновки.
 
 ### Реєстратура
-- [ ] Прибрати legacy fallback `GetEffectiveSamples()` / старі поля create-form після стабілізації multi-sample UI.
 - [ ] `Order` → Registered після успішного PDF fill, якщо потрібна окрема статусна подія.
 - [ ] Редагування клієнта з реєстру.
 

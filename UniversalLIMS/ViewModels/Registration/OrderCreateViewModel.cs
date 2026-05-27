@@ -38,17 +38,6 @@ public sealed class OrderCreateInputModel
     [Display(Name = "ЄДРПОУ")]
     public string? NewCustomerEdrpou { get; set; }
 
-    [Required(ErrorMessage = "Оберіть тип дослідження.")]
-    public Guid InvestigationTypeId { get; set; }
-
-    public Guid? TemplateVersionId { get; set; }
-
-    /// <summary>Обрані PDF-шаблони (версії) для справи.</summary>
-    public List<Guid> SelectedTemplateVersionIds { get; set; } = [];
-
-    /// <summary>Паралельний список філій призначення (індекс = SelectedTemplateVersionIds).</summary>
-    public List<Guid> DocumentTargetBranchIds { get; set; } = [];
-
     public bool OpenPdfAfterCreate { get; set; } = true;
 
     /// <summary>Основний сценарій UI: кілька досліджень/проб в одному замовленні.</summary>

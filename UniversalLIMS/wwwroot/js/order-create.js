@@ -16,7 +16,6 @@
     const samplesList = document.getElementById("orderSamplesList");
     const samplesPlaceholder = document.getElementById("orderSamplesPlaceholder");
     const btnAddSample = document.getElementById("btnAddOrderSample");
-    const legacyInputs = document.getElementById("legacyOrderCreateInputs");
     const form = document.getElementById("orderCreateForm");
     const btnPrepareMapping = document.getElementById("btnPrepareFieldMapping");
     const fieldMappingHint = document.getElementById("fieldMappingHint");
@@ -202,7 +201,6 @@
             setHidden(row, "branch", `Input.Samples[${index}].DocumentTargetBranchIds[0]`, branchSelect?.value || defaultBranchId);
         });
 
-        syncLegacyInputs(rows);
         syncFieldMappingActions();
     }
 
@@ -217,44 +215,6 @@
 
         input.name = name;
         input.value = value || "";
-    }
-
-    function syncLegacyInputs(rows) {
-        if (!legacyInputs) {
-            return;
-        }
-
-        legacyInputs.innerHTML = "";
-        const samples = rows
-            .map((row) => {
-                const activeOption = getOptionByTemplateVersionId(row.querySelector(".sample-active-template-select")?.value);
-                const pdfOption = getOptionByTemplateVersionId(row.querySelector(".sample-pdf-select")?.value);
-                return {
-                    investigationTypeId: activeOption?.investigationTypeId || pdfOption?.investigationTypeId || "",
-                    templateVersionId: pdfOption?.templateVersionId || activeOption?.templateVersionId || "",
-                    branchId: row.querySelector(".sample-branch-select")?.value || defaultBranchId
-                };
-            })
-            .filter((sample) => sample.investigationTypeId || sample.templateVersionId);
-
-        const first = samples[0];
-        if (first) {
-            appendLegacyHidden("Input.InvestigationTypeId", first.investigationTypeId);
-            appendLegacyHidden("Input.TemplateVersionId", first.templateVersionId);
-        }
-
-        samples.forEach((sample, index) => {
-            appendLegacyHidden(`Input.SelectedTemplateVersionIds[${index}]`, sample.templateVersionId);
-            appendLegacyHidden(`Input.DocumentTargetBranchIds[${index}]`, sample.branchId);
-        });
-    }
-
-    function appendLegacyHidden(name, value) {
-        const input = document.createElement("input");
-        input.type = "hidden";
-        input.name = name;
-        input.value = value || "";
-        legacyInputs.appendChild(input);
     }
 
     async function searchCustomers(query) {

@@ -47,7 +47,7 @@
 ### Реєстрація
 
 - `OrderCreateInputModel.Samples[]` → `CreateOrderRequest.Samples`
-- `OrdersController.GetEffectiveSamples()` — fallback на старі одиночні поля, якщо `Samples` порожній
+- `OrdersController.GetSubmittedSamples()` — приймає лише `Samples[]` з create-form; старий top-level fallback прибрано
 - `OrderRegistrationService.CreateOrderAsync` — цикл по `samplePlans`, кожна проба + свої `OrderDocument`
 - **Нумерація проб:** `NumberingService.AssignSampleNumberAsync` враховує pending `Added` samples у `ChangeTracker` (fix `9ef3360`)
 
@@ -133,7 +133,6 @@ dotnet test UniversalLIMS.Tests/UniversalLIMS.Tests.csproj --filter "FullyQualif
 
 | Пріоритет | Задача |
 |-----------|--------|
-| Низький | Прибрати legacy fallback `GetEffectiveSamples()` / старі поля create-form |
 | Низький | `Order` → Registered після успішного PDF fill |
 | Низький | `savedCount` у PDF save response; прибрати debug `Console.WriteLine` / `debug-40b8bf.log` usage |
 | Roadmap | Етап 3–4: експерт, протоколи, висновки |
