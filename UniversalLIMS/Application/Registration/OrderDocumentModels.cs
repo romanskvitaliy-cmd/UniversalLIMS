@@ -46,7 +46,25 @@ public sealed class OrderDetailDto
 
     public string? ReferralNumber { get; init; }
 
+    public Guid CustomerId { get; init; }
+
+    public CustomerKind CustomerKind { get; init; }
+
     public required string CustomerFullName { get; init; }
+
+    public string? CustomerOrganizationName { get; init; }
+
+    public string? CustomerContactPhone { get; init; }
+
+    public string? CustomerEmail { get; init; }
+
+    public string? CustomerAddress { get; init; }
+
+    public string? CustomerEdrpou { get; init; }
+
+    public string? CustomerRnokpp { get; init; }
+
+    public string? CustomerNotes { get; init; }
 
     public OrderStatus Status { get; init; }
 

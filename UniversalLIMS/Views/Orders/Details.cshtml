@@ -40,6 +40,63 @@
 
 <div class="card mb-3">
     <div class="card-header py-2 d-flex justify-content-between align-items-center">
+        <span class="fw-semibold">Дані замовника</span>
+        <span class="small text-muted">@CustomerKindDisplay.ToUk(Model.CustomerEdit.Kind)</span>
+    </div>
+    <div class="card-body">
+        <form asp-action="UpdateCustomer" method="post" class="row g-2">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="CustomerEdit.OrderId" />
+            <input type="hidden" asp-for="CustomerEdit.CustomerId" />
+            <div class="col-md-3">
+                <label class="form-label small text-muted" asp-for="CustomerEdit.Kind">Тип</label>
+                <select asp-for="CustomerEdit.Kind" class="form-select form-select-sm"
+                        asp-items='@(new SelectList(
+                            Enum.GetValues<CustomerKind>().Select(kind => new { Value = (int)kind, Text = CustomerKindDisplay.ToUk(kind) }),
+                            "Value",
+                            "Text"))'></select>
+            </div>
+            <div class="col-md-5">
+                <label class="form-label small text-muted" asp-for="CustomerEdit.FullName">ПІБ / назва</label>
+                <input asp-for="CustomerEdit.FullName" class="form-control form-control-sm" />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label small text-muted" asp-for="CustomerEdit.OrganizationName">Організація</label>
+                <input asp-for="CustomerEdit.OrganizationName" class="form-control form-control-sm" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small text-muted" asp-for="CustomerEdit.ContactPhone">Телефон</label>
+                <input asp-for="CustomerEdit.ContactPhone" class="form-control form-control-sm" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small text-muted" asp-for="CustomerEdit.Email">Email</label>
+                <input asp-for="CustomerEdit.Email" class="form-control form-control-sm" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small text-muted" asp-for="CustomerEdit.Edrpou">ЄДРПОУ</label>
+                <input asp-for="CustomerEdit.Edrpou" class="form-control form-control-sm" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small text-muted" asp-for="CustomerEdit.Rnokpp">РНОКПП</label>
+                <input asp-for="CustomerEdit.Rnokpp" class="form-control form-control-sm" />
+            </div>
+            <div class="col-12">
+                <label class="form-label small text-muted" asp-for="CustomerEdit.Address">Адреса</label>
+                <input asp-for="CustomerEdit.Address" class="form-control form-control-sm" />
+            </div>
+            <div class="col-12">
+                <label class="form-label small text-muted" asp-for="CustomerEdit.Notes">Примітки</label>
+                <textarea asp-for="CustomerEdit.Notes" class="form-control form-control-sm" rows="2"></textarea>
+            </div>
+            <div class="col-12">
+                <button type="submit" class="btn btn-sm btn-outline-primary">Зберегти дані замовника</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-header py-2 d-flex justify-content-between align-items-center">
         <span class="fw-semibold">Документи шаблонів</span>
         <span class="small text-muted">@detail.Documents.Count шт.</span>
     </div>

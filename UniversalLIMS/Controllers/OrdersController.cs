@@ -21,13 +21,16 @@ public sealed class OrdersController : Controller
 
     private readonly IOrderRegistrationService _orderRegistration;
     private readonly IOrderFieldLinkService _orderFieldLinks;
+    private readonly ICustomerService _customerService;
 
     public OrdersController(
         IOrderRegistrationService orderRegistration,
-        IOrderFieldLinkService orderFieldLinks)
+        IOrderFieldLinkService orderFieldLinks,
+        ICustomerService customerService)
     {
         _orderRegistration = orderRegistration;
         _orderFieldLinks = orderFieldLinks;
+        _customerService = customerService;
     }
 
     [HttpGet]
@@ -240,8 +243,55 @@ public sealed class OrdersController : Controller
         {
             Detail = detail,
             Branches = form.Branches,
+            CustomerEdit = BuildCustomerEditModel(detail),
             FieldLinkGroups = fieldLinkGroups
         });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateCustomer(
+        [Bind(Prefix = "CustomerEdit")] UpdateOrderCustomerInputModel input,
+        CancellationToken cancellationToken)
+    {
+        var detail = await _orderRegistration.GetOrderDetailAsync(input.OrderId, cancellationToken);
+        if (detail is null)
+        {
+            return NotFound();
+        }
+
+        if (input.CustomerId == Guid.Empty || input.CustomerId != detail.CustomerId)
+        {
+            TempData["OrderDetailError"] = "Замовника для редагування не знайдено у цій справі.";
+            return RedirectToAction(nameof(Details), new { id = input.OrderId });
+        }
+
+        try
+        {
+            await _customerService.UpdateAsync(
+                input.CustomerId,
+                new UpdateCustomerRequest
+                {
+                    Kind = input.Kind,
+                    FullName = input.FullName,
+                    OrganizationName = input.OrganizationName,
+                    ContactPhone = input.ContactPhone,
+                    Email = input.Email,
+                    Address = input.Address,
+                    Edrpou = input.Edrpou,
+                    Rnokpp = input.Rnokpp,
+                    Notes = input.Notes
+                },
+                cancellationToken);
+
+            TempData["OrderDetailSuccess"] = "Дані замовника оновлено.";
+        }
+        catch (InvalidOperationException ex)
+        {
+            TempData["OrderDetailError"] = ex.Message;
+        }
+
+        return RedirectToAction(nameof(Details), new { id = input.OrderId });
     }
 
     [HttpPost]
@@ -532,4 +582,20 @@ public sealed class OrdersController : Controller
 
         public List<OrderSharedFieldValueInput>? SharedValues { get; set; }
     }
+
+    private static UpdateOrderCustomerInputModel BuildCustomerEditModel(OrderDetailDto detail) =>
+        new()
+        {
+            OrderId = detail.OrderId,
+            CustomerId = detail.CustomerId,
+            Kind = detail.CustomerKind,
+            FullName = detail.CustomerFullName,
+            OrganizationName = detail.CustomerOrganizationName,
+            ContactPhone = detail.CustomerContactPhone,
+            Email = detail.CustomerEmail,
+            Address = detail.CustomerAddress,
+            Edrpou = detail.CustomerEdrpou,
+            Rnokpp = detail.CustomerRnokpp,
+            Notes = detail.CustomerNotes
+        };
 }
