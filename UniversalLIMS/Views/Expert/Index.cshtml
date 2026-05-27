@@ -94,6 +94,7 @@ else
                     <th>Док.</th>
                     <th>Дата реєстрації</th>
                     <th>Розгляд</th>
+                    <th>Примітка експерта</th>
                     <th></th>
                 </tr>
             </thead>
@@ -113,6 +114,22 @@ else
                             <span class="badge lims-status-badge @ExpertConclusionStatusDisplay.BadgeClass(reviewStatus)">
                                 @ExpertConclusionStatusDisplay.ToUk(reviewStatus)
                             </span>
+                            @if (sample.ApprovedAtUtc.HasValue)
+                            {
+                                <div class="small text-muted mt-1">
+                                    @sample.ApprovedAtUtc.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
+                                </div>
+                            }
+                        </td>
+                        <td style="max-width: 280px;">
+                            @if (string.IsNullOrWhiteSpace(sample.NotesUk))
+                            {
+                                <span class="text-muted">—</span>
+                            }
+                            else
+                            {
+                                <span title="@sample.NotesUk">@sample.NotesUk</span>
+                            }
                         </td>
                         <td class="text-end text-nowrap">
                             @if (reviewStatus != ExpertConclusionStatus.Approved)
@@ -121,12 +138,20 @@ else
                                    asp-action="Review"
                                    asp-route-sampleId="@sample.SampleId"
                                    title="Висновок у PDF">PDF</a>
-                                <form asp-action="Approve" method="post" class="d-inline">
+                                <button type="button"
+                                        class="btn btn-sm btn-success expert-approve-open"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#expertApproveModal"
+                                        data-sample-id="@sample.SampleId"
+                                        data-sample-number="@sample.SampleNumber">
+                                    Затвердити
+                                </button>
+                                <form asp-action="Approve" method="post" class="d-inline expert-approve-quick-form">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="sampleId" value="@sample.SampleId" />
-                                    <button type="submit" class="btn btn-sm btn-success"
-                                            title="Затвердити без додаткових приміток">
-                                        Затвердити
+                                    <button type="submit" class="btn btn-sm btn-outline-success"
+                                            title="Швидке затвердження без приміток">
+                                        ✓
                                     </button>
                                 </form>
                             }
@@ -187,4 +212,61 @@ else
         Показано @Model.Result.Items.Count з @Model.Result.TotalCount
         (сторінка @Model.Result.Page з @(Model.Result.TotalPages == 0 ? 1 : Model.Result.TotalPages)).
     </p>
+}
+
+<div class="modal fade" id="expertApproveModal" tabindex="-1" aria-labelledby="expertApproveModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form asp-action="Approve" method="post">
+                @Html.AntiForgeryToken()
+                <div class="modal-header">
+                    <h2 class="modal-title fs-6" id="expertApproveModalTitle">Затвердити висновок</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрити"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="expertApproveSampleId" name="sampleId" value="" />
+                    <p class="mb-2">
+                        Проба: <strong id="expertApproveSampleNumber">—</strong>
+                    </p>
+                    <label class="form-label small text-muted" for="expertApproveNotesUk">Примітка експерта (необов'язково)</label>
+                    <textarea id="expertApproveNotesUk"
+                              name="notesUk"
+                              class="form-control"
+                              rows="4"
+                              maxlength="2000"
+                              placeholder="Наприклад: уточнити формулювання висновку, перевірити показник..."></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Скасувати</button>
+                    <button type="submit" class="btn btn-success">Підтвердити затвердження</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts
+{
+    <script>
+        (() => {
+            const sampleIdInput = document.getElementById("expertApproveSampleId");
+            const sampleNumberEl = document.getElementById("expertApproveSampleNumber");
+            const notesEl = document.getElementById("expertApproveNotesUk");
+            document.querySelectorAll(".expert-approve-open").forEach((button) => {
+                button.addEventListener("click", () => {
+                    const sampleId = button.getAttribute("data-sample-id") || "";
+                    const sampleNumber = button.getAttribute("data-sample-number") || "—";
+                    if (sampleIdInput) {
+                        sampleIdInput.value = sampleId;
+                    }
+                    if (sampleNumberEl) {
+                        sampleNumberEl.textContent = sampleNumber;
+                    }
+                    if (notesEl) {
+                        notesEl.value = "";
+                    }
+                });
+            });
+        })();
+    </script>
 }

@@ -108,6 +108,18 @@ public sealed class ExpertReviewQueueService : IExpertReviewQueueService
                 ReviewStatus = _context.ExpertConclusionReviews
                     .Where(review => review.SampleId == sample.Id)
                     .Select(review => (ExpertConclusionStatus?)review.Status)
+                    .FirstOrDefault(),
+                ApprovedAtUtc = _context.ExpertConclusionReviews
+                    .Where(review => review.SampleId == sample.Id)
+                    .Select(review => review.ApprovedAtUtc)
+                    .FirstOrDefault(),
+                ApprovedByUserId = _context.ExpertConclusionReviews
+                    .Where(review => review.SampleId == sample.Id)
+                    .Select(review => review.ApprovedByUserId)
+                    .FirstOrDefault(),
+                NotesUk = _context.ExpertConclusionReviews
+                    .Where(review => review.SampleId == sample.Id)
+                    .Select(review => review.NotesUk)
                     .FirstOrDefault()
             })
             .ToListAsync(cancellationToken);
@@ -124,7 +136,10 @@ public sealed class ExpertReviewQueueService : IExpertReviewQueueService
                 InvestigationTypeName = row.InvestigationTypeName,
                 DocumentCount = row.DocumentCount,
                 TargetBranchName = string.Join(", ", row.TargetBranchNames),
-                ReviewStatus = row.ReviewStatus
+                ReviewStatus = row.ReviewStatus,
+                ApprovedAtUtc = row.ApprovedAtUtc,
+                ApprovedByUserId = row.ApprovedByUserId,
+                NotesUk = row.NotesUk
             })
             .ToList();
 

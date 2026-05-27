@@ -24,4 +24,10 @@ public sealed class ExpertReviewQueueItemDto
     public int DocumentCount { get; init; }
 
     public ExpertConclusionStatus? ReviewStatus { get; init; }
+
+    public DateTime? ApprovedAtUtc { get; init; }
+
+    public string? ApprovedByUserId { get; init; }
+
+    public string? NotesUk { get; init; }
 }
