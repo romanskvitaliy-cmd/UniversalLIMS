@@ -164,6 +164,12 @@ else
                             }
                         </td>
                         <td class="text-end text-nowrap">
+                            <a class="btn btn-sm btn-outline-secondary"
+                               asp-action="Details"
+                               asp-route-sampleId="@sample.SampleId"
+                               title="Деталі проби">
+                                Деталі
+                            </a>
                             @if (reviewStatus != ExpertConclusionStatus.Approved)
                             {
                                 @if (reviewStatus == ExpertConclusionStatus.InProgress)

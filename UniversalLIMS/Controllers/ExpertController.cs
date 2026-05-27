@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using UniversalLIMS.Application.Expert;
 using UniversalLIMS.Application.Expert.Abstractions;
+using UniversalLIMS.Domain.Laboratory;
 using UniversalLIMS.Application.Security;
 using UniversalLIMS.Infrastructure.Filters;
 using UniversalLIMS.Infrastructure.Persistence;
@@ -100,6 +101,74 @@ public sealed class ExpertController : Controller
                 InvestigationTypeName = sampleMeta.NameUk,
                 Targets = targets
             });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Details(Guid sampleId, CancellationToken cancellationToken)
+    {
+        var sample = await _context.Samples
+            .AsNoTracking()
+            .Where(entity => entity.Id == sampleId && !entity.IsAnnulled)
+            .Select(entity => new
+            {
+                entity.Id,
+                entity.Number,
+                InvestigationTypeName = entity.InvestigationType.NameUk,
+                CustomerFullName = entity.Order.Customer.FullName,
+                entity.Order.ReferralNumber,
+                entity.RegisteredAt
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (sample is null)
+        {
+            return NotFound();
+        }
+
+        var review = await _context.ExpertConclusionReviews
+            .AsNoTracking()
+            .Where(entity => entity.SampleId == sampleId)
+            .Select(entity => new
+            {
+                entity.Status,
+                entity.ReviewStartedAtUtc,
+                entity.ApprovedAtUtc,
+                entity.NotesUk
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var documents = await _context.OrderDocuments
+            .AsNoTracking()
+            .Where(document => document.SampleId == sampleId && !document.IsAnnulled)
+            .OrderBy(document => document.Template.NameUk)
+            .ThenBy(document => document.TemplateVersion.VersionNumber)
+            .Select(document => new ExpertSampleDocumentItemViewModel
+            {
+                OrderDocumentId = document.Id,
+                TemplateName = document.Template.NameUk,
+                VersionNumber = document.TemplateVersion.VersionNumber,
+                TargetBranchName = document.TargetBranch.Name,
+                Status = document.Status,
+                SentToLabAtUtc = document.SentToLabAtUtc
+            })
+            .ToListAsync(cancellationToken);
+
+        var model = new ExpertSampleDetailsViewModel
+        {
+            SampleId = sample.Id,
+            SampleNumber = sample.Number,
+            InvestigationTypeName = sample.InvestigationTypeName,
+            CustomerFullName = sample.CustomerFullName,
+            ReferralNumber = sample.ReferralNumber,
+            RegisteredAtUtc = sample.RegisteredAt,
+            ReviewStatus = review?.Status ?? ExpertConclusionStatus.PendingReview,
+            ReviewStartedAtUtc = review?.ReviewStartedAtUtc,
+            ApprovedAtUtc = review?.ApprovedAtUtc,
+            NotesUk = review?.NotesUk,
+            Documents = documents
+        };
+
+        return View(model);
     }
 
     [HttpPost]
