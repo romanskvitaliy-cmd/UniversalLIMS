@@ -171,6 +171,124 @@ public sealed class TemplateVersionServiceRepublishTests
         Assert.Null(version.RepublishedAtUtc);
     }
 
+    [Fact]
+    public async Task RepublishAsync_LegacyVersionWithoutFirstPublished_BackfillsFromPublishedAtUtc()
+    {
+        var templateId = Guid.NewGuid();
+        var v5Id = Guid.NewGuid();
+        var legacyPublishedUtc = new DateTime(2024, 6, 1, 9, 0, 0, DateTimeKind.Utc);
+        var republishUtc = new DateTime(2026, 5, 27, 6, 0, 0, DateTimeKind.Utc);
+
+        await using var context = CreateContext();
+        context.Templates.Add(new Template
+        {
+            Id = templateId,
+            Code = "T-LEG",
+            NameUk = "Legacy dates",
+            Status = TemplateStatus.Active,
+            CurrentPublishedVersionId = Guid.NewGuid()
+        });
+
+        context.TemplateVersions.Add(new TemplateVersion
+        {
+            Id = v5Id,
+            TemplateId = templateId,
+            VersionNumber = 5,
+            Status = TemplateVersionStatus.Superseded,
+            DocumentFormat = TemplateDocumentFormat.Pdf,
+            OriginalFileName = "v5.pdf",
+            StorageKey = "templates/v5.pdf",
+            ContentType = "application/pdf",
+            FileSizeBytes = 1,
+            Sha256Hash = new string('d', 64),
+            UploadedAtUtc = legacyPublishedUtc.AddDays(-1),
+            FirstPublishedAtUtc = null,
+            PublishedAtUtc = legacyPublishedUtc
+        });
+
+        await context.SaveChangesAsync();
+
+        var service = CreateService(context, republishUtc);
+        var result = await service.RepublishAsync(v5Id, "Повторна активація legacy");
+
+        Assert.True(result.IsValid);
+
+        var version = await context.TemplateVersions.AsNoTracking().SingleAsync(item => item.Id == v5Id);
+        Assert.Equal(legacyPublishedUtc, version.FirstPublishedAtUtc);
+        Assert.Equal(republishUtc, version.RepublishedAtUtc);
+        Assert.Equal(republishUtc, version.PublishedAtUtc);
+    }
+
+    [Fact]
+    public async Task RepublishAsync_WhenValidationFails_LeavesCurrentPublishedUnchanged()
+    {
+        var templateId = Guid.NewGuid();
+        var currentId = Guid.NewGuid();
+        var supersededId = Guid.NewGuid();
+
+        await using var context = CreateContext();
+        context.Templates.Add(new Template
+        {
+            Id = templateId,
+            Code = "T-BLOCK",
+            NameUk = "Blocked republish",
+            Status = TemplateStatus.Active,
+            CurrentPublishedVersionId = currentId
+        });
+
+        context.TemplateVersions.AddRange(
+            new TemplateVersion
+            {
+                Id = supersededId,
+                TemplateId = templateId,
+                VersionNumber = 5,
+                Status = TemplateVersionStatus.Superseded,
+                DocumentFormat = TemplateDocumentFormat.Pdf,
+                OriginalFileName = "v5.pdf",
+                StorageKey = "templates/v5.pdf",
+                ContentType = "application/pdf",
+                FileSizeBytes = 1,
+                Sha256Hash = new string('e', 64),
+                UploadedAtUtc = DateTime.UtcNow
+            },
+            new TemplateVersion
+            {
+                Id = currentId,
+                TemplateId = templateId,
+                VersionNumber = 7,
+                Status = TemplateVersionStatus.Published,
+                DocumentFormat = TemplateDocumentFormat.Pdf,
+                OriginalFileName = "v7.pdf",
+                StorageKey = "templates/v7.pdf",
+                ContentType = "application/pdf",
+                FileSizeBytes = 1,
+                Sha256Hash = new string('f', 64),
+                UploadedAtUtc = DateTime.UtcNow,
+                PublishedAtUtc = DateTime.UtcNow
+            });
+
+        await context.SaveChangesAsync();
+
+        var service = new TemplateVersionService(
+            context,
+            new TestCurrentUserService(),
+            new TestDateTimeProvider(DateTime.UtcNow),
+            new TestDocxContentControlReader(),
+            new TestTemplateDocumentStorage(),
+            new TestWordToPdfDocumentConverter(),
+            new FailingTemplatePublicationValidator());
+
+        var result = await service.RepublishAsync(supersededId, "blocked");
+
+        Assert.False(result.IsValid);
+
+        var template = await context.Templates.AsNoTracking().SingleAsync(item => item.Id == templateId);
+        Assert.Equal(currentId, template.CurrentPublishedVersionId);
+
+        var superseded = await context.TemplateVersions.AsNoTracking().SingleAsync(item => item.Id == supersededId);
+        Assert.Equal(TemplateVersionStatus.Superseded, superseded.Status);
+    }
+
     private static TemplateVersionService CreateService(ApplicationDbContext context, DateTime utcNow) =>
         new(
             context,
@@ -267,5 +385,21 @@ public sealed class TemplateVersionServiceRepublishTests
             Guid templateVersionId,
             CancellationToken cancellationToken = default) =>
             Task.FromResult(new PublicationValidationResult());
+    }
+
+    private sealed class FailingTemplatePublicationValidator : ITemplatePublicationValidator
+    {
+        public Task<PublicationValidationResult> ValidateAsync(
+            Guid templateVersionId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(new PublicationValidationResult());
+
+        public Task<PublicationValidationResult> ValidateRepublishAsync(
+            Guid templateVersionId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(new PublicationValidationResult
+            {
+                Errors = ["Republish blocked for test."]
+            });
     }
 }
