@@ -258,6 +258,7 @@ public sealed class OrderRegistrationServiceTests
         Assert.Equal(registrarBranchId, order.BranchId);
         Assert.Equal(2, order.Samples.Count);
         Assert.Equal(2, order.OrderDocuments.Count);
+        Assert.Equal(2, order.Samples.Select(sample => sample.Number).Distinct().Count());
         Assert.Contains(order.Samples, sample => sample.InvestigationTypeId == waterTypeId);
         Assert.Contains(order.Samples, sample => sample.InvestigationTypeId == foodTypeId);
         Assert.Contains(order.OrderDocuments, document =>

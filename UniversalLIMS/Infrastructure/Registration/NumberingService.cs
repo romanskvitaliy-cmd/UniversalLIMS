@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using UniversalLIMS.Application.Abstractions;
 using UniversalLIMS.Application.Registration.Abstractions;
+using UniversalLIMS.Domain.Registration;
 using UniversalLIMS.Infrastructure.Persistence;
 
 namespace UniversalLIMS.Infrastructure.Registration;
@@ -29,7 +30,9 @@ public sealed class NumberingService : INumberingService
             .Select(sample => sample.Number)
             .FirstOrDefaultAsync(cancellationToken);
 
-        var nextSequence = ParseSequence(latestNumber, prefix) + 1;
+        var dbSequence = ParseSequence(latestNumber, prefix);
+        var pendingSequence = GetMaxPendingSampleSequence(prefix);
+        var nextSequence = Math.Max(dbSequence, pendingSequence) + 1;
         return $"{prefix}{nextSequence:D5}";
     }
 
@@ -76,5 +79,16 @@ public sealed class NumberingService : INumberingService
 
         var suffix = latestNumber[prefix.Length..];
         return int.TryParse(suffix, out var sequence) ? sequence : 0;
+    }
+
+    private int GetMaxPendingSampleSequence(string prefix)
+    {
+        return _context.ChangeTracker.Entries<Sample>()
+            .Where(entry => entry.State == EntityState.Added)
+            .Select(entry => entry.Entity.Number)
+            .Where(number => number.StartsWith(prefix, StringComparison.Ordinal))
+            .Select(number => ParseSequence(number, prefix))
+            .DefaultIfEmpty(0)
+            .Max();
     }
 }
