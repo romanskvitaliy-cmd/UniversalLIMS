@@ -1,14 +1,17 @@
 # Handoff для наступного агента — UniversalLIMS
 
-> Оновлено: 2026-05-25 (додано PDF Fill panel + lifecycle версій)  
-> Мова UI і доменних назв: **українська**.
+> Оновлено: 2026-05-27  
+> Мова UI і доменних назв: **українська**.  
+> Цей файл — короткий entrypoint. Детальний актуальний handoff по multi-sample / PDF / lab admin: `docs/handoff-multi-sample-lab-admin.md`.
 
 ---
 
 ## 0. Швидкі посилання
 
+- Актуальний handoff гілки: `docs/handoff-multi-sample-lab-admin.md`
+- Лабораторний цикл: `docs/handoff-stage-2-laboratory.md`
+- PDF Fill + lifecycle версій: `docs/handoff-pdf-fill-panel-and-template-lifecycle.md`
 - Політика версій шаблонів: `docs/handoff-template-versioning-policy.md`
-- Fill + lifecycle версій: `docs/handoff-pdf-fill-panel-and-template-lifecycle.md`
 - Гібридні теги + мапінг реєстратури: `docs/handoff-hybrid-tags-and-registry-mapping.md`
 
 ---
@@ -17,46 +20,61 @@
 
 | Блок | Статус |
 |------|--------|
-| Портал ролей, workspace, теми, quick links | ✅ Закрито (коміт `1d683d9`) |
-| PDF Workspace + конструктор шаблонів (адмін/реєстратор) | ✅ Працює |
-| **PR-1** — Реєстр замовлень (read-only) | ✅ Реалізовано, **не закомічено** |
-| **PR-2** — Створення Order/Sample + PDF redirect | ✅ Реалізовано, **не закомічено** |
-| **PDF Fill — панель + макет шаблону + layout API** | ✅ Реалізовано локально (див. **`handoff-pdf-fill-panel-and-template-lifecycle.md`**) |
-| **Спринт 3** — Лабораторний журнал | 🟡 Журнал + ResultEntry + workflow документів (див. `handoff-stage-2-laboratory.md`) |
+| Портал ролей, workspace, теми, quick links | Закрито |
+| Реєстр замовлень + створення Order/Sample | Закрито |
+| Multi-sample create (`Samples[]`) | Закрито |
+| PDF Workspace scoped by `OrderDocumentId` / `SampleId` | Закрито |
+| Details з групуванням документів по пробах | Закрито |
+| Post-create redirect у PDF Fill | Закрито |
+| Лабораторний журнал + ResultEntry | Закрито базовий цикл |
+| Admin `/Laboratories` + контекст філії | Закрито |
+| UX для lab counts: workflow vs awaiting send | Закрито локальними комітами |
 
-**Рішення продукту:** спочатку реєстратура (A) — зроблено; далі лабораторія (B).
+**Поточна гілка:** `main`, локально попереду `origin/main` на кілька комітів. `debug-40b8bf.log` змінений локально автоматично, але його **не комітити**.
 
 ---
 
-## 2. Що вже є в коді (реєстратура)
+## 2. Що вже є в коді
 
-### Сервіси
-- `IOrderRegistrationService` / `OrderRegistrationService` — список + створення замовлення
+### Реєстратура
+- `IOrderRegistrationService` / `OrderRegistrationService` — список, створення multi-sample, details, send to lab
 - `ICustomerService` — пошук/створення клієнта
-- `INumberingService` — `ReferralNumber`, `Sample.Number`
-- `IPdfWorkspaceFillService` — fill/save/final PDF
+- `INumberingService` — `ReferralNumber`, `Sample.Number`; враховує pending Added samples у ChangeTracker
+- `OrderPostCreateNavigation` — redirect у PDF Fill для single-document create
 
 ### UI / API
 | URL | Опис |
 |-----|------|
 | `GET /Orders` | Реєстр замовлень (фільтри, пагінація) |
 | `GET /Orders/Create` | Нова справа |
-| `POST /Orders/Create` | → redirect на PDF Fill |
+| `POST /Orders/Create` | Створення multi-sample order |
+| `GET /Orders/Details/{id}` | Документи згруповані по пробах; fill/send actions |
 | `GET /api/orders` | JSON реєстр |
 | `POST /api/orders` | JSON створення |
 | `GET /api/customers/search?q=` | Пошук клієнта |
-| `GET /PdfWorkspace/Fill/{versionId}?orderId=` | Заповнення PDF |
+| `GET /PdfWorkspace/Fill/{versionId}?orderId=&orderDocumentId=` | Заповнення PDF конкретного документа |
 
-### Навігація
-- `WorkspaceNavigationCatalog` — пункт **Замовлення** для `Registrar`
+### PDF Workspace
+- Fill values scoped by `OrderDocumentId` → `OrderDocument.SampleId`
+- Legacy без `orderDocumentId`: order-level (`SampleId = null`)
+- Лабораторні PDF links теж передають `orderDocumentId`
 
-### Seed
-- `DataSeeder.AssignDefaultBranchesToUsersAsync` — користувачам без `BranchId` → філія **ZHY**
+### Лабораторія / Admin
+- `LaboratoryJournalService` — журнал: один рядок на пробу
+- `ResultEntryService` — `SampleResultValue`, workflow лише для документів тієї ж проби
+- `/Laboratories` — огляд філій, session context через `LaboratoryBranchContext`
+- `LaboratoryOverviewService` — рахує `ActiveSampleCount` для lab workflow і `AwaitingSendSampleCount` для Pending
 
 ### Тести
-- `OrderRegistrationServiceTests` (4+3 тести)
+- `OrderRegistrationServiceTests`
+- `PdfWorkspaceFillServiceTests`
+- `LaboratoryPdfFillServiceTests`
+- `ResultEntryServiceTests`
+- `LaboratoryOverviewServiceTests`
+- `NumberingServiceTests`
+- `OrderPostCreateNavigationTests`
+- `LaboratoryJournalServiceTests`
 - `PortalEntryFlowTests`
-- `PdfWorkspaceFillServiceTests` (+ `TestHostEnvironment` для dev auto-order)
 
 ---
 
@@ -87,65 +105,57 @@ DbContext → Interceptors → CurrentUserService → DbContext
 
 ---
 
-## 4. Незакомічені зміни (зробити першим кроком)
+## 4. Поточний git / перевірки
+
+Перед новою роботою:
 
 ```powershell
 git status
-dotnet test .\UniversalLIMS.sln
+dotnet build UniversalLIMS/UniversalLIMS.csproj
+dotnet test UniversalLIMS.Tests/UniversalLIMS.Tests.csproj --filter "FullyQualifiedName~OrderRegistrationServiceTests|FullyQualifiedName~PdfWorkspaceFillServiceTests|FullyQualifiedName~LaboratoryPdfFillServiceTests|FullyQualifiedName~ResultEntryServiceTests|FullyQualifiedName~LaboratoryOverviewServiceTests|FullyQualifiedName~NumberingServiceTests|FullyQualifiedName~OrderPostCreateNavigationTests|FullyQualifiedName~LaboratoryJournalServiceTests"
 ```
 
-**Рекомендований коміт (один або два PR):**
-
-```text
-feat(registration): order registry, create flow, and customer search API
-
-- Orders index/create UI for registrar
-- IOrderRegistrationService with SSOT customer name
-- Block implicit PDF orders outside Development
-- Seed default branch ZHY for users without BranchId
-```
+Останній focused прогін: build зелений, 52 тести зелені.
 
 **Не комітити:** `debug-40b8bf.log`, `_runout.txt`, `_runerr.txt`, `.vs/`, `bin/`, `obj/`.
 
 ---
 
-## 5. Наступний великий блок — Спринт 3 (лабораторія)
+## 5. Ручний QA зараз
 
-Документ: **`docs/handoff-stage-2-laboratory.md`**
+### Реєстратор
+1. Створити замовлення з 2+ дослідженнями: різні `Sample.Number`, без `IX_Samples_OrderId_Number`.
+2. Відкрити Details: документи згруповані по пробах.
+3. Заповнити PDF кожного документа окремо: значення не змішуються між `OrderDocumentId`.
+4. Для single-document create + «Відкрити PDF»: URL містить `orderDocumentId`.
 
-### Порядок PR
+### Адміністратор
+1. Перемкнути активну роль на **Адміністратор**.
+2. `/Laboratories`: перевірити різницю «У workflow» vs «Очікує відправки».
+3. Відкрити журнал усіх лабораторій і журнал конкретної філії.
+4. Перемкнутися назад на Лаборанта: навігація має змінитися.
 
-#### PR-3a — Журнал проб (read-only)
-1. `ILaboratoryJournalService.GetSamplesAsync(SampleJournalFilter)` → `PagedResult<SampleJournalItemDto>`
-2. Фільтри: номер проби, дата, статус, філія (`ICurrentUserService.BranchId`)
-3. `LaboratoryController` + `Views/Laboratory/Index.cshtml`
-4. Policy: `LimsPolicies.EnterLaboratoryResults`
-5. Увімкнути quick links лаборанта в `WorkspaceNavigationCatalog`
+### Лаборант
+1. Відкрити журнал: видно лише відправлені в лабораторію проби.
+2. Для multi-sample: partial send має показувати тільки відправлені документи.
+3. Якщо у проби кілька PDF, `Results` має вести через `ChooseDocument` або відкривати конкретний `orderDocumentId`.
 
-#### PR-3b — Внесення результатів
-1. `IResultEntryService` — CRUD `SampleResultValue` (annul + new row, ISO)
-2. `IResultFieldPermissionService` — FLS для `DataFieldScope.Result`
-3. `ISampleWorkflowService` — переходи `SampleStatus` / `OrderDocumentStatus`
-4. Форма внесення результатів по `SampleId`
-5. Seed: `DataField` з `Scope = Result`, `Equipment`
+### Важлива QA-нотатка
 
-#### PR-3c — Тести + seed
-- Unit/integration на journal, result entry, FLS deny
-- Перевірка: результати **не** в `OrderFieldValue`
-
-### Домен уже в БД
-- `SampleResultValue`, `Equipment` — сутності є
-- `SampleStatus`: `Registered`, `Routed`, `InProgress`, `ResultsEntered`
+`/Orders` показує всі створені проби/документи. `/Laboratories` і журнал рахують тільки те, що вже відправлено в лабораторію (`OrderDocumentStatus != Pending`). Pending документи тепер додатково видно як «Очікує відправки».
 
 ---
 
-## 6. Паралельний беклог (за бажанням)
+## 6. Беклог
 
-### Реєстратура (допиляти A)
-- [ ] Статус `Order` → `Registered` після успішного fill PDF
-- [ ] `SentToLab` на `OrderDocument` при відправці в лабораторію
-- [ ] Редагування клієнта з реєстру
-- [ ] Оновлення claims філії при логіні (без циклу DI)
+### Лабораторія
+- [ ] «Результати внесено» per document vs per sample: зараз `SampleWorkflowService` при complete закриває всі документи проби.
+- [ ] Етап 3–4: експерт, протоколи, висновки.
+
+### Реєстратура
+- [ ] Прибрати legacy fallback `GetEffectiveSamples()` / старі поля create-form після стабілізації multi-sample UI.
+- [ ] `Order` → Registered після успішного PDF fill, якщо потрібна окрема статусна подія.
+- [ ] Редагування клієнта з реєстру.
 
 ### PDF Workspace
 - Детально: **`docs/handoff-pdf-fill-panel-and-template-lifecycle.md`** (панель, layout save, версії)
@@ -158,7 +168,6 @@ feat(registration): order registry, create flow, and customer search API
 
 ### UI / дрібниці
 - [ ] Логотип ЦКПХ у hero порталу
-- [ ] Адмін: пункт «Замовлення» (опційно)
 
 ---
 
@@ -188,7 +197,8 @@ taskkill /F /IM UniversalLIMS.exe
 ```
 
 **Ролі:** Registrar → `/Orders`, `/Orders/Create`, `/PdfWorkspace`  
-**Лаборант:** поки заглушки в quick links — після PR-3a.
+**Лаборант:** `/Laboratory`  
+**Адміністратор:** `/Laboratories`, після активної ролі **Адміністратор**.
 
 ---
 
@@ -197,13 +207,15 @@ taskkill /F /IM UniversalLIMS.exe
 ```text
 Проєкт UniversalLIMS (.NET 8 MVC). Прочитай:
 1) docs/handoff-next-agent.md
-2) docs/handoff-pdf-fill-panel-and-template-lifecycle.md — якщо задача про PDF Fill / шаблони / публікацію
+2) docs/handoff-multi-sample-lab-admin.md
 3) docs/handoff-stage-2-laboratory.md — якщо задача про лабораторію
+4) docs/handoff-pdf-fill-panel-and-template-lifecycle.md — якщо задача про PDF Fill / шаблони / публікацію
 
-Контекст: PR-1/PR-2 + PDF Fill panel/layout реалізовані локально. НЕ інжектуй ApplicationDbContext в CurrentUserService.
+Контекст: multi-sample flow, PDF scoped by OrderDocumentId, admin /Laboratories,
+post-create redirect, portal role switch, sample numbering fix. НЕ інжектуй ApplicationDbContext в CurrentUserService.
 
-Задача: [уточнити]. Два збереження Fill: values (замовлення) vs layout (версія шаблону).
-Беклог: Republish Superseded, дві дати публікації.
+Задача: [уточнити — QA або беклог §6].
+Правила: не відкатувати чужі зміни; не комітити debug-40b8bf.log; після етапу дати короткий звіт і commit message.
 ```
 
 ---
@@ -213,8 +225,11 @@ taskkill /F /IM UniversalLIMS.exe
 | Область | Файли |
 |---------|--------|
 | Реєстратура | `OrderRegistrationService.cs`, `OrdersController.cs`, `Views/Orders/` |
-| PDF | `PdfWorkspaceFillService.cs`, `PdfWorkspaceController.cs` |
+| Multi-sample UI | `Views/Orders/Create.cshtml`, `wwwroot/js/order-create.js` |
+| PDF | `PdfWorkspaceFillService.cs`, `PdfWorkspaceController.cs`, `pdf-workspace-fill.js` |
+| Лабораторія | `LaboratoryController.cs`, `LaboratoryJournalService.cs`, `ResultEntryService.cs`, `Views/Laboratory/` |
+| Admin labs | `LaboratoriesController.cs`, `LaboratoryOverviewService.cs`, `Views/Laboratories/Index.cshtml` |
 | Security | `LimsPolicies.cs`, `RequireActiveLimsRoleAttribute`, `ApplicationUserClaimsPrincipalFactory` |
 | Seed | `DataSeeder.cs` |
 | Навігація | `WorkspaceNavigationCatalog.cs` |
-| Доки | `handoff-pdf-fill-panel-and-template-lifecycle.md`, `handoff-pdf-workspace-fill.md`, `handoff-stage-1-registration.md`, `handoff-stage-2-laboratory.md` |
+| Доки | `handoff-multi-sample-lab-admin.md`, `handoff-pdf-fill-panel-and-template-lifecycle.md`, `handoff-pdf-workspace-fill.md`, `handoff-stage-1-registration.md`, `handoff-stage-2-laboratory.md` |
