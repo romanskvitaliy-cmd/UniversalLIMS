@@ -905,11 +905,13 @@
         }
         const trimmed = String(tag ?? "").trim();
         if (trimmed) {
-            libraryTag.textContent = `· ${trimmed}`;
+            libraryTag.textContent = trimmed;
+            libraryTag.hidden = false;
             libraryTag.classList.remove("d-none");
             libraryTag.title = `Бібліотека для тегу ${trimmed}`;
         } else {
             libraryTag.textContent = "";
+            libraryTag.hidden = true;
             libraryTag.classList.add("d-none");
             libraryTag.removeAttribute("title");
         }

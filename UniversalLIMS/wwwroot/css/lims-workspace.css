@@ -2482,12 +2482,12 @@ a.lims-workspace-quicklink:hover {
 
 .pdf-fill-library-browser__collapse-btn {
     display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
+    align-items: flex-start;
+    gap: 0.35rem;
     flex: 1 1 auto;
     min-width: 0;
     margin: 0;
-    padding: 0.15rem 0.25rem;
+    padding: 0.2rem 0.3rem;
     border: none;
     border-radius: 6px;
     background: transparent;
@@ -2507,6 +2507,7 @@ a.lims-workspace-quicklink:hover {
 .pdf-fill-library-browser__chevron {
     flex: 0 0 auto;
     width: 0.75rem;
+    margin-top: 0.12rem;
     font-size: 0.65rem;
     color: #64748b;
     transition: transform 0.15s ease;
@@ -2516,12 +2517,35 @@ a.lims-workspace-quicklink:hover {
     transform: rotate(90deg);
 }
 
+.pdf-fill-library-browser__heading {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.1rem;
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
 .pdf-fill-library-browser__title {
     font-size: 0.68rem;
     font-weight: 700;
     color: var(--ws-text, #0f172a);
     text-transform: uppercase;
     letter-spacing: 0.02em;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.pdf-fill-library-browser__tag {
+    display: block;
+    max-width: 100%;
+    font-size: 0.64rem;
+    font-weight: 500;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    line-height: 1.25;
+    color: #64748b;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
 }
 
@@ -2542,11 +2566,14 @@ a.lims-workspace-quicklink:hover {
 }
 
 .pdf-fill-library-browser__count {
+    align-self: center;
     font-size: 0.62rem;
+    font-variant-numeric: tabular-nums;
 }
 
 .pdf-fill-library-browser__toolbar-actions {
     display: flex;
+    align-items: center;
     gap: 0.25rem;
     flex: 0 0 auto;
 }
@@ -3288,8 +3315,12 @@ body.pdf-fill-library-modal-open {
 
 .pdf-fill-text-style__grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 0.45rem 0.4rem;
+}
+
+.pdf-fill-text-style__cell:not(.pdf-fill-text-style__cell--wide) {
+    min-width: 0;
 }
 
 .pdf-fill-text-style__cell--wide {
@@ -3357,7 +3388,7 @@ body.pdf-fill-library-modal-open {
 
 .pdf-fill-text-style__stepper .form-control {
     flex: 1 1 auto;
-    min-width: 0;
+    min-width: 2.4rem;
     min-height: 1.85rem;
     border: none;
     border-left: 1px solid #e2e8f0;
