@@ -297,6 +297,8 @@ public sealed class PdfWorkspaceFillServiceTests
         var savedA = await service.GetSavedValuesByKeyAsync(order.Id, versionId, documentA.Id);
         var savedB = await service.GetSavedValuesByKeyAsync(order.Id, versionId, documentB.Id);
 
+        Assert.Equal("value A", savedA[templateFieldId.ToString("D")]);
+        Assert.Equal("value B", savedB[templateFieldId.ToString("D")]);
         Assert.Equal("value A", savedA["DocumentScopedValue"]);
         Assert.Equal("value B", savedB["DocumentScopedValue"]);
     }
@@ -1577,6 +1579,138 @@ public sealed class PdfWorkspaceFillServiceTests
         var cleared = await context.OrderFieldValues.SingleAsync(fieldValue => fieldValue.OrderId == orderId);
         Assert.Equal(dataFieldId, cleared.DataFieldId);
         Assert.Null(cleared.StoredValue);
+    }
+
+    [Fact]
+    public async Task GetSavedValuesByKeyAsync_ReturnsPerSegmentValuesByTemplateFieldIdKey()
+    {
+        await using var context = CreateContext();
+        var branchId = Guid.NewGuid();
+        var customerId = Guid.NewGuid();
+        var versionId = Guid.NewGuid();
+        var orderId = Guid.NewGuid();
+        var templateId = Guid.NewGuid();
+        var templateFieldId = Guid.NewGuid();
+        var dataFieldId = Guid.NewGuid();
+
+        context.Branches.Add(new Branch
+        {
+            Id = branchId,
+            Code = "BR-LINES",
+            Name = "Branch",
+            City = "Zhytomyr",
+            IsActive = true
+        });
+        context.Customers.Add(new Customer
+        {
+            Id = customerId,
+            Kind = CustomerKind.Individual,
+            FullName = "Customer"
+        });
+        context.InvestigationTypes.Add(new InvestigationType
+        {
+            Id = Guid.NewGuid(),
+            Code = "INV-LINES",
+            NameUk = "Investigation",
+            SortOrder = 1,
+            IsActive = true
+        });
+        context.Templates.Add(new Template
+        {
+            Id = templateId,
+            Code = "PDF-LINES",
+            NameUk = "Multi segment template",
+            Status = TemplateStatus.Draft
+        });
+        context.DataFields.Add(new DataField
+        {
+            Id = dataFieldId,
+            Key = templateFieldId.ToString("D"),
+            DisplayNameUk = "Line Field",
+            FieldType = DataFieldType.Text,
+            Scope = DataFieldScope.Registration,
+            IsActive = true
+        });
+        context.Orders.Add(new Order
+        {
+            Id = orderId,
+            CustomerId = customerId,
+            BranchId = branchId,
+            Status = OrderStatus.Draft,
+            ReferralNumber = "PDF-LINES-1"
+        });
+        context.TemplateVersions.Add(new TemplateVersion
+        {
+            Id = versionId,
+            TemplateId = templateId,
+            VersionNumber = 1,
+            Status = TemplateVersionStatus.Draft,
+            DocumentFormat = TemplateDocumentFormat.Pdf,
+            OriginalFileName = "template.pdf",
+            StorageKey = "templates/template.pdf",
+            ContentType = "application/pdf",
+            FileSizeBytes = 1,
+            Sha256Hash = new string('z', 64),
+            UploadedAtUtc = DateTime.UtcNow,
+            Fields =
+            [
+                new TemplateField
+                {
+                    Id = templateFieldId,
+                    TemplateVersionId = versionId,
+                    Tag = "LineField",
+                    Title = "Line field",
+                    DataFieldId = dataFieldId,
+                    SortOrder = 1,
+                    Segments =
+                    [
+                        new TemplateFieldSegment
+                        {
+                            Id = Guid.NewGuid(),
+                            Sequence = 1,
+                            PageNumber = 1,
+                            PositionX = 10,
+                            PositionY = 20,
+                            Width = 100,
+                            Height = 20,
+                            IsPrimary = true
+                        },
+                        new TemplateFieldSegment
+                        {
+                            Id = Guid.NewGuid(),
+                            Sequence = 2,
+                            PageNumber = 1,
+                            PositionX = 10,
+                            PositionY = 50,
+                            Width = 100,
+                            Height = 20,
+                            IsPrimary = false
+                        }
+                    ]
+                }
+            ]
+        });
+        context.OrderFieldValues.Add(new OrderFieldValue
+        {
+            OrderId = orderId,
+            DataFieldId = dataFieldId,
+            StoredValue = "first line\nsecond line"
+        });
+        await context.SaveChangesAsync();
+
+        var service = new PdfWorkspaceFillService(
+            context,
+            new FakeTemplateDocumentStorage(),
+            new OrderFieldValueService(context),
+            new AllowAllTemplateFieldPermissionService(context),
+            NullLogger<PdfWorkspaceFillService>.Instance,
+            NullLogger<ReferralPdfOverlayRenderer>.Instance,
+            TestHostEnvironment.Development);
+
+        var saved = await service.GetSavedValuesByKeyAsync(orderId, versionId);
+
+        Assert.Equal("first line", saved[$"{templateFieldId:D}#1"]);
+        Assert.Equal("second line", saved[$"{templateFieldId:D}#2"]);
     }
 
     [Fact]

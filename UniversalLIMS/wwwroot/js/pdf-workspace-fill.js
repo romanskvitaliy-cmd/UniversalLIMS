@@ -1565,13 +1565,11 @@
 
     const resolveSavedValueForSegment = (segment) => {
         const templateFieldId = String(segment.templateFieldId || "");
-        const tag = segment.tag || "";
         const sequence = segment.sequence ?? 0;
-        const fieldKey = segment.dataFieldKey || "";
         const siblings = segmentsByTemplateFieldId.get(templateFieldId) || [];
 
         if (siblings.length > 1) {
-            const lineKey = tag ? `${tag}#${sequence}` : "";
+            const lineKey = templateFieldId && sequence > 0 ? `${templateFieldId}#${sequence}` : "";
             if (lineKey && savedByKey[lineKey] != null) {
                 return String(savedByKey[lineKey]);
             }
@@ -1584,9 +1582,9 @@
             }
         }
 
-        const saved = savedByKey[templateFieldId]
-            ?? (tag ? savedByKey[tag] : undefined)
-            ?? (fieldKey ? savedByKey[fieldKey] : undefined);
+        // Safety: restore strictly by templateFieldId to avoid accidental cross-tag prefill
+        // when templates are not yet consistently marked.
+        const saved = savedByKey[templateFieldId];
         return saved == null ? "" : String(saved);
     };
 

@@ -1083,6 +1083,7 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
             for (var index = 0; index < field.Segments.Count; index++)
             {
                 var line = index < lines.Count ? lines[index] : string.Empty;
+                result[$"{field.Id:D}#{field.Segments[index].Sequence}"] = line;
                 result[$"{field.Tag}#{field.Segments[index].Sequence}"] = line;
             }
         }
