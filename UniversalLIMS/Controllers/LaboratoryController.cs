@@ -16,20 +16,17 @@ public sealed class LaboratoryController : Controller
 {
     private readonly ILaboratoryJournalService _journal;
     private readonly ILaboratoryPdfFillService _pdfFill;
-    private readonly IResultEntryService _resultEntry;
     private readonly ILaboratoryBranchContext _laboratoryBranchContext;
     private readonly ApplicationDbContext _context;
 
     public LaboratoryController(
         ILaboratoryJournalService journal,
         ILaboratoryPdfFillService pdfFill,
-        IResultEntryService resultEntry,
         ILaboratoryBranchContext laboratoryBranchContext,
         ApplicationDbContext context)
     {
         _journal = journal;
         _pdfFill = pdfFill;
-        _resultEntry = resultEntry;
         _laboratoryBranchContext = laboratoryBranchContext;
         _context = context;
     }
@@ -63,64 +60,6 @@ public sealed class LaboratoryController : Controller
     {
         await _laboratoryBranchContext.SetSelectedBranchAsync(activeLaboratoryBranchId, cancellationToken);
         return RedirectToAction(nameof(Index));
-    }
-
-    /// <summary>Табличне внесення показників (DataFieldScope.Result).</summary>
-    [HttpGet]
-    public async Task<IActionResult> ResultEntry(Guid sampleId, CancellationToken cancellationToken)
-    {
-        var form = await _resultEntry.GetResultEntryFormAsync(sampleId, cancellationToken);
-        if (form is null)
-        {
-            return NotFound();
-        }
-
-        var pdfTargets = await _pdfFill.GetFillTargetsAsync(sampleId, cancellationToken);
-
-        return View(
-            "Results",
-            new LaboratoryResultsViewModel
-            {
-                Form = form,
-                Input = new SaveResultEntryRequest
-                {
-                    OrderDocumentId = pdfTargets.Count == 1 ? pdfTargets[0].OrderDocumentId : null
-                },
-                HasPdfFillTargets = pdfTargets.Count > 0,
-                PdfFillTargets = pdfTargets
-            });
-    }
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> ResultEntry(
-        Guid sampleId,
-        LaboratoryResultsViewModel model,
-        CancellationToken cancellationToken)
-    {
-        var save = await _resultEntry.SaveResultValuesAsync(sampleId, model.Input, cancellationToken);
-        var form = await _resultEntry.GetResultEntryFormAsync(sampleId, cancellationToken);
-        if (form is null)
-        {
-            return NotFound();
-        }
-
-        var pdfTargets = await _pdfFill.GetFillTargetsAsync(sampleId, cancellationToken);
-        var statusMessage = save.Success
-            ? $"{save.Message} Поточний статус проби: {SampleStatusDisplay.ToUk(form.Status)}."
-            : save.Message;
-
-        return View(
-            "Results",
-            new LaboratoryResultsViewModel
-            {
-                Form = form,
-                Input = model.Input,
-                HasPdfFillTargets = pdfTargets.Count > 0,
-                PdfFillTargets = pdfTargets,
-                StatusMessage = statusMessage,
-                StatusType = save.Success ? "success" : "danger"
-            });
     }
 
     /// <summary>Відкриває PDF Workspace для заповнення полів на бланку.</summary>

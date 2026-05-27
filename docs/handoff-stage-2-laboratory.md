@@ -63,13 +63,18 @@ ZhytomyrLIMS — лабораторна інформаційна система 
 
 ## 4. Спринт 3 — Лабораторний цикл (поточне завдання)
 
+> Актуалізація 2026-05-27: окрема таблична сторінка «Показники» / `ResultEntryService`
+> прибрана з UI. Лаборант працює напряму з PDF Workspace, тегами шаблонів і
+> `FieldTextLibrary`. `SampleResultValue` лишається в домені/міграціях як історичний
+> фундамент, але не є поточним UI workflow.
+
 **Мета:** Реалізувати роботу лаборанта — журнал проб, внесення результатів, статусну модель.
 
 **In Scope:**
 
 - Лабораторний журнал (список проб + фільтри)
-- Внесення результатів (`SampleResultValue`)
-- Field-Level Security для `Scope = Result`
+- Заповнення лабораторних PDF через шаблонні теги та бібліотеку текстів
+- Field-Level Security на рівні PDF/template fields
 - Статусна модель (`SampleStatus`, `OrderDocumentStatus`)
 - Базовий довідник обладнання (опціонально)
 
@@ -117,9 +122,9 @@ ZhytomyrLIMS — лабораторна інформаційна система 
 **Ключові сервіси:**
 
 - `ILaboratoryJournalService`
-- `IResultEntryService`
-- `IResultFieldPermissionService`
-- `ISampleWorkflowService`
+- `ILaboratoryPdfFillService`
+- `IPdfWorkspaceFillService`
+- `IFieldTextLibraryService`
 
 ---
 

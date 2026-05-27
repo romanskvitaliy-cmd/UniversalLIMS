@@ -158,10 +158,6 @@ else
                         <td class="text-nowrap">@sample.RegisteredAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
                         <td><span class="badge lims-status-badge @SampleStatusDisplay.BadgeClass(sample.Status)">@SampleStatusDisplay.ToUk(sample.Status)</span></td>
                         <td class="text-end text-nowrap">
-                            <a class="btn btn-sm btn-primary"
-                               asp-action="ResultEntry"
-                               asp-route-sampleId="@sample.SampleId"
-                               title="Табличне внесення результатів">Показники</a>
                             <a class="btn btn-sm btn-outline-primary"
                                asp-action="Results"
                                asp-route-sampleId="@sample.SampleId"
