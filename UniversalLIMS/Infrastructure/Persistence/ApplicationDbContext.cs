@@ -57,6 +57,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
 
     public DbSet<Equipment> Equipment => Set<Equipment>();
 
+    public DbSet<ExpertConclusionReview> ExpertConclusionReviews => Set<ExpertConclusionReview>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);

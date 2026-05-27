@@ -2,6 +2,7 @@ using Syncfusion.Licensing;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using UniversalLIMS.Application.Abstractions;
+using UniversalLIMS.Application.Expert.Abstractions;
 using UniversalLIMS.Application.Laboratory.Abstractions;
 using UniversalLIMS.Application.Registration.Abstractions;
 using UniversalLIMS.Application.Security;
@@ -10,6 +11,7 @@ using UniversalLIMS.Domain.Identity;
 using UniversalLIMS.Infrastructure.Persistence;
 using UniversalLIMS.Infrastructure.Persistence.Interceptors;
 using UniversalLIMS.Infrastructure.Persistence.Seed;
+using UniversalLIMS.Infrastructure.Expert;
 using UniversalLIMS.Infrastructure.Laboratory;
 using UniversalLIMS.Infrastructure.Registration;
 using UniversalLIMS.Infrastructure.Security;
@@ -95,6 +97,9 @@ namespace UniversalLIMS
             builder.Services.AddScoped<IPdfWorkspaceFillService, PdfWorkspaceFillService>();
             builder.Services.AddScoped<IFieldTextLibraryService, FieldTextLibraryService>();
             builder.Services.AddScoped<ITemplateFieldPermissionService, TemplateFieldPermissionService>();
+            builder.Services.AddScoped<IExpertReviewQueueService, ExpertReviewQueueService>();
+            builder.Services.AddScoped<IExpertPdfFillService, ExpertPdfFillService>();
+            builder.Services.AddScoped<IExpertConclusionService, ExpertConclusionService>();
             builder.Services.AddAuthorization(options =>
             {
                 options.AddPolicy(LimsPolicies.ManageSystem, policy =>

@@ -1,0 +1,36 @@
+@model ExpertChooseDocumentViewModel
+
+@{
+    Layout = "_LayoutWorkspace";
+    ViewData["Title"] = $"Висновок — {Model.SampleNumber}";
+}
+
+<div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+    <div>
+        <h1 class="h3 mb-1">Висновок у PDF</h1>
+        <p class="text-muted mb-0">
+            Проба <strong>@Model.SampleNumber</strong> · @Model.InvestigationTypeName
+        </p>
+        <p class="small text-muted mb-0">Оберіть документ для заповнення полів висновку (Conclusion) згідно з правами ролі експерта.</p>
+    </div>
+    <a class="btn btn-outline-secondary btn-sm" asp-action="Index">← Черга експерта</a>
+</div>
+
+<div class="list-group">
+    @foreach (var target in Model.Targets)
+    {
+        <a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+           asp-controller="PdfWorkspace"
+           asp-action="Fill"
+           asp-route-templateVersionId="@target.TemplateVersionId"
+           asp-route-orderId="@target.OrderId"
+           asp-route-orderDocumentId="@target.OrderDocumentId"
+           asp-route-sampleId="@target.SampleId">
+            <span>
+                <span class="fw-semibold">@target.TemplateNameUk</span>
+                <span class="text-muted small"> · v@(target.VersionNumber)</span>
+            </span>
+            <span class="btn btn-sm btn-primary">Відкрити</span>
+        </a>
+    }
+</div>

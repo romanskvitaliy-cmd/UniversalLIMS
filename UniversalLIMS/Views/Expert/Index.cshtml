@@ -1,0 +1,189 @@
+@model ExpertIndexViewModel
+@using UniversalLIMS.Application.Expert
+@using UniversalLIMS.Domain.Laboratory
+
+@{
+    Layout = "_LayoutWorkspace";
+    ViewData["Title"] = "Черга експерта";
+}
+
+<div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+    <div>
+        <h1 class="h3 mb-1">Черга експерта</h1>
+        <p class="text-muted mb-0">
+            Проби, у яких усі відправлені в лабораторію документи мають статус «Результати внесено».
+            Висновок оформлюється в PDF Workspace (поля Conclusion), без окремої таблиці «Показники».
+        </p>
+    </div>
+</div>
+
+@if (TempData["ExpertSuccess"] is string success)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @success
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Закрити"></button>
+    </div>
+}
+
+@if (TempData["ExpertWarning"] is string warning)
+{
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        @warning
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Закрити"></button>
+    </div>
+}
+
+<form method="get" asp-action="Index" class="card mb-3">
+    <div class="card-body">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label small text-muted" for="sampleNumber">Номер проби</label>
+                <input type="text" class="form-control form-control-sm" id="sampleNumber" name="sampleNumber"
+                       value="@Model.Filter.SampleNumber" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small text-muted" for="dateFrom">Дата від</label>
+                <input type="date" class="form-control form-control-sm" id="dateFrom" name="dateFrom"
+                       value="@(Model.Filter.DateFrom?.ToString("yyyy-MM-dd"))" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small text-muted" for="dateTo">Дата до</label>
+                <input type="date" class="form-control form-control-sm" id="dateTo" name="dateTo"
+                       value="@(Model.Filter.DateTo?.ToString("yyyy-MM-dd"))" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small text-muted" for="reviewStatus">Статус розгляду</label>
+                <select class="form-select form-select-sm" id="reviewStatus" name="reviewStatus">
+                    @foreach (var option in Model.ReviewStatusOptions)
+                    {
+                        if (Model.Filter.ReviewStatus == option.Value)
+                        {
+                            <option value="@(option.Value is null ? "" : ((int)option.Value).ToString())" selected="selected">@option.Label</option>
+                        }
+                        else
+                        {
+                            <option value="@(option.Value is null ? "" : ((int)option.Value).ToString())">@option.Label</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-md-12 col-lg-auto d-flex gap-2">
+                <button type="submit" class="btn btn-sm btn-primary">Застосувати</button>
+                <a class="btn btn-sm btn-outline-secondary" asp-action="Index">Скинути</a>
+            </div>
+        </div>
+    </div>
+</form>
+
+@if (!Model.Result.Items.Any())
+{
+    <div class="alert alert-info mb-0">Проб за обраними критеріями не знайдено.</div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle lims-workspace-table">
+            <thead>
+                <tr>
+                    <th>Номер проби</th>
+                    <th>Направлення</th>
+                    <th>Замовник</th>
+                    <th>Тип дослідження</th>
+                    <th>Лабораторія</th>
+                    <th>Док.</th>
+                    <th>Дата реєстрації</th>
+                    <th>Розгляд</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var sample in Model.Result.Items)
+                {
+                    var reviewStatus = sample.ReviewStatus ?? ExpertConclusionStatus.PendingReview;
+                    <tr>
+                        <td class="fw-semibold">@sample.SampleNumber</td>
+                        <td>@(string.IsNullOrWhiteSpace(sample.ReferralNumber) ? "—" : sample.ReferralNumber)</td>
+                        <td>@sample.CustomerFullName</td>
+                        <td>@sample.InvestigationTypeName</td>
+                        <td>@sample.TargetBranchName</td>
+                        <td class="text-center">@sample.DocumentCount</td>
+                        <td class="text-nowrap">@sample.RegisteredAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                        <td>
+                            <span class="badge lims-status-badge @ExpertConclusionStatusDisplay.BadgeClass(reviewStatus)">
+                                @ExpertConclusionStatusDisplay.ToUk(reviewStatus)
+                            </span>
+                        </td>
+                        <td class="text-end text-nowrap">
+                            @if (reviewStatus != ExpertConclusionStatus.Approved)
+                            {
+                                <a class="btn btn-sm btn-outline-primary"
+                                   asp-action="Review"
+                                   asp-route-sampleId="@sample.SampleId"
+                                   title="Висновок у PDF">PDF</a>
+                                <form asp-action="Approve" method="post" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="sampleId" value="@sample.SampleId" />
+                                    <button type="submit" class="btn btn-sm btn-success"
+                                            title="Затвердити без додаткових приміток">
+                                        Затвердити
+                                    </button>
+                                </form>
+                            }
+                            else
+                            {
+                                <span class="text-muted small">Затверджено</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @if (Model.Result.TotalPages > 1)
+    {
+        <nav aria-label="Сторінки черги" class="mt-3">
+            <ul class="pagination pagination-sm mb-0">
+                @{
+                    var currentPage = Model.Result.Page;
+                    var query = new Dictionary<string, string?>();
+                    if (!string.IsNullOrWhiteSpace(Model.Filter.SampleNumber))
+                    {
+                        query["sampleNumber"] = Model.Filter.SampleNumber;
+                    }
+
+                    if (Model.Filter.DateFrom.HasValue)
+                    {
+                        query["dateFrom"] = Model.Filter.DateFrom.Value.ToString("yyyy-MM-dd");
+                    }
+
+                    if (Model.Filter.DateTo.HasValue)
+                    {
+                        query["dateTo"] = Model.Filter.DateTo.Value.ToString("yyyy-MM-dd");
+                    }
+
+                    if (Model.Filter.ReviewStatus.HasValue)
+                    {
+                        query["reviewStatus"] = ((int)Model.Filter.ReviewStatus.Value).ToString();
+                    }
+                }
+                @for (var pageNumber = 1; pageNumber <= Model.Result.TotalPages; pageNumber++)
+                {
+                    query["page"] = pageNumber.ToString();
+                    query["pageSize"] = Model.Result.PageSize.ToString();
+                    var isActive = pageNumber == currentPage;
+                    <li class="page-item @(isActive ? "active" : null)">
+                        <a class="page-link"
+                           asp-action="Index"
+                           asp-all-route-data="query">@pageNumber</a>
+                    </li>
+                }
+            </ul>
+        </nav>
+    }
+
+    <p class="text-muted small mt-2 mb-0">
+        Показано @Model.Result.Items.Count з @Model.Result.TotalCount
+        (сторінка @Model.Result.Page з @(Model.Result.TotalPages == 0 ? 1 : Model.Result.TotalPages)).
+    </p>
+}

@@ -29,6 +29,7 @@ public static class WorkspaceNavigationCatalog
             LimsRoles.Specialist =>
             [
                 new("Кабінет", "Home", "Workspace", "bi-house-door"),
+                new("Черга експерта", "Expert", "Index", "bi-clipboard2-check"),
             ],
             _ => []
         };
@@ -46,6 +47,8 @@ public static class WorkspaceNavigationCatalog
                     "/Templates", true),
                 Link("PDF Workspace", "Заповнення PDF-полів замовлення", "bi-file-earmark-pdf",
                     "/PdfWorkspace", true),
+                Link("Черга експерта", "Затвердження висновків по пробах", "bi-clipboard2-check",
+                    "/Expert", true),
                 Link("Перевірка фундаменту", "Діагностика системи (розробка)", "bi-tools",
                     "/Diagnostics/Foundation", true),
             ],
@@ -62,15 +65,15 @@ public static class WorkspaceNavigationCatalog
             [
                 Link("Лабораторний журнал", "Список проб філії з фільтрами", "bi-droplet-half",
                     "/Laboratory", true),
-                Link("Результати", "Оберіть пробу в журналі → PDF або показники", "bi-clipboard2-pulse",
+                Link("Результати", "Оберіть пробу в журналі → заповнення PDF", "bi-clipboard2-pulse",
                     "/Laboratory", true),
             ],
             LimsRoles.Specialist =>
             [
-                Link("Протоколи", "Перегляд протоколів (незабаром)", "bi-clipboard2-check",
-                    null, false),
-                Link("Висновки", "Затвердження висновків (незабаром)", "bi-patch-check",
-                    null, false),
+                Link("Черга експерта", "Проби з внесеними результатами — висновок у PDF", "bi-clipboard2-check",
+                    "/Expert", true),
+                Link("Затверджені", "Архів затверджених висновків", "bi-patch-check",
+                    "/Expert?reviewStatus=2", true),
             ],
             _ => []
         };
