@@ -13,6 +13,7 @@
 - PDF Fill + lifecycle версій: `docs/handoff-pdf-fill-panel-and-template-lifecycle.md`
 - Політика версій шаблонів: `docs/handoff-template-versioning-policy.md`
 - Гібридні теги + мапінг реєстратури: `docs/handoff-hybrid-tags-and-registry-mapping.md`
+- QA на завтра (Fill + теги + ролі): `docs/qa-tomorrow-fill-tags-checklist.md`
 
 ---
 
