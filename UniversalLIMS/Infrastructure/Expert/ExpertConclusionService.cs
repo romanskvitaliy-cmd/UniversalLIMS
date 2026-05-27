@@ -66,6 +66,31 @@ public sealed class ExpertConclusionService : IExpertConclusionService
         await _context.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<bool> ReturnToPendingReviewAsync(
+        Guid sampleId,
+        CancellationToken cancellationToken = default)
+    {
+        var review = await _context.ExpertConclusionReviews
+            .FirstOrDefaultAsync(item => item.SampleId == sampleId, cancellationToken);
+
+        if (review is null || review.Status == ExpertConclusionStatus.Approved)
+        {
+            return false;
+        }
+
+        if (review.Status == ExpertConclusionStatus.PendingReview)
+        {
+            return true;
+        }
+
+        review.Status = ExpertConclusionStatus.PendingReview;
+        review.UpdatedAtUtc = _dateTimeProvider.UtcNow;
+        review.UpdatedByUserId = _currentUser.UserId;
+
+        await _context.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
     public async Task<bool> ApproveAsync(
         Guid sampleId,
         string? notesUk,

@@ -8,6 +8,8 @@ public interface IExpertConclusionService
 
     Task MarkInProgressAsync(Guid sampleId, CancellationToken cancellationToken = default);
 
+    Task<bool> ReturnToPendingReviewAsync(Guid sampleId, CancellationToken cancellationToken = default);
+
     Task<bool> ApproveAsync(
         Guid sampleId,
         string? notesUk,

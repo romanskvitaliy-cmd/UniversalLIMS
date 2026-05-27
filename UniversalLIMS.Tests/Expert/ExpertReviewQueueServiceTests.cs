@@ -103,6 +103,30 @@ public sealed class ExpertReviewQueueServiceTests
         Assert.Contains(result.Items, item => item.SampleId == sampleId);
     }
 
+    [Fact]
+    public async Task GetQueueAsync_ReturnsReviewStartedAtUtc_ForInProgressSample()
+    {
+        var sampleId = Guid.NewGuid();
+        var startedAt = new DateTime(2026, 5, 27, 9, 30, 0, DateTimeKind.Utc);
+        await using var context = await CreateSeededContextAsync(sampleId, OrderDocumentStatus.ResultsEntered);
+        context.ExpertConclusionReviews.Add(new ExpertConclusionReview
+        {
+            SampleId = sampleId,
+            Status = ExpertConclusionStatus.InProgress,
+            ReviewStartedAtUtc = startedAt
+        });
+        await context.SaveChangesAsync();
+
+        var service = new ExpertReviewQueueService(context);
+        var result = await service.GetQueueAsync(new ExpertReviewQueueFilter
+        {
+            ReviewStatus = ExpertConclusionStatus.InProgress
+        });
+
+        var item = Assert.Single(result.Items);
+        Assert.Equal(startedAt, item.ReviewStartedAtUtc);
+    }
+
     private static async Task<ApplicationDbContext> CreateSeededContextAsync(
         Guid sampleId,
         OrderDocumentStatus primaryDocumentStatus,

@@ -119,6 +119,10 @@ public sealed class ExpertReviewQueueService : IExpertReviewQueueService
                     .Where(review => review.SampleId == sample.Id)
                     .Select(review => (ExpertConclusionStatus?)review.Status)
                     .FirstOrDefault(),
+                ReviewStartedAtUtc = _context.ExpertConclusionReviews
+                    .Where(review => review.SampleId == sample.Id)
+                    .Select(review => review.ReviewStartedAtUtc)
+                    .FirstOrDefault(),
                 ApprovedAtUtc = _context.ExpertConclusionReviews
                     .Where(review => review.SampleId == sample.Id)
                     .Select(review => review.ApprovedAtUtc)
@@ -147,6 +151,7 @@ public sealed class ExpertReviewQueueService : IExpertReviewQueueService
                 DocumentCount = row.DocumentCount,
                 TargetBranchName = string.Join(", ", row.TargetBranchNames),
                 ReviewStatus = row.ReviewStatus,
+                ReviewStartedAtUtc = row.ReviewStartedAtUtc,
                 ApprovedAtUtc = row.ApprovedAtUtc,
                 ApprovedByUserId = row.ApprovedByUserId,
                 NotesUk = row.NotesUk

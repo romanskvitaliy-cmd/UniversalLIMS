@@ -25,6 +25,8 @@ public sealed class ExpertReviewQueueItemDto
 
     public ExpertConclusionStatus? ReviewStatus { get; init; }
 
+    public DateTime? ReviewStartedAtUtc { get; init; }
+
     public DateTime? ApprovedAtUtc { get; init; }
 
     public string? ApprovedByUserId { get; init; }

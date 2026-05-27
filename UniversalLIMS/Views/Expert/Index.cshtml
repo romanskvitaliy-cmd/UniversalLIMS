@@ -119,6 +119,12 @@ else
                             <span class="badge lims-status-badge @ExpertConclusionStatusDisplay.BadgeClass(reviewStatus)">
                                 @ExpertConclusionStatusDisplay.ToUk(reviewStatus)
                             </span>
+                            @if (sample.ReviewStartedAtUtc.HasValue && reviewStatus == ExpertConclusionStatus.InProgress)
+                            {
+                                <div class="small text-muted mt-1">
+                                    з @sample.ReviewStartedAtUtc.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
+                                </div>
+                            }
                             @if (sample.ApprovedAtUtc.HasValue)
                             {
                                 <div class="small text-muted mt-1">
@@ -160,6 +166,17 @@ else
                         <td class="text-end text-nowrap">
                             @if (reviewStatus != ExpertConclusionStatus.Approved)
                             {
+                                @if (reviewStatus == ExpertConclusionStatus.InProgress)
+                                {
+                                    <form asp-action="ReturnToQueue" method="post" class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="sampleId" value="@sample.SampleId" />
+                                        <button type="submit" class="btn btn-sm btn-outline-warning"
+                                                title="Повернути пробу у статус очікування">
+                                            Повернути в чергу
+                                        </button>
+                                    </form>
+                                }
                                 <a class="btn btn-sm btn-outline-primary"
                                    asp-action="Review"
                                    asp-route-sampleId="@sample.SampleId"

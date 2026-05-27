@@ -104,6 +104,18 @@ public sealed class ExpertController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ReturnToQueue(Guid sampleId, CancellationToken cancellationToken)
+    {
+        var moved = await _conclusion.ReturnToPendingReviewAsync(sampleId, cancellationToken);
+        TempData[moved ? "ExpertSuccess" : "ExpertWarning"] = moved
+            ? "Пробу повернуто у чергу очікування розгляду."
+            : "Пробу не вдалося повернути у чергу (можливо, висновок уже затверджено).";
+
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> Approve(Guid sampleId, string? notesUk, CancellationToken cancellationToken)
     {
         var normalizedNotes = NormalizeExpertNotes(notesUk);
