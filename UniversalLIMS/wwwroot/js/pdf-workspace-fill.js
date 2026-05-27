@@ -450,13 +450,16 @@
         updateLayoutBadge("saved");
     };
 
-    const saveTemplateLayout = async () => {
+    const saveTemplateLayout = async (options = {}) => {
+        const { silent = false } = options;
         if (!layoutSaveUrl) {
-            showStatus("URL збереження макету не налаштовано.", "danger");
-            return;
+            if (!silent) {
+                showStatus("URL збереження макету не налаштовано.", "danger");
+            }
+            return { ok: false, message: "URL збереження макету не налаштовано." };
         }
         if (isSavingLayout) {
-            return;
+            return { ok: false, message: "Збереження макету вже виконується." };
         }
 
         const targetIds = layoutDirtySegmentIds.size > 0
@@ -468,8 +471,10 @@
             .filter((item) => item != null);
 
         if (fields.length === 0) {
-            showStatus("Немає змін макету для збереження в шаблон.", "warning");
-            return;
+            if (!silent) {
+                showStatus("Немає змін макету для збереження в шаблон.", "warning");
+            }
+            return { ok: true, message: "Немає змін макету для збереження в шаблон." };
         }
 
         isSavingLayout = true;
@@ -493,11 +498,18 @@
                 throw new Error(body.message || `Помилка збереження макету (${response.status}).`);
             }
             commitLayoutOverridesToSegments();
-            showStatus(body.message || "Макет шаблону збережено.", "success");
+            const successMessage = body.message || "Макет шаблону збережено.";
+            if (!silent) {
+                showStatus(successMessage, "success");
+            }
+            return { ok: true, message: successMessage };
         } catch (error) {
             console.error("[PdfWorkspace Fill] layout save error:", error);
-            showStatus(error.message || "Не вдалося зберегти макет.", "danger");
+            if (!silent) {
+                showStatus(error.message || "Не вдалося зберегти макет.", "danger");
+            }
             updateLayoutBadge("dirty");
+            return { ok: false, message: error.message || "Не вдалося зберегти макет." };
         } finally {
             isSavingLayout = false;
             if (saveLayoutButton) {
@@ -2151,8 +2163,28 @@
             const hasFailures = failedFields.length > 0 || skippedUnmapped > 0;
             const ok = !hasFailures && (saved > 0 || (nonEmpty === 0 && received > 0));
 
+            let layoutAutoSaved = false;
+            let layoutAutoSaveError = "";
+            if (ok && !hasFailures && isLayoutDirty) {
+                const layoutResult = await saveTemplateLayout({ silent: true });
+                layoutAutoSaved = layoutResult.ok === true;
+                if (!layoutAutoSaved) {
+                    layoutAutoSaveError = layoutResult.message || "Не вдалося зберегти макет.";
+                }
+            }
+
+            const hasUnsavedLayout = isLayoutDirty;
             if (!silent || !ok || hasFailures) {
-                showStatus(message, ok ? "success" : (saved > 0 ? "warning" : "danger"));
+                let statusType = ok ? "success" : (saved > 0 ? "warning" : "danger");
+                if (ok && layoutAutoSaved && !hasFailures) {
+                    message += " Макет також збережено в шаблон.";
+                } else if (ok && hasUnsavedLayout && !hasFailures) {
+                    statusType = "warning";
+                    message += ` Макет має незбережені зміни: ${layoutAutoSaveError || "відкрийте вкладку «Дії» та натисніть «Зберегти макет у шаблон»."}`;
+                    activateFillTab("actions");
+                }
+
+                showStatus(message, statusType);
             } else if (silent && ok) {
                 statusBox?.classList.add("d-none");
             }
