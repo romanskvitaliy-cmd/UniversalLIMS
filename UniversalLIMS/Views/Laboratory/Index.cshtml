@@ -9,7 +9,10 @@
 <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
     <div>
         <h1 class="h3 mb-1">Лабораторний журнал проб</h1>
-        <p class="text-muted mb-0">Облік проб, переданих у лабораторію. Номер проби та ПІБ замовника — з SSOT (колонки <code>Samples</code> та <code>Customers</code>).</p>
+        <p class="text-muted mb-0">
+            Облік проб, відправлених з реєстратури в лабораторію (не документи «Очікує»).
+            Номер проби та ПІБ замовника — з SSOT (<code>Samples</code>, <code>Customers</code>).
+        </p>
     </div>
     @if (Model.CanSelectLaboratoryBranch)
     {

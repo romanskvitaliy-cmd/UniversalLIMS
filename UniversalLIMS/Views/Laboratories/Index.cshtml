@@ -38,7 +38,10 @@ else
             <div class="card-body">
                 <div class="text-muted small mb-1">Усі лабораторії</div>
                 <div class="display-6 fw-semibold mb-2">@overview.TotalActiveSampleCount</div>
-                <p class="small text-muted mb-3">проб у лабораторному workflow</p>
+                <p class="small text-muted mb-3">
+                    проб у лабораторному workflow
+                    <span class="d-block mt-1">Лише після відправки зі справи реєстратора. Документи «Очікує» тут не рахуються.</span>
+                </p>
                 <div class="d-flex flex-wrap gap-2 small mb-3">
                     <span class="badge text-bg-light border">В роботі: @overview.TotalInProgressSampleCount</span>
                     <span class="badge text-bg-light border">Результати внесено: @overview.TotalResultsEnteredSampleCount</span>
@@ -57,8 +60,10 @@ else
             <div class="card-body">
                 <h2 class="h6 mb-2">Як працює огляд</h2>
                 <ul class="small text-muted mb-0 ps-3">
-                    <li>Кожна картка нижче — окрема лабораторія-виконавець (<code>TargetBranch</code> документів).</li>
-                    <li>Після входу в журнал можна змінити контекст у селекторі «Контекст лабораторії».</li>
+                    <li>Рахуються <strong>проби</strong>, не PDF-документи. Одна проба з кількома шаблонами — один рядок у журналі.</li>
+                    <li>У лічильник потрапляють лише проби з документами, відправленими в лабораторію (статус «У лабораторії» і далі).</li>
+                    <li>Нові замовлення з реєстратури з’являться тут після «Відправити в лабораторію» на сторінці справи.</li>
+                    <li>Кожна картка нижче — лабораторія-виконавець (<code>TargetBranch</code> документа).</li>
                     <li>Адміністратор бачить проби всіх філій; лаборант — лише своєї філії користувача.</li>
                 </ul>
             </div>
