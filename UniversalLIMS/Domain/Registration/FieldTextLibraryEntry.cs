@@ -13,7 +13,7 @@ public sealed class FieldTextLibraryEntry : BaseEntity, ISoftAnnulled
 
     public Branch Branch { get; set; } = null!;
 
-    /// <summary>Семантичний ключ поля; пріоритетний для бібліотеки між версіями шаблону.</summary>
+    /// <summary>Fallback для глобальних полів без тега; історичні записи до tag-first.</summary>
     public Guid? DataFieldId { get; set; }
 
     public DataField? DataField { get; set; }
@@ -25,7 +25,7 @@ public sealed class FieldTextLibraryEntry : BaseEntity, ISoftAnnulled
 
     public TemplateVersion? TemplateVersion { get; set; }
 
-    /// <summary>Fallback, якщо поле не прив’язане до DataField.</summary>
+    /// <summary>Пріоритетний ключ бібліотеки (TemplateField.Tag).</summary>
     public string? NormalizedTag { get; set; }
 
     public string Body { get; set; } = string.Empty;

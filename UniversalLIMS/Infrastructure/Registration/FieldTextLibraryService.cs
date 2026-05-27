@@ -42,11 +42,7 @@ public sealed class FieldTextLibraryService : IFieldTextLibraryService
             requireWrite: false,
             cancellationToken);
 
-        var entries = await QueryForList(
-                fieldContext.BranchId,
-                fieldContext.DataFieldId,
-                fieldContext.NormalizedTag,
-                templateVersionId)
+        var entries = await QueryForList(fieldContext, templateVersionId)
             .OrderByDescending(entry => entry.UsageCount)
             .ThenByDescending(entry => entry.UpdatedAtUtc ?? entry.CreatedAtUtc)
             .ThenBy(entry => entry.SortOrder)
@@ -56,7 +52,8 @@ public sealed class FieldTextLibraryService : IFieldTextLibraryService
         return new FieldTextLibraryListResult
         {
             Entries = entries.Select(MapToDto).ToList(),
-            TotalCount = entries.Count
+            TotalCount = entries.Count,
+            FieldTag = fieldContext.FieldTag
         };
     }
 
@@ -92,9 +89,7 @@ public sealed class FieldTextLibraryService : IFieldTextLibraryService
         var scopeVersionId = request.ScopeToTemplateVersion ? templateVersionId : (Guid?)null;
 
         var existing = await FindActiveByHashTrackedAsync(
-            fieldContext.BranchId,
-            fieldContext.DataFieldId,
-            fieldContext.NormalizedTag,
+            fieldContext,
             scopeVersionId,
             bodyHash,
             cancellationToken);
@@ -120,9 +115,7 @@ public sealed class FieldTextLibraryService : IFieldTextLibraryService
         }
 
         var activeCount = await CountActiveForScopeAsync(
-            fieldContext.BranchId,
-            fieldContext.DataFieldId,
-            fieldContext.NormalizedTag,
+            fieldContext,
             scopeVersionId,
             cancellationToken);
 
@@ -132,13 +125,14 @@ public sealed class FieldTextLibraryService : IFieldTextLibraryService
                 $"Досягнуто ліміт {FieldTextLibraryNormalizer.MaxEntriesPerKey} записів для цього поля у філії.");
         }
 
+        var (storageDataFieldId, storageNormalizedTag) = ResolveEntryStorageKeys(fieldContext);
         var entry = new FieldTextLibraryEntry
         {
             Id = Guid.NewGuid(),
             BranchId = fieldContext.BranchId,
-            DataFieldId = fieldContext.DataFieldId,
+            DataFieldId = storageDataFieldId,
             TemplateVersionId = scopeVersionId,
-            NormalizedTag = fieldContext.DataFieldId.HasValue ? null : fieldContext.NormalizedTag,
+            NormalizedTag = storageNormalizedTag,
             Body = normalizedBody,
             NormalizedBodyHash = bodyHash,
             ShortLabel = shortLabel,
@@ -196,9 +190,7 @@ public sealed class FieldTextLibraryService : IFieldTextLibraryService
 
         var bodyHash = FieldTextLibraryNormalizer.ComputeBodyHash(normalizedBody);
         var duplicate = await FindActiveByHashAsync(
-            fieldContext.BranchId,
-            fieldContext.DataFieldId,
-            fieldContext.NormalizedTag,
+            fieldContext,
             entry.TemplateVersionId,
             bodyHash,
             cancellationToken);
@@ -303,36 +295,43 @@ public sealed class FieldTextLibraryService : IFieldTextLibraryService
 
     private static IQueryable<FieldTextLibraryEntry> ApplyFieldKeyFilter(
         IQueryable<FieldTextLibraryEntry> query,
-        Guid? dataFieldId,
-        string? normalizedTag)
+        FieldLibraryFieldContext fieldContext)
     {
-        if (dataFieldId.HasValue)
+        if (!string.IsNullOrEmpty(fieldContext.NormalizedTag))
         {
-            return query.Where(entry => entry.DataFieldId == dataFieldId);
+            var tag = fieldContext.NormalizedTag;
+            var legacyDataFieldId = fieldContext.LegacyDataFieldId;
+
+            return query.Where(entry =>
+                entry.NormalizedTag == tag
+                || (legacyDataFieldId.HasValue
+                    && entry.DataFieldId == legacyDataFieldId
+                    && entry.NormalizedTag == null));
         }
 
-        return query.Where(entry => entry.DataFieldId == null && entry.NormalizedTag == normalizedTag);
+        if (fieldContext.LegacyDataFieldId.HasValue)
+        {
+            return query.Where(entry => entry.DataFieldId == fieldContext.LegacyDataFieldId);
+        }
+
+        return query.Where(_ => false);
     }
 
     private IQueryable<FieldTextLibraryEntry> QueryForList(
-        Guid branchId,
-        Guid? dataFieldId,
-        string? normalizedTag,
+        FieldLibraryFieldContext fieldContext,
         Guid templateVersionId)
     {
         var query = _context.FieldTextLibraryEntries
             .AsNoTracking()
             .Where(entry =>
-                entry.BranchId == branchId
+                entry.BranchId == fieldContext.BranchId
                 && (entry.TemplateVersionId == null || entry.TemplateVersionId == templateVersionId));
 
-        return ApplyFieldKeyFilter(query, dataFieldId, normalizedTag);
+        return ApplyFieldKeyFilter(query, fieldContext);
     }
 
     private IQueryable<FieldTextLibraryEntry> QueryForScope(
-        Guid branchId,
-        Guid? dataFieldId,
-        string? normalizedTag,
+        FieldLibraryFieldContext fieldContext,
         Guid? scopeTemplateVersionId,
         bool asNoTracking)
     {
@@ -341,43 +340,38 @@ public sealed class FieldTextLibraryService : IFieldTextLibraryService
             : _context.FieldTextLibraryEntries.AsQueryable();
 
         query = query.Where(entry =>
-            entry.BranchId == branchId && entry.TemplateVersionId == scopeTemplateVersionId);
+            entry.BranchId == fieldContext.BranchId
+            && entry.TemplateVersionId == scopeTemplateVersionId);
 
-        return ApplyFieldKeyFilter(query, dataFieldId, normalizedTag);
+        return ApplyFieldKeyFilter(query, fieldContext);
     }
 
     private async Task<FieldTextLibraryEntry?> FindActiveByHashAsync(
-        Guid branchId,
-        Guid? dataFieldId,
-        string? normalizedTag,
+        FieldLibraryFieldContext fieldContext,
         Guid? scopeTemplateVersionId,
         string bodyHash,
         CancellationToken cancellationToken)
     {
-        return await QueryForScope(branchId, dataFieldId, normalizedTag, scopeTemplateVersionId, asNoTracking: true)
+        return await QueryForScope(fieldContext, scopeTemplateVersionId, asNoTracking: true)
             .FirstOrDefaultAsync(entry => entry.NormalizedBodyHash == bodyHash, cancellationToken);
     }
 
     private Task<FieldTextLibraryEntry?> FindActiveByHashTrackedAsync(
-        Guid branchId,
-        Guid? dataFieldId,
-        string? normalizedTag,
+        FieldLibraryFieldContext fieldContext,
         Guid? scopeTemplateVersionId,
         string bodyHash,
         CancellationToken cancellationToken)
     {
-        return QueryForScope(branchId, dataFieldId, normalizedTag, scopeTemplateVersionId, asNoTracking: false)
+        return QueryForScope(fieldContext, scopeTemplateVersionId, asNoTracking: false)
             .FirstOrDefaultAsync(entry => entry.NormalizedBodyHash == bodyHash, cancellationToken);
     }
 
     private async Task<int> CountActiveForScopeAsync(
-        Guid branchId,
-        Guid? dataFieldId,
-        string? normalizedTag,
+        FieldLibraryFieldContext fieldContext,
         Guid? scopeTemplateVersionId,
         CancellationToken cancellationToken)
     {
-        return await QueryForScope(branchId, dataFieldId, normalizedTag, scopeTemplateVersionId, asNoTracking: true)
+        return await QueryForScope(fieldContext, scopeTemplateVersionId, asNoTracking: true)
             .CountAsync(cancellationToken);
     }
 
@@ -416,13 +410,36 @@ public sealed class FieldTextLibraryService : IFieldTextLibraryService
         }
 
         var branchId = await ResolveBranchIdAsync(orderId, cancellationToken);
-        var normalizedTag = FieldTextLibraryNormalizer.NormalizeTag(field.Tag);
+        var normalizedTag = ResolveLibraryNormalizedTag(field);
+        var fieldTag = field.Tag.Trim();
 
         return new FieldLibraryFieldContext(
             branchId,
+            normalizedTag,
             field.DataFieldId,
-            field.DataFieldId.HasValue ? null : normalizedTag);
+            fieldTag);
     }
+
+    private static string? ResolveLibraryNormalizedTag(TemplateField field)
+    {
+        if (!string.IsNullOrWhiteSpace(field.Tag))
+        {
+            return FieldTextLibraryNormalizer.NormalizeTag(field.Tag);
+        }
+
+        if (!string.IsNullOrWhiteSpace(field.NormalizedTag))
+        {
+            return field.NormalizedTag.Trim().ToUpperInvariant();
+        }
+
+        return null;
+    }
+
+    private static (Guid? DataFieldId, string? NormalizedTag) ResolveEntryStorageKeys(
+        FieldLibraryFieldContext fieldContext) =>
+        string.IsNullOrEmpty(fieldContext.NormalizedTag)
+            ? (fieldContext.LegacyDataFieldId, null)
+            : (null, fieldContext.NormalizedTag);
 
     private async Task<Guid> ResolveBranchIdAsync(Guid? orderId, CancellationToken cancellationToken)
     {
@@ -453,14 +470,7 @@ public sealed class FieldTextLibraryService : IFieldTextLibraryService
         FieldLibraryFieldContext fieldContext,
         Guid templateVersionId)
     {
-        if (fieldContext.DataFieldId.HasValue)
-        {
-            if (entry.DataFieldId != fieldContext.DataFieldId)
-            {
-                throw new InvalidOperationException("Запис не належить до цього поля.");
-            }
-        }
-        else if (!string.Equals(entry.NormalizedTag, fieldContext.NormalizedTag, StringComparison.Ordinal))
+        if (!EntryMatchesFieldKey(entry, fieldContext))
         {
             throw new InvalidOperationException("Запис не належить до цього поля.");
         }
@@ -469,6 +479,26 @@ public sealed class FieldTextLibraryService : IFieldTextLibraryService
         {
             throw new InvalidOperationException("Запис належить до іншої версії шаблону.");
         }
+    }
+
+    private static bool EntryMatchesFieldKey(
+        FieldTextLibraryEntry entry,
+        FieldLibraryFieldContext fieldContext)
+    {
+        if (!string.IsNullOrEmpty(fieldContext.NormalizedTag))
+        {
+            if (string.Equals(entry.NormalizedTag, fieldContext.NormalizedTag, StringComparison.Ordinal))
+            {
+                return true;
+            }
+
+            return fieldContext.LegacyDataFieldId.HasValue
+                && entry.DataFieldId == fieldContext.LegacyDataFieldId
+                && entry.NormalizedTag is null;
+        }
+
+        return fieldContext.LegacyDataFieldId.HasValue
+            && entry.DataFieldId == fieldContext.LegacyDataFieldId;
     }
 
     private static string BuildShortLabel(string? requested, string normalizedBody)
@@ -511,6 +541,7 @@ public sealed class FieldTextLibraryService : IFieldTextLibraryService
 
     private sealed record FieldLibraryFieldContext(
         Guid BranchId,
-        Guid? DataFieldId,
-        string? NormalizedTag);
+        string? NormalizedTag,
+        Guid? LegacyDataFieldId,
+        string FieldTag);
 }

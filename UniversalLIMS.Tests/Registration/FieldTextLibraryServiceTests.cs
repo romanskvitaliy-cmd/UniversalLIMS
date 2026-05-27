@@ -51,6 +51,97 @@ public sealed class FieldTextLibraryServiceTests
         Assert.False(second.Created);
         Assert.Equal(2, second.Entry.UsageCount);
         Assert.Equal(1, await context.FieldTextLibraryEntries.CountAsync());
+
+        var stored = await context.FieldTextLibraryEntries.SingleAsync();
+        Assert.Null(stored.DataFieldId);
+        Assert.Equal("TRANSPORTCONDITIONS", stored.NormalizedTag);
+    }
+
+    [Fact]
+    public async Task ListForFieldAsync_UsesTagNotSharedDataFieldId()
+    {
+        await using var context = CreateContext();
+        var branchId = Guid.NewGuid();
+        var versionId = Guid.NewGuid();
+        var sharedDataFieldId = Guid.NewGuid();
+        var fieldF327 = Guid.NewGuid();
+        var fieldFood = Guid.NewGuid();
+
+        SeedBranch(context, branchId);
+        SeedField(context, versionId, fieldF327, sharedDataFieldId, "f327_pH", branchId);
+        SeedAdditionalField(context, versionId, fieldFood, sharedDataFieldId, "Food_pH");
+        SeedPermission(context, fieldF327, LimsRoles.LaboratoryTechnician, FieldAccessLevel.Write);
+        SeedPermission(context, fieldFood, LimsRoles.LaboratoryTechnician, FieldAccessLevel.Write);
+
+        context.FieldTextLibraryEntries.Add(new FieldTextLibraryEntry
+        {
+            Id = Guid.NewGuid(),
+            BranchId = branchId,
+            DataFieldId = null,
+            NormalizedTag = "F327_PH",
+            Body = "7.2",
+            NormalizedBodyHash = "hash-f327",
+            UsageCount = 1,
+            CreatedAtUtc = DateTime.UtcNow
+        });
+        context.FieldTextLibraryEntries.Add(new FieldTextLibraryEntry
+        {
+            Id = Guid.NewGuid(),
+            BranchId = branchId,
+            DataFieldId = null,
+            NormalizedTag = "FOOD_PH",
+            Body = "6.8",
+            NormalizedBodyHash = "hash-food",
+            UsageCount = 1,
+            CreatedAtUtc = DateTime.UtcNow
+        });
+        await context.SaveChangesAsync();
+
+        var service = CreateService(context, LimsRoles.LaboratoryTechnician, branchId);
+
+        var f327List = await service.ListForFieldAsync(versionId, fieldF327, null);
+        var foodList = await service.ListForFieldAsync(versionId, fieldFood, null);
+
+        Assert.Single(f327List.Entries);
+        Assert.Equal("7.2", f327List.Entries[0].Body);
+        Assert.Equal("f327_pH", f327List.FieldTag);
+
+        Assert.Single(foodList.Entries);
+        Assert.Equal("6.8", foodList.Entries[0].Body);
+        Assert.Equal("Food_pH", foodList.FieldTag);
+    }
+
+    [Fact]
+    public async Task ListForFieldAsync_IncludesLegacyDataFieldEntriesForSameTag()
+    {
+        await using var context = CreateContext();
+        var branchId = Guid.NewGuid();
+        var versionId = Guid.NewGuid();
+        var fieldId = Guid.NewGuid();
+        var dataFieldId = Guid.NewGuid();
+
+        SeedBranch(context, branchId);
+        SeedField(context, versionId, fieldId, dataFieldId, "TransportConditions", branchId);
+        SeedPermission(context, fieldId, LimsRoles.LaboratoryTechnician, FieldAccessLevel.Write);
+
+        context.FieldTextLibraryEntries.Add(new FieldTextLibraryEntry
+        {
+            Id = Guid.NewGuid(),
+            BranchId = branchId,
+            DataFieldId = dataFieldId,
+            NormalizedTag = null,
+            Body = "Старий запис",
+            NormalizedBodyHash = "legacy-hash",
+            UsageCount = 3,
+            CreatedAtUtc = DateTime.UtcNow
+        });
+        await context.SaveChangesAsync();
+
+        var service = CreateService(context, LimsRoles.LaboratoryTechnician, branchId);
+        var list = await service.ListForFieldAsync(versionId, fieldId, null);
+
+        Assert.Single(list.Entries);
+        Assert.Equal("Старий запис", list.Entries[0].Body);
     }
 
     [Fact]
@@ -169,6 +260,25 @@ public sealed class FieldTextLibraryServiceTests
             CreatedAtUtc = DateTime.UtcNow
         });
 
+        context.SaveChanges();
+    }
+
+    private static void SeedAdditionalField(
+        ApplicationDbContext context,
+        Guid versionId,
+        Guid fieldId,
+        Guid? dataFieldId,
+        string tag)
+    {
+        context.TemplateFields.Add(new TemplateField
+        {
+            Id = fieldId,
+            TemplateVersionId = versionId,
+            Tag = tag,
+            NormalizedTag = tag.ToUpperInvariant(),
+            DataFieldId = dataFieldId,
+            CreatedAtUtc = DateTime.UtcNow
+        });
         context.SaveChanges();
     }
 

@@ -256,6 +256,7 @@ public sealed class PdfWorkspaceController : Controller
 
             return Json(new
             {
+                fieldTag = result.FieldTag,
                 entries = result.Entries.Select(entry => new
                 {
                     id = entry.Id,

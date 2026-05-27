@@ -20,6 +20,9 @@ public sealed class FieldTextLibraryListResult
     public IReadOnlyList<FieldTextLibraryEntryDto> Entries { get; init; } = [];
 
     public int TotalCount { get; init; }
+
+    /// <summary>Тег поля, для якого відкрита бібліотека (TemplateField.Tag).</summary>
+    public string? FieldTag { get; init; }
 }
 
 public sealed class FieldTextLibraryUpsertRequest

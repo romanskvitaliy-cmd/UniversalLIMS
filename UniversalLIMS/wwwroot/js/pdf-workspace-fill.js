@@ -55,6 +55,7 @@
     const libraryEmpty = document.getElementById("pdfFillLibraryEmpty");
     const libraryExpandBtn = document.getElementById("pdfFillLibraryExpand");
     const libraryCount = document.getElementById("pdfFillLibraryCount");
+    const libraryTag = document.getElementById("pdfFillLibraryTag");
     const libraryAddOnSave = document.getElementById("pdfFillLibraryAddOnSave");
     const libraryScopeToVersion = document.getElementById("pdfFillLibraryScopeToVersion");
     const libraryAddNow = document.getElementById("pdfFillLibraryAddNow");
@@ -886,6 +887,22 @@
         libraryCount.classList.toggle("d-none", n <= 0);
     };
 
+    const updateLibraryTagLabel = (tag) => {
+        if (!libraryTag) {
+            return;
+        }
+        const trimmed = String(tag ?? "").trim();
+        if (trimmed) {
+            libraryTag.textContent = `· ${trimmed}`;
+            libraryTag.classList.remove("d-none");
+            libraryTag.title = `Бібліотека для тегу ${trimmed}`;
+        } else {
+            libraryTag.textContent = "";
+            libraryTag.classList.add("d-none");
+            libraryTag.removeAttribute("title");
+        }
+    };
+
     const resetLibraryAddOnSaveCheckbox = () => {
         if (libraryAddOnSave) {
             libraryAddOnSave.checked = false;
@@ -987,10 +1004,15 @@
                 throw new Error(body.message || "Не вдалося завантажити бібліотеку.");
             }
             libraryEntries = Array.isArray(body.entries) ? body.entries : [];
+            const fieldTag = body.fieldTag
+                || tagByTemplateFieldId.get(templateFieldId)
+                || "";
+            updateLibraryTagLabel(fieldTag);
             refreshLibraryBrowser();
         } catch (error) {
             console.warn("[PdfWorkspace Fill] library load:", error);
             libraryEntries = [];
+            updateLibraryTagLabel("");
             refreshLibraryBrowser();
         }
     };
@@ -1258,6 +1280,7 @@
         if (librarySearch) {
             librarySearch.value = "";
         }
+        updateLibraryTagLabel(segment.tag || "");
         setLibraryControlsEnabled(writable);
         if (writable) {
             setLibraryPanelExpanded(readLibraryPanelExpandedPreference(), { persist: false });
