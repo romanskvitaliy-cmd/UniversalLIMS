@@ -478,6 +478,39 @@
     text-align: center;
 }
 
+.lims-portal-hero__org-logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0 0 0.8rem;
+    padding: 0.3rem 0.7rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(2, 6, 23, 0.34);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+.lims-portal-hero__org-logo-mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.55rem;
+    height: 1.55rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.14);
+    color: #f8fafc;
+    font-size: 0.9rem;
+}
+
+.lims-portal-hero__org-logo-text {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--portal-text-soft, #c7d7e7);
+}
+
 .lims-portal-hero__title {
     font-size: clamp(1.75rem, 4.5vw, 2.5rem);
     font-weight: 800;
@@ -656,6 +689,10 @@
         padding-top: 0.5rem;
     }
 
+    .lims-portal-hero__org-logo-text {
+        font-size: 0.78rem;
+    }
+
     .lims-portal-hero__date::before {
         content: "·";
         margin-right: 0.65rem;
@@ -704,6 +741,16 @@
     .lims-portal-hero__head {
         min-height: 50vh;
         padding: 1.5rem 0 1.25rem;
+    }
+
+    .lims-portal-hero__org-logo {
+        gap: 0.4rem;
+        margin-bottom: 0.7rem;
+    }
+
+    .lims-portal-hero__org-logo-text {
+        font-size: 0.68rem;
+        letter-spacing: 0.06em;
     }
 
     .lims-portal-hero__inner {
