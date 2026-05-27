@@ -3,6 +3,9 @@
     const checkboxes = [...document.querySelectorAll(".document-send-checkbox")];
     const sendButton = document.getElementById("sendDocumentsButton");
     const sendForm = document.getElementById("orderDocumentsForm");
+    const customerForm = document.getElementById("orderCustomerForm");
+    const customerFullNameInput = customerForm?.querySelector("input[name='CustomerEdit.FullName']");
+    const customerFullNameError = document.getElementById("customerFullNameError");
 
     function syncSelectAll() {
         if (!selectAll || checkboxes.length === 0) {
@@ -42,6 +45,51 @@
         routingForm.addEventListener("submit", (event) => {
             event.stopPropagation();
         });
+    });
+
+    function normalizeText(value) {
+        return String(value ?? "").trim();
+    }
+
+    function setCustomerNameError(message) {
+        if (!customerFullNameInput) {
+            return;
+        }
+        const hasError = Boolean(message);
+        customerFullNameInput.classList.toggle("is-invalid", hasError);
+        customerFullNameInput.setAttribute("aria-invalid", hasError ? "true" : "false");
+        if (customerFullNameError) {
+            customerFullNameError.textContent = message || "";
+        }
+    }
+
+    function validateCustomerForm() {
+        if (!customerFullNameInput) {
+            return true;
+        }
+        const value = normalizeText(customerFullNameInput.value);
+        if (value.length === 0) {
+            setCustomerNameError(
+                customerFullNameInput.dataset.requiredMessage
+                || "ПІБ або назва замовника є обов'язковими."
+            );
+            return false;
+        }
+        setCustomerNameError("");
+        return true;
+    }
+
+    customerFullNameInput?.addEventListener("input", () => {
+        if (customerFullNameInput.classList.contains("is-invalid")) {
+            validateCustomerForm();
+        }
+    });
+
+    customerForm?.addEventListener("submit", (event) => {
+        if (!validateCustomerForm()) {
+            event.preventDefault();
+            customerFullNameInput?.focus();
+        }
     });
 
     syncSelectAll();

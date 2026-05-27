@@ -44,7 +44,7 @@
         <span class="small text-muted">@CustomerKindDisplay.ToUk(Model.CustomerEdit.Kind)</span>
     </div>
     <div class="card-body">
-        <form asp-action="UpdateCustomer" method="post" class="row g-2">
+        <form asp-action="UpdateCustomer" method="post" class="row g-2" id="orderCustomerForm" novalidate>
             @Html.AntiForgeryToken()
             <input type="hidden" asp-for="CustomerEdit.OrderId" />
             <input type="hidden" asp-for="CustomerEdit.CustomerId" />
@@ -57,8 +57,17 @@
                             "Text"))'></select>
             </div>
             <div class="col-md-5">
-                <label class="form-label small text-muted" asp-for="CustomerEdit.FullName">ПІБ / назва</label>
-                <input asp-for="CustomerEdit.FullName" class="form-control form-control-sm" />
+                <label class="form-label small text-muted" asp-for="CustomerEdit.FullName">
+                    ПІБ / назва <span class="text-danger">*</span>
+                </label>
+                <input asp-for="CustomerEdit.FullName"
+                       class="form-control form-control-sm"
+                       required
+                       maxlength="250"
+                       data-required-message="ПІБ або назва замовника є обов'язковими." />
+                <div class="invalid-feedback" id="customerFullNameError">
+                    ПІБ або назва замовника є обов'язковими.
+                </div>
             </div>
             <div class="col-md-4">
                 <label class="form-label small text-muted" asp-for="CustomerEdit.OrganizationName">Організація</label>
