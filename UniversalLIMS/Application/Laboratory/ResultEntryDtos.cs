@@ -57,6 +57,8 @@ public sealed class SaveResultEntryRequest
     public List<SaveResultEntryFieldRequest> Values { get; set; } = [];
 
     public bool MarkResultsComplete { get; set; }
+
+    public Guid? OrderDocumentId { get; set; }
 }
 
 public sealed class SaveResultEntryFieldRequest

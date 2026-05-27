@@ -62,6 +62,41 @@ public sealed class SampleWorkflowServiceTests
     }
 
     [Fact]
+    public void ApplyAfterResultSave_MarkComplete_WithDocumentId_CompletesOnlySelectedDocument()
+    {
+        var sampleId = Guid.NewGuid();
+        var sample = new Sample
+        {
+            Id = sampleId,
+            Status = SampleStatus.InProgress
+        };
+        var selectedDocumentId = Guid.NewGuid();
+        var selectedDocument = new OrderDocument
+        {
+            Id = selectedDocumentId,
+            SampleId = sampleId,
+            Status = OrderDocumentStatus.InProgress
+        };
+        var siblingDocument = new OrderDocument
+        {
+            Id = Guid.NewGuid(),
+            SampleId = sampleId,
+            Status = OrderDocumentStatus.SentToLab
+        };
+
+        _workflow.ApplyAfterResultSave(
+            sample,
+            [selectedDocument, siblingDocument],
+            markResultsComplete: true,
+            hadPersistedChanges: false,
+            completedOrderDocumentId: selectedDocumentId);
+
+        Assert.Equal(SampleStatus.InProgress, sample.Status);
+        Assert.Equal(OrderDocumentStatus.ResultsEntered, selectedDocument.Status);
+        Assert.Equal(OrderDocumentStatus.SentToLab, siblingDocument.Status);
+    }
+
+    [Fact]
     public void ApplyAfterResultSave_NoChanges_LeavesDocumentSentToLab()
     {
         var sampleId = Guid.NewGuid();

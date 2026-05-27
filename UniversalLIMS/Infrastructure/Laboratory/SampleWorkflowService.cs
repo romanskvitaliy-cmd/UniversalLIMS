@@ -9,28 +9,32 @@ public sealed class SampleWorkflowService : ISampleWorkflowService
         Sample sample,
         IEnumerable<OrderDocument> sampleDocuments,
         bool markResultsComplete,
-        bool hadPersistedChanges)
+        bool hadPersistedChanges,
+        Guid? completedOrderDocumentId = null)
     {
         if (!hadPersistedChanges && !markResultsComplete)
         {
             return;
         }
 
+        var documents = sampleDocuments
+            .Where(document => !document.IsAnnulled)
+            .ToList();
+
         if (sample.Status is SampleStatus.Registered or SampleStatus.Routed)
         {
             sample.Status = SampleStatus.InProgress;
         }
 
-        if (markResultsComplete)
-        {
-            sample.Status = SampleStatus.ResultsEntered;
-        }
-
-        foreach (var document in sampleDocuments.Where(document => !document.IsAnnulled))
+        foreach (var document in documents)
         {
             if (markResultsComplete)
             {
-                if (document.Status is OrderDocumentStatus.SentToLab or OrderDocumentStatus.InProgress)
+                var shouldCompleteDocument = completedOrderDocumentId is null
+                    || document.Id == completedOrderDocumentId.Value;
+
+                if (shouldCompleteDocument
+                    && document.Status is OrderDocumentStatus.SentToLab or OrderDocumentStatus.InProgress)
                 {
                     document.Status = OrderDocumentStatus.ResultsEntered;
                 }
@@ -43,5 +47,20 @@ public sealed class SampleWorkflowService : ISampleWorkflowService
                 document.Status = OrderDocumentStatus.InProgress;
             }
         }
+
+        if (markResultsComplete && IsAllLabWorkflowComplete(documents))
+        {
+            sample.Status = SampleStatus.ResultsEntered;
+        }
+    }
+
+    private static bool IsAllLabWorkflowComplete(IReadOnlyCollection<OrderDocument> documents)
+    {
+        var labDocuments = documents
+            .Where(document => document.Status != OrderDocumentStatus.Pending)
+            .ToList();
+
+        return labDocuments.Count > 0
+            && labDocuments.All(document => document.Status == OrderDocumentStatus.ResultsEntered);
     }
 }

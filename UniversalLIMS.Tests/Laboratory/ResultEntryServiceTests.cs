@@ -233,6 +233,174 @@ public sealed class ResultEntryServiceTests
     }
 
     [Fact]
+    public async Task SaveResultValuesAsync_MarkComplete_WithDocumentId_DoesNotUpdateSiblingDocumentsInSameSample()
+    {
+        var branchId = Guid.NewGuid();
+        await using var context = CreateContext();
+        await SeedBranchAsync(context, branchId);
+        var investigationTypeId = await SeedInvestigationTypeAsync(context);
+        var customer = await SeedCustomerAsync(context, "Клієнт multi-document");
+        var equipmentId = await SeedEquipmentAsync(context, branchId);
+        var dataFieldId = await SeedResultDataFieldAsync(context, "Result.MultiDocument", "Показник");
+        var orderId = Guid.NewGuid();
+        var sampleId = Guid.NewGuid();
+        var documentAId = Guid.NewGuid();
+        var documentBId = Guid.NewGuid();
+
+        context.Orders.Add(new Order
+        {
+            Id = orderId,
+            CustomerId = customer.Id,
+            BranchId = branchId,
+            Status = OrderStatus.Registered,
+            ReferralNumber = "REF-MULTI-DOC"
+        });
+
+        context.Samples.Add(new Sample
+        {
+            Id = sampleId,
+            OrderId = orderId,
+            InvestigationTypeId = investigationTypeId,
+            Number = "SMP-MULTI-DOC-01",
+            RegisteredAt = DateTime.UtcNow,
+            Status = SampleStatus.Routed
+        });
+
+        context.OrderDocuments.AddRange(
+            new OrderDocument
+            {
+                Id = documentAId,
+                OrderId = orderId,
+                SampleId = sampleId,
+                TemplateId = Guid.NewGuid(),
+                TemplateVersionId = Guid.NewGuid(),
+                TargetBranchId = branchId,
+                Status = OrderDocumentStatus.SentToLab,
+                SentToLabAtUtc = DateTime.UtcNow
+            },
+            new OrderDocument
+            {
+                Id = documentBId,
+                OrderId = orderId,
+                SampleId = sampleId,
+                TemplateId = Guid.NewGuid(),
+                TemplateVersionId = Guid.NewGuid(),
+                TargetBranchId = branchId,
+                Status = OrderDocumentStatus.SentToLab,
+                SentToLabAtUtc = DateTime.UtcNow
+            });
+
+        await context.SaveChangesAsync();
+
+        var service = CreateService(context, branchId, LimsRoles.LaboratoryTechnician);
+        var save = await service.SaveResultValuesAsync(
+            sampleId,
+            new SaveResultEntryRequest
+            {
+                MarkResultsComplete = true,
+                OrderDocumentId = documentAId,
+                Values =
+                [
+                    new SaveResultEntryFieldRequest
+                    {
+                        DataFieldId = dataFieldId,
+                        Value = "42",
+                        EquipmentId = equipmentId
+                    }
+                ]
+            });
+
+        Assert.True(save.Success);
+
+        var sample = await context.Samples.FindAsync(sampleId);
+        var documentA = await context.OrderDocuments.FindAsync(documentAId);
+        var documentB = await context.OrderDocuments.FindAsync(documentBId);
+
+        Assert.Equal(SampleStatus.InProgress, sample!.Status);
+        Assert.Equal(OrderDocumentStatus.ResultsEntered, documentA!.Status);
+        Assert.Equal(OrderDocumentStatus.SentToLab, documentB!.Status);
+    }
+
+    [Fact]
+    public async Task SaveResultValuesAsync_MarkComplete_RequiresDocumentId_WhenSampleHasMultipleLabDocuments()
+    {
+        var branchId = Guid.NewGuid();
+        await using var context = CreateContext();
+        await SeedBranchAsync(context, branchId);
+        var investigationTypeId = await SeedInvestigationTypeAsync(context);
+        var customer = await SeedCustomerAsync(context, "Клієнт require document");
+        var equipmentId = await SeedEquipmentAsync(context, branchId);
+        var dataFieldId = await SeedResultDataFieldAsync(context, "Result.RequireDocument", "Показник");
+        var orderId = Guid.NewGuid();
+        var sampleId = Guid.NewGuid();
+
+        context.Orders.Add(new Order
+        {
+            Id = orderId,
+            CustomerId = customer.Id,
+            BranchId = branchId,
+            Status = OrderStatus.Registered,
+            ReferralNumber = "REF-REQ-DOC"
+        });
+
+        context.Samples.Add(new Sample
+        {
+            Id = sampleId,
+            OrderId = orderId,
+            InvestigationTypeId = investigationTypeId,
+            Number = "SMP-REQ-DOC-01",
+            RegisteredAt = DateTime.UtcNow,
+            Status = SampleStatus.Routed
+        });
+
+        context.OrderDocuments.AddRange(
+            new OrderDocument
+            {
+                Id = Guid.NewGuid(),
+                OrderId = orderId,
+                SampleId = sampleId,
+                TemplateId = Guid.NewGuid(),
+                TemplateVersionId = Guid.NewGuid(),
+                TargetBranchId = branchId,
+                Status = OrderDocumentStatus.SentToLab,
+                SentToLabAtUtc = DateTime.UtcNow
+            },
+            new OrderDocument
+            {
+                Id = Guid.NewGuid(),
+                OrderId = orderId,
+                SampleId = sampleId,
+                TemplateId = Guid.NewGuid(),
+                TemplateVersionId = Guid.NewGuid(),
+                TargetBranchId = branchId,
+                Status = OrderDocumentStatus.SentToLab,
+                SentToLabAtUtc = DateTime.UtcNow
+            });
+
+        await context.SaveChangesAsync();
+
+        var service = CreateService(context, branchId, LimsRoles.LaboratoryTechnician);
+        var save = await service.SaveResultValuesAsync(
+            sampleId,
+            new SaveResultEntryRequest
+            {
+                MarkResultsComplete = true,
+                Values =
+                [
+                    new SaveResultEntryFieldRequest
+                    {
+                        DataFieldId = dataFieldId,
+                        Value = "42",
+                        EquipmentId = equipmentId
+                    }
+                ]
+            });
+
+        Assert.False(save.Success);
+        Assert.Equal(0, await context.SampleResultValues.CountAsync(value => value.SampleId == sampleId));
+    }
+
+    [Fact]
     public async Task SaveResultValuesAsync_AnnulsPreviousRow_WhenValueChanges()
     {
         var branchId = Guid.NewGuid();

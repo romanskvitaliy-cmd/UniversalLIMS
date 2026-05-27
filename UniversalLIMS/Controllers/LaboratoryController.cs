@@ -82,7 +82,12 @@ public sealed class LaboratoryController : Controller
             new LaboratoryResultsViewModel
             {
                 Form = form,
-                HasPdfFillTargets = pdfTargets.Count > 0
+                Input = new SaveResultEntryRequest
+                {
+                    OrderDocumentId = pdfTargets.Count == 1 ? pdfTargets[0].OrderDocumentId : null
+                },
+                HasPdfFillTargets = pdfTargets.Count > 0,
+                PdfFillTargets = pdfTargets
             });
     }
 
@@ -112,6 +117,7 @@ public sealed class LaboratoryController : Controller
                 Form = form,
                 Input = model.Input,
                 HasPdfFillTargets = pdfTargets.Count > 0,
+                PdfFillTargets = pdfTargets,
                 StatusMessage = statusMessage,
                 StatusType = save.Success ? "success" : "danger"
             });

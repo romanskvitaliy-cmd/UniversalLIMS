@@ -38,6 +38,7 @@
 | `465b76e` | UX: пояснення лічильників lab overview (Pending не рахуються) |
 | `ce063b0` | Метрика «Очікує відправки» на `/Laboratories` |
 | `19c0947` | Підказка в реєстрі замовлень про відправку в лабораторію |
+| `693ddd0` | Оновлено `handoff-next-agent.md` під актуальний стан |
 
 ---
 
@@ -66,7 +67,7 @@
 
 - Журнал: `LaboratoryJournalService` — один рядок на **пробу**
 - PDF fill: `LaboratoryController.Results` → `ChooseDocument` або redirect; у Fill передається `orderDocumentId`
-- Result entry: `ResultEntryService` → workflow лише для `document.SampleId == sampleId`
+- Result entry: `ResultEntryService` → workflow лише для `document.SampleId == sampleId`; complete може бути scoped до конкретного `OrderDocumentId`
 - Admin: `/Laboratories` — огляд філій, вхід у журнал з session context (`LaboratoryBranchContext`)
 - **Лічильники:** реєстр показує всі проби/документи; lab overview/journal — лише після `SendDocumentsToLab` (`Status != Pending`). Метрика `AwaitingSendSampleCount` — проби з документами «Очікує» по `TargetBranch`.
 
@@ -90,7 +91,7 @@
 | Lab journal | `LaboratoryController.cs`, `LaboratoryJournalService.cs`, `Views/Laboratory/Index.cshtml` |
 | Admin labs | `LaboratoriesController.cs`, `LaboratoryOverviewService.cs`, `Views/Laboratories/Index.cshtml` |
 | Role portal | `Views/Home/Index.cshtml`, `WorkspaceNavigationCatalog.cs`, `ActiveLimsRoleService` |
-| Тести | `OrderRegistrationServiceTests`, `PdfWorkspaceFillServiceTests`, `LaboratoryPdfFillServiceTests`, `ResultEntryServiceTests`, `LaboratoryOverviewServiceTests` |
+| Тести | `OrderRegistrationServiceTests`, `PdfWorkspaceFillServiceTests`, `LaboratoryPdfFillServiceTests`, `ResultEntryServiceTests`, `SampleWorkflowServiceTests`, `LaboratoryOverviewServiceTests` |
 
 ---
 
@@ -98,7 +99,7 @@
 
 ```powershell
 dotnet build UniversalLIMS/UniversalLIMS.csproj
-dotnet test UniversalLIMS.Tests/UniversalLIMS.Tests.csproj --filter "FullyQualifiedName~OrderRegistrationServiceTests|FullyQualifiedName~PdfWorkspaceFillServiceTests|FullyQualifiedName~LaboratoryPdfFillServiceTests|FullyQualifiedName~ResultEntryServiceTests|FullyQualifiedName~LaboratoryOverviewServiceTests|FullyQualifiedName~NumberingServiceTests|FullyQualifiedName~OrderPostCreateNavigationTests"
+dotnet test UniversalLIMS.Tests/UniversalLIMS.Tests.csproj --filter "FullyQualifiedName~OrderRegistrationServiceTests|FullyQualifiedName~PdfWorkspaceFillServiceTests|FullyQualifiedName~LaboratoryPdfFillServiceTests|FullyQualifiedName~ResultEntryServiceTests|FullyQualifiedName~SampleWorkflowServiceTests|FullyQualifiedName~LaboratoryOverviewServiceTests|FullyQualifiedName~NumberingServiceTests|FullyQualifiedName~OrderPostCreateNavigationTests"
 ```
 
 Раніше проходили: Laboratory journal tests 7/7, lab workflow 19/19, focused registration 35/35.
@@ -124,6 +125,7 @@ dotnet test UniversalLIMS.Tests/UniversalLIMS.Tests.csproj --filter "FullyQualif
 ### Лаборант
 7. Журнал → PDF / Показники по пробі
 8. Multi-sample order: partial send to lab, fill у лабораторії з правильним документом
+9. Проба з 2 PDF: «Результати внесено» для одного документа не закриває sibling document; статус проби стає `ResultsEntered` лише коли всі lab-документи завершені.
 
 ---
 
@@ -131,11 +133,9 @@ dotnet test UniversalLIMS.Tests/UniversalLIMS.Tests.csproj --filter "FullyQualif
 
 | Пріоритет | Задача |
 |-----------|--------|
-| Середній | «Результати внесено» закриває **усі** документи проби (`SampleWorkflowService`) — для multi-PDF може бути занадто грубо |
 | Низький | Прибрати legacy fallback `GetEffectiveSamples()` / старі поля create-form |
 | Низький | `Order` → Registered після успішного PDF fill |
 | Низький | `savedCount` у PDF save response; прибрати debug `Console.WriteLine` / `debug-40b8bf.log` usage |
-| Доки | Оновити `docs/handoff-next-agent.md` (застарілий статус PR-1/PR-2) |
 | Roadmap | Етап 3–4: експерт, протоколи, висновки |
 
 ---

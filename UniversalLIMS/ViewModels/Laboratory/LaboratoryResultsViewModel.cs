@@ -13,4 +13,6 @@ public sealed class LaboratoryResultsViewModel
     public string? StatusType { get; set; }
 
     public bool HasPdfFillTargets { get; set; }
+
+    public IReadOnlyList<SamplePdfFillTargetDto> PdfFillTargets { get; set; } = [];
 }

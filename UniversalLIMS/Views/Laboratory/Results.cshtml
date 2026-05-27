@@ -6,6 +6,9 @@
     ViewData["Title"] = $"Результати — {Model.Form.SampleNumber}";
     var fields = Model.Form.Fields;
     var writableCount = fields.Count(field => field.CanWrite);
+    var documentTargets = Model.PdfFillTargets
+        .Where(target => target.OrderDocumentId.HasValue)
+        .ToList();
 }
 
 <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
@@ -175,18 +178,48 @@ else
                 </div>
             </div>
             <div class="card-footer d-flex flex-wrap gap-3 align-items-center justify-content-between">
-                <div class="form-check mb-0">
-                    @if (Model.Form.Status == UniversalLIMS.Domain.Registration.SampleStatus.ResultsEntered)
+                <div class="d-flex flex-column gap-2">
+                    <div class="form-check mb-0">
+                        @if (Model.Form.Status == UniversalLIMS.Domain.Registration.SampleStatus.ResultsEntered)
+                        {
+                            <input class="form-check-input" type="checkbox" id="markResultsComplete" name="Input.MarkResultsComplete" value="true" checked="checked" />
+                        }
+                        else
+                        {
+                            <input class="form-check-input" type="checkbox" id="markResultsComplete" name="Input.MarkResultsComplete" value="true" />
+                        }
+                        <label class="form-check-label" for="markResultsComplete">
+                            Позначити документ як «Результати внесено»
+                        </label>
+                    </div>
+                    @if (documentTargets.Count == 1)
                     {
-                        <input class="form-check-input" type="checkbox" id="markResultsComplete" name="Input.MarkResultsComplete" value="true" checked="checked" />
+                        <input type="hidden" name="Input.OrderDocumentId" value="@documentTargets[0].OrderDocumentId" />
+                        <div class="small text-muted">
+                            Документ: @documentTargets[0].TemplateNameUk · v@(documentTargets[0].VersionNumber)
+                        </div>
                     }
-                    else
+                    else if (documentTargets.Count > 1)
                     {
-                        <input class="form-check-input" type="checkbox" id="markResultsComplete" name="Input.MarkResultsComplete" value="true" />
+                        <div>
+                            <label class="form-label small text-muted mb-1" for="orderDocumentId">Документ для завершення</label>
+                            <select class="form-select form-select-sm" id="orderDocumentId" name="Input.OrderDocumentId">
+                                <option value="">Оберіть документ</option>
+                                @foreach (var target in documentTargets)
+                                {
+                                    if (Model.Input.OrderDocumentId == target.OrderDocumentId)
+                                    {
+                                        <option value="@target.OrderDocumentId" selected="selected">@target.TemplateNameUk · v@(target.VersionNumber)</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="@target.OrderDocumentId">@target.TemplateNameUk · v@(target.VersionNumber)</option>
+                                    }
+                                }
+                            </select>
+                            <div class="form-text">Для проби з кількома PDF завершення фіксується по конкретному документу.</div>
+                        </div>
                     }
-                    <label class="form-check-label" for="markResultsComplete">
-                        Позначити пробу як «Результати внесено»
-                    </label>
                 </div>
                 <button type="submit" class="btn btn-primary btn-sm" disabled="@(writableCount == 0)">Зберегти результати</button>
             </div>

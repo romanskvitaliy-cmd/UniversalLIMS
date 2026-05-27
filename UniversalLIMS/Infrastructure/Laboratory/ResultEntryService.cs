@@ -124,6 +124,19 @@ public sealed class ResultEntryService : IResultEntryService
             };
         }
 
+        var sampleDocuments = sample.Order.OrderDocuments
+            .Where(document => document.SampleId == sampleId)
+            .ToList();
+        var completedOrderDocumentId = ResolveCompletedOrderDocumentId(request, sampleDocuments);
+        if (completedOrderDocumentId == Guid.Empty)
+        {
+            return new SaveResultEntryResult
+            {
+                Success = false,
+                Message = "Оберіть документ, для якого потрібно позначити «Результати внесено»."
+            };
+        }
+
         var incoming = request.Values?
             .Where(item => item.DataFieldId != Guid.Empty)
             .GroupBy(item => item.DataFieldId)
@@ -213,15 +226,12 @@ public sealed class ResultEntryService : IResultEntryService
 
         if (saved > 0 || request.MarkResultsComplete)
         {
-            var sampleDocuments = sample.Order.OrderDocuments
-                .Where(document => document.SampleId == sampleId)
-                .ToList();
-
             _workflow.ApplyAfterResultSave(
                 sample,
                 sampleDocuments,
                 request.MarkResultsComplete,
-                hadPersistedChanges: saved > 0);
+                hadPersistedChanges: saved > 0,
+                completedOrderDocumentId);
         }
 
         await _context.SaveChangesAsync(cancellationToken);
@@ -233,6 +243,33 @@ public sealed class ResultEntryService : IResultEntryService
             SavedCount = saved,
             SkippedCount = skipped
         };
+    }
+
+    private static Guid? ResolveCompletedOrderDocumentId(
+        SaveResultEntryRequest request,
+        IReadOnlyCollection<OrderDocument> sampleDocuments)
+    {
+        if (!request.MarkResultsComplete)
+        {
+            return null;
+        }
+
+        var eligibleDocuments = sampleDocuments
+            .Where(document =>
+                !document.IsAnnulled
+                && document.Status is OrderDocumentStatus.SentToLab or OrderDocumentStatus.InProgress)
+            .ToList();
+
+        if (request.OrderDocumentId is Guid requestedDocumentId)
+        {
+            return eligibleDocuments.Any(document => document.Id == requestedDocumentId)
+                ? requestedDocumentId
+                : Guid.Empty;
+        }
+
+        return eligibleDocuments.Count == 1
+            ? eligibleDocuments[0].Id
+            : Guid.Empty;
     }
 
     private static string BuildSaveMessage(int saved, int skipped)

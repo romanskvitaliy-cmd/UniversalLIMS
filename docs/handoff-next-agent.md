@@ -61,7 +61,7 @@
 
 ### Лабораторія / Admin
 - `LaboratoryJournalService` — журнал: один рядок на пробу
-- `ResultEntryService` — `SampleResultValue`, workflow лише для документів тієї ж проби
+- `ResultEntryService` — `SampleResultValue`, workflow лише для документів тієї ж проби; complete scoped до конкретного `OrderDocumentId`
 - `/Laboratories` — огляд філій, session context через `LaboratoryBranchContext`
 - `LaboratoryOverviewService` — рахує `ActiveSampleCount` для lab workflow і `AwaitingSendSampleCount` для Pending
 
@@ -70,6 +70,7 @@
 - `PdfWorkspaceFillServiceTests`
 - `LaboratoryPdfFillServiceTests`
 - `ResultEntryServiceTests`
+- `SampleWorkflowServiceTests`
 - `LaboratoryOverviewServiceTests`
 - `NumberingServiceTests`
 - `OrderPostCreateNavigationTests`
@@ -112,7 +113,7 @@ DbContext → Interceptors → CurrentUserService → DbContext
 ```powershell
 git status
 dotnet build UniversalLIMS/UniversalLIMS.csproj
-dotnet test UniversalLIMS.Tests/UniversalLIMS.Tests.csproj --filter "FullyQualifiedName~OrderRegistrationServiceTests|FullyQualifiedName~PdfWorkspaceFillServiceTests|FullyQualifiedName~LaboratoryPdfFillServiceTests|FullyQualifiedName~ResultEntryServiceTests|FullyQualifiedName~LaboratoryOverviewServiceTests|FullyQualifiedName~NumberingServiceTests|FullyQualifiedName~OrderPostCreateNavigationTests|FullyQualifiedName~LaboratoryJournalServiceTests"
+dotnet test UniversalLIMS.Tests/UniversalLIMS.Tests.csproj --filter "FullyQualifiedName~OrderRegistrationServiceTests|FullyQualifiedName~PdfWorkspaceFillServiceTests|FullyQualifiedName~LaboratoryPdfFillServiceTests|FullyQualifiedName~ResultEntryServiceTests|FullyQualifiedName~SampleWorkflowServiceTests|FullyQualifiedName~LaboratoryOverviewServiceTests|FullyQualifiedName~NumberingServiceTests|FullyQualifiedName~OrderPostCreateNavigationTests|FullyQualifiedName~LaboratoryJournalServiceTests"
 ```
 
 Останній focused прогін: build зелений, 52 тести зелені.
@@ -139,6 +140,7 @@ dotnet test UniversalLIMS.Tests/UniversalLIMS.Tests.csproj --filter "FullyQualif
 1. Відкрити журнал: видно лише відправлені в лабораторію проби.
 2. Для multi-sample: partial send має показувати тільки відправлені документи.
 3. Якщо у проби кілька PDF, `Results` має вести через `ChooseDocument` або відкривати конкретний `orderDocumentId`.
+4. Для проби з кількома PDF: «Результати внесено» закриває вибраний документ, sibling document лишається в роботі / лабораторії.
 
 ### Важлива QA-нотатка
 
@@ -149,7 +151,6 @@ dotnet test UniversalLIMS.Tests/UniversalLIMS.Tests.csproj --filter "FullyQualif
 ## 6. Беклог
 
 ### Лабораторія
-- [ ] «Результати внесено» per document vs per sample: зараз `SampleWorkflowService` при complete закриває всі документи проби.
 - [ ] Етап 3–4: експерт, протоколи, висновки.
 
 ### Реєстратура
