@@ -45,6 +45,12 @@ else
                 <div class="d-flex flex-wrap gap-2 small mb-3">
                     <span class="badge text-bg-light border">В роботі: @overview.TotalInProgressSampleCount</span>
                     <span class="badge text-bg-light border">Результати внесено: @overview.TotalResultsEnteredSampleCount</span>
+                    @if (overview.TotalAwaitingSendSampleCount > 0)
+                    {
+                        <span class="badge text-bg-warning-subtle border text-dark">
+                            Очікує відправки: @overview.TotalAwaitingSendSampleCount
+                        </span>
+                    }
                 </div>
                 <form asp-action="EnterJournal" method="post" class="m-0">
                     @Html.AntiForgeryToken()
@@ -99,7 +105,7 @@ else
 
                         <div class="row g-2 small mb-3">
                             <div class="col-4">
-                                <div class="text-muted">Проб</div>
+                                <div class="text-muted">У workflow</div>
                                 <div class="fw-semibold fs-5">@branch.ActiveSampleCount</div>
                             </div>
                             <div class="col-4">
@@ -110,6 +116,14 @@ else
                                 <div class="text-muted">Готово</div>
                                 <div class="fw-semibold fs-5">@branch.ResultsEnteredSampleCount</div>
                             </div>
+                            @if (branch.AwaitingSendSampleCount > 0)
+                            {
+                                <div class="col-12">
+                                    <span class="badge text-bg-warning-subtle border text-dark">
+                                        Очікує відправки: @branch.AwaitingSendSampleCount
+                                    </span>
+                                </div>
+                            }
                         </div>
 
                         <form asp-action="EnterJournal" method="post" class="mt-auto">

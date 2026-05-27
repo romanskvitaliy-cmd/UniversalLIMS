@@ -51,6 +51,7 @@ public sealed class LaboratoryOverviewServiceTests
         Assert.Equal(3, overview.TotalActiveSampleCount);
         Assert.Equal(1, overview.TotalInProgressSampleCount);
         Assert.Equal(1, overview.TotalResultsEnteredSampleCount);
+        Assert.Equal(0, overview.TotalAwaitingSendSampleCount);
         Assert.Equal(branchB, overview.ActiveBranchId);
 
         var branchAOverview = Assert.Single(overview.Branches, branch => branch.BranchId == branchA);
@@ -106,6 +107,8 @@ public sealed class LaboratoryOverviewServiceTests
 
         Assert.Equal(0, overview.TotalActiveSampleCount);
         Assert.Equal(0, overview.Branches[0].ActiveSampleCount);
+        Assert.Equal(1, overview.TotalAwaitingSendSampleCount);
+        Assert.Equal(1, overview.Branches[0].AwaitingSendSampleCount);
     }
 
     private static LaboratoryOverviewService CreateService(

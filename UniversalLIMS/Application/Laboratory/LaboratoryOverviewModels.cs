@@ -16,6 +16,9 @@ public sealed class LaboratoryBranchOverviewDto
     public int InProgressSampleCount { get; init; }
 
     public int ResultsEnteredSampleCount { get; init; }
+
+    /// <summary>Проби з документами «Очікує», ще не відправленими в лабораторію (за TargetBranch).</summary>
+    public int AwaitingSendSampleCount { get; init; }
 }
 
 /// <summary>Огляд усіх лабораторій для адміністратора.</summary>
@@ -28,6 +31,9 @@ public sealed class LaboratoryOverviewDto
     public int TotalInProgressSampleCount { get; init; }
 
     public int TotalResultsEnteredSampleCount { get; init; }
+
+    /// <summary>Проби з документами «Очікує» по всій мережі (ще не в lab workflow).</summary>
+    public int TotalAwaitingSendSampleCount { get; init; }
 
     public Guid? ActiveBranchId { get; init; }
 
