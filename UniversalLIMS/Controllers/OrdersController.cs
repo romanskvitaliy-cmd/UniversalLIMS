@@ -266,6 +266,12 @@ public sealed class OrdersController : Controller
             return RedirectToAction(nameof(Details), new { id = input.OrderId });
         }
 
+        if (string.IsNullOrWhiteSpace(input.FullName))
+        {
+            TempData["OrderDetailError"] = "ПІБ або назва замовника є обов'язковими.";
+            return RedirectToAction(nameof(Details), new { id = input.OrderId });
+        }
+
         try
         {
             await _customerService.UpdateAsync(

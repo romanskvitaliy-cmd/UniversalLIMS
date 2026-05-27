@@ -335,6 +335,46 @@ public sealed class OrderRegistrationServiceTests
     }
 
     [Fact]
+    public async Task GetOrderDetailAsync_ReturnsCustomerFieldsForRegistryEditing()
+    {
+        var branchId = Guid.NewGuid();
+        await using var context = CreateContext();
+        await SeedBranchesAsync(context, branchId);
+        var investigationTypeId = await SeedInvestigationTypeWithPdfTemplateAsync(context);
+        var customer = await SeedCustomerAsync(context, "Редагований Клієнт");
+        customer.Kind = CustomerKind.LegalEntity;
+        customer.OrganizationName = "ТОВ Тест";
+        customer.ContactPhone = "+380500000000";
+        customer.Email = "test@example.com";
+        customer.Address = "м. Житомир";
+        customer.Edrpou = "12345678";
+        customer.Rnokpp = "1234567890";
+        customer.Notes = "нотатка";
+        await context.SaveChangesAsync();
+
+        var service = CreateService(context, branchId);
+        var created = await service.CreateOrderAsync(new CreateOrderRequest
+        {
+            CustomerId = customer.Id,
+            InvestigationTypeId = investigationTypeId
+        });
+
+        var detail = await service.GetOrderDetailAsync(created.OrderId);
+
+        Assert.NotNull(detail);
+        Assert.Equal(customer.Id, detail!.CustomerId);
+        Assert.Equal(CustomerKind.LegalEntity, detail.CustomerKind);
+        Assert.Equal("Редагований Клієнт", detail.CustomerFullName);
+        Assert.Equal("ТОВ Тест", detail.CustomerOrganizationName);
+        Assert.Equal("+380500000000", detail.CustomerContactPhone);
+        Assert.Equal("test@example.com", detail.CustomerEmail);
+        Assert.Equal("м. Житомир", detail.CustomerAddress);
+        Assert.Equal("12345678", detail.CustomerEdrpou);
+        Assert.Equal("1234567890", detail.CustomerRnokpp);
+        Assert.Equal("нотатка", detail.CustomerNotes);
+    }
+
+    [Fact]
     public async Task GetOrdersAsync_FiltersByReferralNumber()
     {
         var branchId = Guid.NewGuid();
