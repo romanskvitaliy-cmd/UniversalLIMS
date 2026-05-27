@@ -14,6 +14,7 @@
 - Політика версій шаблонів: `docs/handoff-template-versioning-policy.md`
 - Гібридні теги + мапінг реєстратури: `docs/handoff-hybrid-tags-and-registry-mapping.md`
 - QA на завтра (Fill + теги + ролі): `docs/qa-tomorrow-fill-tags-checklist.md`
+- **Продовження для нового агента (commit scheme + етап 3):** `docs/handoff-continue-agent-expert-and-stabilization.md`
 
 ---
 
@@ -36,6 +37,7 @@
 | Inline валідація форми редагування клієнта | Закрито |
 | `FieldTextLibrary` tag-first у PDF Fill | Закрито |
 | PDF Fill: autosave макету разом із збереженням значень | Закрито |
+| Експерт: черга, approve+notes, return to queue (MVP етап 3) | Закрито |
 
 **Поточна гілка:** `main`, локально попереду `origin/main` на кілька комітів. `debug-40b8bf.log` може оновлюватися локально автоматично, але його **не комітити**.
 
@@ -170,12 +172,18 @@ dotnet test UniversalLIMS.Tests/UniversalLIMS.Tests.csproj --filter "FullyQualif
 
 ## 6. Беклог
 
-### Лабораторія
-- [ ] Етап 3–4: експерт, протоколи, висновки.
+### Лабораторія / експерт
+- [x] Етап 3 (MVP): черга експерта, approve, notes, return to queue.
+- [ ] Етап 3 (продовження): деталі проби, reject/доопрацювання (за потреби).
+- [ ] Етап 4: протоколи, фінальні висновки PDF (окремий блок).
 
 ### Реєстратура
 - [x] `Order` → Registered після успішного PDF fill.
 - [x] Редагування клієнта з реєстру.
+
+### Експерт (етап 3, MVP)
+- `GET/POST /Expert` — черга, Review→PdfWorkspace Fill, Approve, ReturnToQueue
+- Деталі: **`docs/handoff-continue-agent-expert-and-stabilization.md`**
 
 ### PDF Workspace
 - Детально: **`docs/handoff-pdf-fill-panel-and-template-lifecycle.md`** (панель, layout save, версії)
