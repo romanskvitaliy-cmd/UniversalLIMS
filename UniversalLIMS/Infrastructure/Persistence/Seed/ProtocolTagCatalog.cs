@@ -146,6 +146,64 @@ public static class ProtocolTagCatalog
         new("f329_HygieneDoctor", "Лікар із загальної гігієни", DataFieldScope.Conclusion),
     ];
 
+    public static IReadOnlyList<TagDefinition> F205 { get; } =
+    [
+        new("f205_RegistrationNumber", "Реєстраційний номер зразка", DataFieldScope.Sample),
+        new("f205_SampleDate", "від ______ 2024 р.", DataFieldScope.Sample, DataFieldType.Date),
+        new("f205_SampleName", "Найменування зразка", DataFieldScope.Sample),
+        new("f205_SamplingLocation", "Місце відбору", DataFieldScope.Sample),
+        new("f205_Purpose", "Мета випробування", DataFieldScope.Registration),
+        new("f205_Customer", "Замовник", DataFieldScope.Registration),
+        new("f205_TotalMicrobialCount", "Загальне мікробне число, в КУО/см³ 37°С", DataFieldScope.Result),
+        new("f205_TotalMicrobialCountNorm", "50", DataFieldScope.Result),
+        new("f205_TotalMicrobialCountValue", "Отримане значення", DataFieldScope.Result),
+        new("f205_TotalMicrobialCountUncertainty", "Розширена невизначеність", DataFieldScope.Result),
+        new("f205_TotalMicrobialCountMethod", "MB 10.2.1-113-2005", DataFieldScope.Result),
+        new("f205_TotalMicrobialCountCompliance", "Відмітка про відповідність", DataFieldScope.Conclusion),
+        new("f205_TotalColiforms", "Загальні коліформи, в 100 см³", DataFieldScope.Result),
+        new("f205_TotalColiformsNorm", "не допускається", DataFieldScope.Result),
+        new("f205_TotalColiformsValue", "Отримане значення", DataFieldScope.Result),
+        new("f205_TotalColiformsUncertainty", "Розширена невизначеність", DataFieldScope.Result),
+        new("f205_TotalColiformsMethod", "MB 10.2.1-113-2005", DataFieldScope.Result),
+        new("f205_TotalColiformsCompliance", "Відмітка про відповідність", DataFieldScope.Conclusion),
+        new("f205_Enterococci", "Ентерококи, в 100 см³", DataFieldScope.Result),
+        new("f205_EnterococciNorm", "не допускається", DataFieldScope.Result),
+        new("f205_EnterococciValue", "Отримане значення", DataFieldScope.Result),
+        new("f205_EnterococciUncertainty", "Розширена невизначеність", DataFieldScope.Result),
+        new("f205_EnterococciMethod", "Інструкція 19ПІ-5,8", DataFieldScope.Result),
+        new("f205_EnterococciCompliance", "Відмітка про відповідність", DataFieldScope.Conclusion),
+        new("f205_EColi", "E. Coli, в 100 см³", DataFieldScope.Result),
+        new("f205_EColiNorm", "не допускається", DataFieldScope.Result),
+        new("f205_EColiValue", "Отримане значення", DataFieldScope.Result),
+        new("f205_EColiUncertainty", "Розширена невизначеність", DataFieldScope.Result),
+        new("f205_EColiMethod", "MB 10.2.1-113-2005", DataFieldScope.Result),
+        new("f205_EColiCompliance", "Відмітка про відповідність", DataFieldScope.Conclusion),
+        new("f205_IssueDate", "Дата видачі результату", DataFieldScope.Result, DataFieldType.Date),
+        new("f205_ExecutorSignature", "Підпис виконавця", DataFieldScope.Conclusion),
+        new("f205_Conclusion", "Висновок", DataFieldScope.Conclusion),
+        new("f205_SanitaryDoctor", "Санітарний лікар", DataFieldScope.Conclusion),
+        new("f205_SanitaryDoctorSignature", "Підпис Санітарного лікаря", DataFieldScope.Conclusion),
+    ];
+
+    public static IReadOnlyList<TagDefinition> F205S { get; } =
+    [
+        new("f205s_RegistrationNumber", "Реєстраційний номер зразка", DataFieldScope.Sample),
+        new("f205s_SampleName", "Найменування зразка", DataFieldScope.Sample),
+        new("f205s_SamplingLocation", "Місце відбору зразка", DataFieldScope.Sample),
+        new("f205s_Purpose", "Мета випробування", DataFieldScope.Registration),
+        new("f205s_Customer", "Замовник", DataFieldScope.Registration),
+        new("f205s_Number", "№ п/п", DataFieldScope.Result),
+        new("f205s_RegistrationNumberColumn", "Реєстраційний номер", DataFieldScope.Result),
+        new("f205s_SamplingLocationColumn", "Місце відбору", DataFieldScope.Result),
+        new("f205s_ObjectName", "Найменування об'єктів дослідження", DataFieldScope.Result),
+        new("f205s_NormativeValue", "Нормативне значення", DataFieldScope.Result),
+        new("f205s_ObtainedValue", "Отримане значення", DataFieldScope.Result),
+        new("f205s_ComplianceMark", "Відмітка про відповідність", DataFieldScope.Conclusion),
+        new("f205s_DoctorConclusion", "Висновок лікаря", DataFieldScope.Conclusion),
+        new("f205s_IssueDate", "Дата видачі результату", DataFieldScope.Result, DataFieldType.Date),
+        new("f205s_ExecutorSignature", "Підпис виконавця", DataFieldScope.Conclusion),
+    ];
+
     public static IReadOnlyList<TagDefinition> F325 { get; } =
     [
         new("f325_WaterTemperature", "Температура води у градусах C", DataFieldScope.Result, DataFieldType.Number),
@@ -202,5 +260,5 @@ public static class ProtocolTagCatalog
 
     /// <summary>Усі теги каталогу (після протокольних списків).</summary>
     public static IReadOnlyList<TagDefinition> All { get; } =
-        [.. F327, .. Food, .. F345, .. F343, .. F332, .. F413, .. F329, .. F325];
+        [.. F327, .. Food, .. F205, .. F205S, .. F345, .. F343, .. F332, .. F413, .. F329, .. F325];
 }

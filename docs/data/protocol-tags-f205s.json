@@ -1,0 +1,37 @@
+{
+  "protocolCode": "f205s",
+  "protocolNameUk": "Форма 205 — стерильність (префікс f205s_)",
+  "tagPrefix": "f205s_",
+  "groups": [
+    {
+      "name": "Шапка зразка",
+      "tags": [
+        { "key": "f205s_RegistrationNumber", "titleUk": "Реєстраційний номер зразка" },
+        { "key": "f205s_SampleName", "titleUk": "Найменування зразка" },
+        { "key": "f205s_SamplingLocation", "titleUk": "Місце відбору зразка" },
+        { "key": "f205s_Purpose", "titleUk": "Мета випробування" },
+        { "key": "f205s_Customer", "titleUk": "Замовник" }
+      ]
+    },
+    {
+      "name": "Таблиця",
+      "tags": [
+        { "key": "f205s_Number", "titleUk": "№ п/п" },
+        { "key": "f205s_RegistrationNumberColumn", "titleUk": "Реєстраційний номер" },
+        { "key": "f205s_SamplingLocationColumn", "titleUk": "Місце відбору" },
+        { "key": "f205s_ObjectName", "titleUk": "Найменування об'єктів дослідження" },
+        { "key": "f205s_NormativeValue", "titleUk": "Нормативне значення" },
+        { "key": "f205s_ObtainedValue", "titleUk": "Отримане значення" },
+        { "key": "f205s_ComplianceMark", "titleUk": "Відмітка про відповідність" }
+      ]
+    },
+    {
+      "name": "Нижня частина",
+      "tags": [
+        { "key": "f205s_DoctorConclusion", "titleUk": "Висновок лікаря" },
+        { "key": "f205s_IssueDate", "titleUk": "Дата видачі результату" },
+        { "key": "f205s_ExecutorSignature", "titleUk": "Підпис виконавця" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "protocolCode": "f205",
+  "protocolNameUk": "Форма 205 — мікробіологія води",
+  "tagPrefix": "f205_",
+  "groups": [
+    {
+      "name": "Шапка зразка",
+      "tags": [
+        { "key": "f205_RegistrationNumber", "titleUk": "Реєстраційний номер зразка" },
+        { "key": "f205_SampleDate", "titleUk": "від ______ 2024 р." },
+        { "key": "f205_SampleName", "titleUk": "Найменування зразка" },
+        { "key": "f205_SamplingLocation", "titleUk": "Місце відбору" },
+        { "key": "f205_Purpose", "titleUk": "Мета випробування" },
+        { "key": "f205_Customer", "titleUk": "Замовник" }
+      ]
+    },
+    {
+      "name": "Таблиця показників",
+      "tags": [
+        { "key": "f205_TotalMicrobialCount", "titleUk": "Загальне мікробне число, в КУО/см³ 37°С" },
+        { "key": "f205_TotalMicrobialCountNorm", "titleUk": "50" },
+        { "key": "f205_TotalMicrobialCountValue", "titleUk": "Отримане значення" },
+        { "key": "f205_TotalMicrobialCountUncertainty", "titleUk": "Розширена невизначеність" },
+        { "key": "f205_TotalMicrobialCountMethod", "titleUk": "MB 10.2.1-113-2005" },
+        { "key": "f205_TotalMicrobialCountCompliance", "titleUk": "Відмітка про відповідність" },
+        { "key": "f205_TotalColiforms", "titleUk": "Загальні коліформи, в 100 см³" },
+        { "key": "f205_TotalColiformsNorm", "titleUk": "не допускається" },
+        { "key": "f205_TotalColiformsValue", "titleUk": "Отримане значення" },
+        { "key": "f205_TotalColiformsUncertainty", "titleUk": "Розширена невизначеність" },
+        { "key": "f205_TotalColiformsMethod", "titleUk": "MB 10.2.1-113-2005" },
+        { "key": "f205_TotalColiformsCompliance", "titleUk": "Відмітка про відповідність" },
+        { "key": "f205_Enterococci", "titleUk": "Ентерококи, в 100 см³" },
+        { "key": "f205_EnterococciNorm", "titleUk": "не допускається" },
+        { "key": "f205_EnterococciValue", "titleUk": "Отримане значення" },
+        { "key": "f205_EnterococciUncertainty", "titleUk": "Розширена невизначеність" },
+        { "key": "f205_EnterococciMethod", "titleUk": "Інструкція 19ПІ-5,8" },
+        { "key": "f205_EnterococciCompliance", "titleUk": "Відмітка про відповідність" },
+        { "key": "f205_EColi", "titleUk": "E. Coli, в 100 см³" },
+        { "key": "f205_EColiNorm", "titleUk": "не допускається" },
+        { "key": "f205_EColiValue", "titleUk": "Отримане значення" },
+        { "key": "f205_EColiUncertainty", "titleUk": "Розширена невизначеність" },
+        { "key": "f205_EColiMethod", "titleUk": "MB 10.2.1-113-2005" },
+        { "key": "f205_EColiCompliance", "titleUk": "Відмітка про відповідність" }
+      ]
+    },
+    {
+      "name": "Нижня частина",
+      "tags": [
+        { "key": "f205_IssueDate", "titleUk": "Дата видачі результату" },
+        { "key": "f205_ExecutorSignature", "titleUk": "Підпис виконавця" },
+        { "key": "f205_Conclusion", "titleUk": "Висновок" },
+        { "key": "f205_SanitaryDoctor", "titleUk": "Санітарний лікар" },
+        { "key": "f205_SanitaryDoctorSignature", "titleUk": "Підпис Санітарного лікаря" }
+      ]
+    }
+  ]
+}
