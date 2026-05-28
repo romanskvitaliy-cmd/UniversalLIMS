@@ -7,6 +7,7 @@
     const templatesHost = document.getElementById("fieldMappingTemplates");
     const groupsHost = document.getElementById("fieldMappingGroups");
     const sharedHost = document.getElementById("fieldMappingSharedValues");
+    const summaryHost = document.getElementById("fieldMappingSummary");
     const jsonInput = document.getElementById("fieldMappingJson");
     const form = document.getElementById("orderFieldMappingForm");
     const autoMergePreviewButton = document.getElementById("btnAutoMergePreview");
@@ -69,6 +70,7 @@
         if (!groups.length) {
             groupsHost.innerHTML = '<p class="text-muted mb-0">Ще немає груп. Оберіть поля та натисніть «Об’єднати вибрані».</p>';
             renderSharedValues();
+            renderSummary();
             syncJson();
             return;
         }
@@ -131,7 +133,48 @@
         });
 
         renderSharedValues();
+        renderSummary();
         syncJson();
+    }
+
+    function normalizeTagPrefix(tag) {
+        const normalized = normalizeTag(tag);
+        if (!normalized) {
+            return "";
+        }
+
+        const [prefix] = normalized.split(/[._:\-]/);
+        return prefix ?? "";
+    }
+
+    function renderSummary() {
+        if (!summaryHost) {
+            return;
+        }
+
+        const groupsCount = groups.length;
+        const fieldsInGroupsCount = groups.reduce((sum, group) => sum + (group.members?.length ?? 0), 0);
+        const groupsWithMixedPrefixes = groups.filter((group) => {
+            const prefixes = new Set(
+                (group.members ?? [])
+                    .map((member) => normalizeTagPrefix(member.tag))
+                    .filter(Boolean)
+            );
+            return prefixes.size > 1;
+        }).length;
+
+        const warningHtml = groupsWithMixedPrefixes > 0
+            ? `<div class="alert alert-warning py-1 px-2 mb-0 mt-2">
+                    Увага: ${groupsWithMixedPrefixes} груп(и) містять різні префікси тегів.
+               </div>`
+            : "";
+
+        summaryHost.innerHTML = `
+            <div class="text-muted">
+                Груп: <strong>${groupsCount}</strong> · Полів у групах: <strong>${fieldsInGroupsCount}</strong>
+            </div>
+            ${warningHtml}
+        `;
     }
 
     function renderSharedValues() {
@@ -465,5 +508,6 @@
 
     renderTemplates();
     renderGroups();
+    renderSummary();
     resetPendingAutoMergeStatus();
 })();

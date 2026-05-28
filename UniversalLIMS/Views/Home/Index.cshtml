@@ -70,6 +70,14 @@
                 {
                     var showGuestLogin = isGuest && !Model.HasActiveRole;
                     var cardClass = (card.IsGranted || showGuestLogin) ? "lims-role-card--granted" : "lims-role-card--locked";
+                    var roleBackgroundClass = card.RoleCode switch
+                    {
+                        "SystemAdministrator" => "lims-role-card--admin-bg",
+                        "Registrar" => "lims-role-card--registrar-bg",
+                        "LaboratoryTechnician" => "lims-role-card--lab-bg",
+                        "Specialist" => "lims-role-card--expert-bg",
+                        _ => "lims-role-card--admin-bg"
+                    };
                     if (card.IsActiveRole)
                     {
                         cardClass += " lims-role-card--active";
@@ -78,51 +86,55 @@
                     {
                         cardClass += " lims-role-card--overview";
                     }
-                    <article class="lims-role-card @cardClass"
+                    <article class="lims-role-card @cardClass @roleBackgroundClass"
                              role="listitem"
                              style="--role-accent: @card.AccentColor; --role-accent-rgb: @card.AccentRgb; --anim-delay: @(card.AnimationDelayMs)ms;">
-                        @if (card.IsActiveRole)
-                        {
-                            <span class="lims-role-card__badge lims-role-card__badge--active">
-                                <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
-                                Активна роль
-                            </span>
-                        }
+                        <div class="lims-role-card__bg"
+                             aria-hidden="true"></div>
+                        <div class="lims-role-card__content">
+                            @if (card.IsActiveRole)
+                            {
+                                <span class="lims-role-card__badge lims-role-card__badge--active">
+                                    <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
+                                    Активна роль
+                                </span>
+                            }
 
-                        <div class="lims-role-card__icon-wrap" aria-hidden="true">
-                            <i class="bi @card.IconClass"></i>
-                        </div>
+                            <div class="lims-role-card__icon-wrap" aria-hidden="true">
+                                <i class="bi @card.IconClass"></i>
+                            </div>
 
-                        <h2 class="lims-role-card__title">@card.DisplayName</h2>
-                        <p class="lims-role-card__desc">@card.Description</p>
+                            <h2 class="lims-role-card__title">@card.DisplayName</h2>
+                            <p class="lims-role-card__desc">@card.Description</p>
 
-                        @if (card.IsGranted && card.IsActiveRole)
-                        {
-                            <a asp-action="Workspace"
-                               class="lims-role-card__btn lims-role-card__btn--continue mt-auto">
-                                <i class="bi bi-arrow-right-circle-fill" aria-hidden="true"></i>
-                                Продовжити роботу
-                            </a>
-                        }
-                        else if (card.IsGranted && !Model.HasActiveRole)
-                        {
-                            <form asp-action="SelectRole" method="post" class="mt-auto">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="role" value="@card.RoleCode" />
-                                <button type="submit" class="lims-role-card__btn">
+                            @if (card.IsGranted && card.IsActiveRole)
+                            {
+                                <a asp-action="Workspace"
+                                   class="lims-role-card__btn lims-role-card__btn--continue mt-auto">
+                                    <i class="bi bi-arrow-right-circle-fill" aria-hidden="true"></i>
+                                    Продовжити роботу
+                                </a>
+                            }
+                            else if (card.IsGranted && !Model.HasActiveRole)
+                            {
+                                <form asp-action="SelectRole" method="post" class="mt-auto">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="role" value="@card.RoleCode" />
+                                    <button type="submit" class="lims-role-card__btn">
+                                        Увійти як @card.DisplayName
+                                    </button>
+                                </form>
+                            }
+                            else if (showGuestLogin)
+                            {
+                                <a asp-area="Identity"
+                                   asp-page="/Account/Login"
+                                   asp-route-returnUrl="/Home/Index"
+                                   class="lims-role-card__btn lims-role-card__btn--login mt-auto">
                                     Увійти як @card.DisplayName
-                                </button>
-                            </form>
-                        }
-                        else if (showGuestLogin)
-                        {
-                            <a asp-area="Identity"
-                               asp-page="/Account/Login"
-                               asp-route-returnUrl="/Home/Index"
-                               class="lims-role-card__btn lims-role-card__btn--login mt-auto">
-                                Увійти як @card.DisplayName
-                            </a>
-                        }
+                                </a>
+                            }
+                        </div>
                     </article>
                 }
             </div>

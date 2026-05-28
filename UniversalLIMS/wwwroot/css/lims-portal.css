@@ -46,6 +46,21 @@
     --portal-text-soft: #c7d7e7;
 }
 
+.portal-theme-5.lims-portal-page {
+    --portal-title-from: #e6f9ff;
+    --portal-title-to: #67e8f9;
+    --portal-slogan: #c9f4ff;
+    --portal-card-bg: rgba(255, 255, 255, 0.08);
+    --portal-card-border: rgba(103, 232, 249, 0.22);
+    --portal-grid-line: rgba(103, 232, 249, 0.08);
+    --portal-switch-bg: linear-gradient(180deg, rgba(11, 59, 74, 0.42), rgba(15, 23, 42, 0.64));
+    --portal-switch-bg-hover: linear-gradient(180deg, rgba(6, 182, 212, 0.34), rgba(8, 51, 68, 0.74));
+    --portal-switch-fg: #ecfeff;
+    --portal-text-secondary: #bfecff;
+    --portal-text-muted: #99cde3;
+    --portal-text-soft: #b9e5f7;
+}
+
 .lims-portal-body {
     --font-ui: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     --font-display: "Plus Jakarta Sans", "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -448,6 +463,26 @@ a.lims-portal-theme-option {
     color: #ecfccb;
 }
 
+.portal-theme-5 .lims-portal-hero__backdrop-base {
+    background: linear-gradient(162deg, #020617 0%, #0f172a 28%, #0b3b4a 68%, #155e75 100%);
+}
+
+.portal-theme-5 .lims-portal-hero__backdrop-radial {
+    background:
+        radial-gradient(ellipse 76% 52% at 50% 14%, rgba(34, 211, 238, 0.24) 0%, transparent 55%),
+        radial-gradient(ellipse 55% 38% at 90% 66%, rgba(14, 116, 144, 0.32) 0%, transparent 50%),
+        radial-gradient(ellipse 48% 36% at 8% 74%, rgba(6, 182, 212, 0.28) 0%, transparent 46%);
+}
+
+.portal-theme-5 .lims-portal-hero__glow--1 { background: rgba(34, 211, 238, 0.3); }
+.portal-theme-5 .lims-portal-hero__glow--2 { background: rgba(8, 145, 178, 0.34); }
+.portal-theme-5 .lims-portal-hero__glow--3 { background: rgba(103, 232, 249, 0.2); }
+
+.portal-theme-5 .lims-portal-logo {
+    background: none;
+    color: #cffafe;
+}
+
 .portal-theme-1 .lims-portal-hero__title {
     color: #fafafa;
 }
@@ -466,8 +501,16 @@ a.lims-portal-theme-option {
         0 0 48px rgba(190, 242, 100, 0.25);
 }
 
+.portal-theme-5 .lims-portal-hero__title {
+    color: #ecfeff;
+    text-shadow:
+        0 2px 20px rgba(0, 0, 0, 0.4),
+        0 0 48px rgba(34, 211, 238, 0.26);
+}
+
 .portal-theme-2 .lims-portal-hero__slogan { color: var(--portal-slogan); }
 .portal-theme-3 .lims-portal-hero__slogan { color: var(--portal-slogan); }
+.portal-theme-5 .lims-portal-hero__slogan { color: var(--portal-slogan); }
 
 .portal-theme-2 .lims-portal-hero__welcome {
     border-top-color: rgba(52, 211, 153, 0.2);
@@ -475,6 +518,10 @@ a.lims-portal-theme-option {
 
 .portal-theme-3 .lims-portal-hero__welcome {
     border-top-color: rgba(190, 242, 100, 0.22);
+}
+
+.portal-theme-5 .lims-portal-hero__welcome {
+    border-top-color: rgba(103, 232, 249, 0.26);
 }
 
 .lims-portal-hero__title,
@@ -948,6 +995,113 @@ a.lims-portal-theme-option {
         background 0.35s ease;
     animation: lims-portal-fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
     animation-delay: var(--anim-delay);
+    isolation: isolate;
+    overflow: hidden;
+}
+
+.lims-role-card__bg {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center;
+    opacity: 0.2;
+    mix-blend-mode: luminosity;
+    pointer-events: none;
+    filter: saturate(1.08) contrast(1.04);
+    transform: scale(1.02);
+    animation: lims-role-bg-drift 16s ease-in-out infinite alternate;
+    transition: opacity 0.35s ease, filter 0.35s ease, transform 0.35s ease;
+}
+
+.lims-role-card__bg::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(115deg, rgba(5, 12, 28, 0.5) 0%, rgba(5, 12, 28, 0.2) 38%, rgba(5, 12, 28, 0.08) 100%),
+        radial-gradient(ellipse 55% 45% at 16% 22%, rgba(2, 6, 23, 0.36) 0%, transparent 75%);
+    pointer-events: none;
+}
+
+.lims-role-card__bg::after {
+    content: "";
+    position: absolute;
+    inset: -25%;
+    background: linear-gradient(
+        110deg,
+        transparent 20%,
+        rgba(var(--role-accent-rgb), 0.12) 48%,
+        rgba(255, 255, 255, 0.15) 50%,
+        rgba(var(--role-accent-rgb), 0.12) 52%,
+        transparent 80%);
+    transform: translateX(-120%);
+    opacity: 0.35;
+    mix-blend-mode: screen;
+    animation: lims-role-sheen-sweep 8.5s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+.lims-role-card--admin-bg .lims-role-card__bg,
+.lims-role-card--registrar-bg .lims-role-card__bg,
+.lims-role-card--lab-bg .lims-role-card__bg,
+.lims-role-card--expert-bg .lims-role-card__bg {
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+}
+
+.lims-role-card--admin-bg .lims-role-card__bg {
+    background-image: url("/assets/images/admin.png");
+}
+
+.lims-role-card--registrar-bg .lims-role-card__bg {
+    background-image: url("/assets/images/reg.png");
+}
+
+.lims-role-card--lab-bg .lims-role-card__bg {
+    background-image: url("/assets/images/lab.png");
+}
+
+.lims-role-card--expert-bg .lims-role-card__bg {
+    background-image: url("/assets/images/expert.png");
+}
+
+/* Asset backgrounds are emphasized in technological theme only. */
+.lims-portal-page:not(.portal-theme-5) .lims-role-card__bg {
+    opacity: 0;
+    animation: none;
+}
+
+.portal-theme-5 .lims-role-card__bg {
+    opacity: 0.24;
+    mix-blend-mode: luminosity;
+}
+
+/* Fine-tuned composition for each card in technological theme. */
+.portal-theme-5 .lims-role-card--admin-bg .lims-role-card__bg {
+    background-position: 42% 52%;
+}
+
+.portal-theme-5 .lims-role-card--registrar-bg .lims-role-card__bg {
+    background-position: 54% 50%;
+}
+
+.portal-theme-5 .lims-role-card--lab-bg .lims-role-card__bg {
+    background-position: 50% 46%;
+}
+
+.portal-theme-5 .lims-role-card--expert-bg .lims-role-card__bg {
+    background-position: 56% 50%;
+}
+
+.lims-role-card__content {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
 }
 
 .lims-role-card::before {
@@ -961,8 +1115,11 @@ a.lims-portal-theme-option {
         transparent 42%,
         rgba(var(--role-accent-rgb), 0.06) 100%);
     pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.35s ease;
+    opacity: 0.24;
+    transition: opacity 0.35s ease, filter 0.35s ease;
+    z-index: 1;
+    filter: saturate(1.05);
+    animation: lims-role-accent-pulse 5.2s ease-in-out infinite;
 }
 
 .lims-role-card::after {
@@ -976,6 +1133,7 @@ a.lims-portal-theme-option {
     background: linear-gradient(90deg, transparent, var(--role-accent), transparent);
     opacity: 0.9;
     transition: opacity 0.35s ease, box-shadow 0.35s ease, height 0.35s ease;
+    z-index: 2;
 }
 
 .lims-role-card--granted:hover {
@@ -992,6 +1150,16 @@ a.lims-portal-theme-option {
 
 .lims-role-card--granted:hover::before {
     opacity: 1;
+}
+
+.lims-role-card--granted:hover .lims-role-card__bg {
+    opacity: 0.3;
+    filter: saturate(1.15) contrast(1.1);
+    transform: scale(1.04);
+}
+
+.portal-theme-5 .lims-role-card--granted:hover .lims-role-card__bg {
+    opacity: 0.33;
 }
 
 .lims-role-card--granted:hover::after {
@@ -1363,6 +1531,29 @@ a.lims-portal-theme-option {
     100% { transform: scale(1.06); }
 }
 
+@keyframes lims-role-bg-drift {
+    0% { transform: scale(1.02) translate3d(0, 0, 0); }
+    100% { transform: scale(1.06) translate3d(1.4%, -1.2%, 0); }
+}
+
+@keyframes lims-role-sheen-sweep {
+    0%, 22% { transform: translateX(-120%); opacity: 0; }
+    32% { opacity: 0.35; }
+    58% { transform: translateX(120%); opacity: 0.26; }
+    100% { transform: translateX(120%); opacity: 0; }
+}
+
+@keyframes lims-role-accent-pulse {
+    0%, 100% {
+        opacity: 0.2;
+        filter: saturate(1);
+    }
+    50% {
+        opacity: 0.34;
+        filter: saturate(1.18);
+    }
+}
+
 .lims-role-card__btn--switch {
     background: var(--portal-switch-bg);
     border: 1px solid rgba(var(--role-accent-rgb), 0.62);
@@ -1561,6 +1752,12 @@ a.lims-portal-theme-option {
     }
 
     .lims-role-card {
+        animation: none;
+    }
+
+    .lims-role-card::before,
+    .lims-role-card__bg,
+    .lims-role-card__bg::after {
         animation: none;
     }
 

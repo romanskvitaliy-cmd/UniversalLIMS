@@ -17,7 +17,9 @@ public static class PortalThemeCatalog
         new(3, "Салатовий", PortalThemes.ToCssClass(3),
             "linear-gradient(135deg, #bef264 0%, #65a30d 45%, #0f172a 100%)"),
         new(4, "Білий", PortalThemes.ToCssClass(4),
-            "linear-gradient(135deg, #ffffff 0%, #f1f5f9 50%, #e2e8f0 100%)")
+            "linear-gradient(135deg, #ffffff 0%, #f1f5f9 50%, #e2e8f0 100%)"),
+        new(5, "Технологічний", PortalThemes.ToCssClass(5),
+            "linear-gradient(135deg, #0f172a 0%, #0b3b4a 48%, #06b6d4 100%)")
     ];
 
     public static PortalThemeDefinition Get(int theme) =>
