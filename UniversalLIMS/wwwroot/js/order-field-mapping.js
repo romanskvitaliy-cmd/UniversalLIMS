@@ -76,7 +76,15 @@
         groupsHost.innerHTML = groups
             .map((group, index) => {
                 const members = group.members
-                    .map((m) => `<li><code>${m.tag}</code>${m.title ? ` — ${m.title}` : ""}</li>`)
+                    .map((m, memberIndex) => `<li class="d-flex justify-content-between align-items-center gap-2">
+                        <span><code>${m.tag}</code>${m.title ? ` — ${m.title}` : ""}</span>
+                        <button type="button"
+                                class="btn btn-link btn-sm text-warning p-0 btn-remove-member"
+                                data-group-index="${index}"
+                                data-member-index="${memberIndex}">
+                            Роз’єднати
+                        </button>
+                    </li>`)
                     .join("");
                 return `<div class="border rounded p-2 mb-2" data-group-index="${index}">
                     <div class="d-flex justify-content-between align-items-start gap-2">
@@ -92,6 +100,31 @@
             btn.addEventListener("click", () => {
                 const idx = Number(btn.getAttribute("data-group-index"));
                 groups = groups.filter((_, i) => i !== idx);
+                resetPendingAutoMergeStatus();
+                renderGroups();
+            });
+        });
+
+        groupsHost.querySelectorAll(".btn-remove-member").forEach((btn) => {
+            btn.addEventListener("click", () => {
+                const groupIndex = Number(btn.getAttribute("data-group-index"));
+                const memberIndex = Number(btn.getAttribute("data-member-index"));
+                const group = groups[groupIndex];
+                if (!group) {
+                    return;
+                }
+
+                const nextMembers = group.members.filter((_, i) => i !== memberIndex);
+                if (nextMembers.length < 2) {
+                    groups = groups.filter((_, i) => i !== groupIndex);
+                } else {
+                    groups[groupIndex] = {
+                        ...group,
+                        members: nextMembers,
+                        label: nextMembers.map((m) => m.tag).join(" / ")
+                    };
+                }
+
                 resetPendingAutoMergeStatus();
                 renderGroups();
             });
