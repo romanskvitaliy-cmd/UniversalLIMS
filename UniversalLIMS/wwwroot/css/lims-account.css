@@ -137,10 +137,8 @@
     font-size: clamp(1.5rem, 3vw, 1.875rem);
     font-weight: 800;
     letter-spacing: -0.03em;
-    background: linear-gradient(120deg, #0f172a 0%, #2563eb 55%, #0ea5e9 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+    background: none;
+    color: #1e3a8a;
 }
 
 .lims-account-page-subtitle {

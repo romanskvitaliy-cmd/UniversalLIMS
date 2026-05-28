@@ -121,6 +121,20 @@ public sealed class OrdersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    public async Task<IActionResult> BackToCreateFromMapping(
+        OrderCreateInputModel input,
+        CancellationToken cancellationToken)
+    {
+        var form = await _orderRegistration.GetCreateFormAsync(cancellationToken);
+        return View("Create", new OrderCreateViewModel
+        {
+            Form = form,
+            Input = input
+        });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> CreateWithFieldMapping(
         OrderCreateInputModel input,
         string? fieldMappingJson,

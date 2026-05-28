@@ -246,10 +246,8 @@ a.lims-portal-theme-option {
     font-family: var(--font-display);
     letter-spacing: -0.03em;
     text-decoration: none;
-    background: linear-gradient(135deg, #fff 0%, #c7d2fe 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+    background: none;
+    color: #e2e8f0;
 }
 
 .lims-portal-logo:hover {
@@ -401,9 +399,8 @@ a.lims-portal-theme-option {
 .portal-theme-1 .lims-portal-hero__glow--3 { background: rgba(212, 212, 216, 0.12); }
 
 .portal-theme-1 .lims-portal-logo {
-    background: linear-gradient(135deg, #fff 0%, #d4d4d8 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
+    background: none;
+    color: #f4f4f5;
 }
 
 .portal-theme-2 .lims-portal-hero__backdrop-base {
@@ -422,9 +419,8 @@ a.lims-portal-theme-option {
 .portal-theme-2 .lims-portal-hero__glow--3 { background: rgba(16, 185, 129, 0.18); }
 
 .portal-theme-2 .lims-portal-logo {
-    background: linear-gradient(135deg, #fff 0%, #bbf7d0 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
+    background: none;
+    color: #d1fae5;
 }
 
 /* Theme 3 — Салатовий: темний фон + свіжий лайм */
@@ -448,9 +444,8 @@ a.lims-portal-theme-option {
 .portal-theme-3 .lims-portal-hero__glow--3 { background: rgba(163, 230, 53, 0.22); }
 
 .portal-theme-3 .lims-portal-logo {
-    background: linear-gradient(135deg, #fff 0%, #d9f99d 55%, #bef264 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
+    background: none;
+    color: #ecfccb;
 }
 
 .portal-theme-1 .lims-portal-hero__title {
@@ -1061,7 +1056,7 @@ a.lims-portal-theme-option {
 
 /* Активна роль у сесії — максимально помітне виділення */
 .lims-role-card--active.lims-role-card--granted {
-    border: 2px solid color-mix(in srgb, var(--role-accent) 78%, #ffffff);
+    border: 2px solid rgba(var(--role-accent-rgb), 0.78);
     background: linear-gradient(
         165deg,
         rgba(var(--role-accent-rgb), 0.18) 0%,
@@ -1088,7 +1083,7 @@ a.lims-portal-theme-option {
     opacity: 1;
     height: 5px;
     background: linear-gradient(90deg, transparent 0%, var(--role-accent) 20%, var(--role-accent) 80%, transparent 100%);
-    box-shadow: 0 0 16px color-mix(in srgb, var(--role-accent) 70%, #0f172a);
+    box-shadow: 0 0 16px rgba(var(--role-accent-rgb), 0.45);
 }
 
 .lims-role-card--active.lims-role-card--granted .lims-role-card__icon-wrap {
@@ -1102,7 +1097,7 @@ a.lims-portal-theme-option {
 
 .lims-role-card--active.lims-role-card--granted:hover {
     transform: translateY(-4px);
-    border-color: color-mix(in srgb, var(--role-accent) 88%, #fff);
+    border-color: rgba(var(--role-accent-rgb), 0.88);
     box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.22),
         0 0 0 1px rgba(var(--role-accent-rgb), 0.28),
@@ -1370,7 +1365,7 @@ a.lims-portal-theme-option {
 
 .lims-role-card__btn--switch {
     background: var(--portal-switch-bg);
-    border: 1px solid color-mix(in srgb, var(--role-accent) 62%, rgba(255, 255, 255, 0.52));
+    border: 1px solid rgba(var(--role-accent-rgb), 0.62);
     color: var(--portal-switch-fg);
     font-weight: 700;
     text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
@@ -1455,17 +1450,13 @@ a.lims-portal-theme-option {
 .portal-theme-4 .lims-portal-hero__glow--3 { background: rgba(99, 102, 241, 0.08); }
 
 .portal-theme-4 .lims-portal-logo {
-    background: linear-gradient(135deg, #0f172a 0%, #2563eb 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+    background: none;
+    color: #1e3a8a;
 }
 
 .portal-theme-4 .lims-portal-hero__title {
-    color: transparent;
-    background: linear-gradient(120deg, #0f172a 0%, #2563eb 55%, #0ea5e9 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
+    color: #1e3a8a;
+    background: none;
     text-shadow: none;
 }
 

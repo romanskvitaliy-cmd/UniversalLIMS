@@ -4,7 +4,9 @@
 @{
     Layout = "_LayoutWorkspace";
     ViewData["Title"] = "Мапінг спільних полів";
-    var mappingJson = JsonSerializer.Serialize(Model.Mapping);
+    var mappingJson = JsonSerializer.Serialize(
+        Model.Mapping,
+        new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
 }
 
 <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
@@ -14,7 +16,12 @@
             Оберіть поля з різних шаблонів, які означають одне й те саме. Після цього заповніть спільне значення один раз.
         </p>
     </div>
-    <a class="btn btn-sm btn-outline-secondary" asp-action="Create">← Назад</a>
+    <button type="submit"
+            form="orderFieldMappingForm"
+            formaction="@Url.Action("BackToCreateFromMapping", "Orders")"
+            class="btn btn-sm btn-outline-secondary">
+        ← Назад
+    </button>
 </div>
 
 <form asp-action="CreateWithFieldMapping" method="post" id="orderFieldMappingForm">
