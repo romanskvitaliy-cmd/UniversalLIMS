@@ -162,6 +162,67 @@
         return groups.some((group) => group.members.some((m) => m.templateFieldId === fieldId));
     }
 
+    function normalizeTag(tag) {
+        return String(tag ?? "").trim().toLowerCase();
+    }
+
+    function autoMergeByExactTag() {
+        const checks = Array.from(document.querySelectorAll(".field-map-check"))
+            .filter((check) => !check.disabled);
+        const bucketByTag = new Map();
+
+        checks.forEach((check) => {
+            const fieldId = check.getAttribute("data-field-id");
+            if (!fieldId || fieldAlreadyGrouped(fieldId)) {
+                return;
+            }
+
+            const tag = check.getAttribute("data-tag") ?? "";
+            const normalizedTag = normalizeTag(tag);
+            if (!normalizedTag) {
+                return;
+            }
+
+            const member = {
+                templateVersionId: check.getAttribute("data-version-id"),
+                templateFieldId: fieldId,
+                tag,
+                title: check.getAttribute("data-title") ?? ""
+            };
+
+            if (!bucketByTag.has(normalizedTag)) {
+                bucketByTag.set(normalizedTag, []);
+            }
+            bucketByTag.get(normalizedTag).push(member);
+        });
+
+        let created = 0;
+        bucketByTag.forEach((members) => {
+            if (members.length < 2) {
+                return;
+            }
+
+            const uniqueTemplateIds = new Set(members.map((member) => member.templateVersionId));
+            if (uniqueTemplateIds.size < 2) {
+                return;
+            }
+
+            groups.push({
+                label: members[0].tag,
+                members
+            });
+            created++;
+        });
+
+        if (created === 0) {
+            window.alert("Не знайдено нових збігів тегів для автооб’єднання.");
+            return;
+        }
+
+        renderGroups();
+        window.alert(`Створено груп: ${created}. Автооб’єднання виконано лише за точним збігом тегу.`);
+    }
+
     document.getElementById("btnMergeSelected")?.addEventListener("click", () => {
         const selected = getSelectedChecks();
         if (selected.length < 2) {
@@ -201,6 +262,10 @@
         document.querySelectorAll(".field-map-check:checked").forEach((check) => {
             check.checked = false;
         });
+    });
+
+    document.getElementById("btnAutoMergeByTag")?.addEventListener("click", () => {
+        autoMergeByExactTag();
     });
 
     function getSelectedTemplateVersionIds() {
