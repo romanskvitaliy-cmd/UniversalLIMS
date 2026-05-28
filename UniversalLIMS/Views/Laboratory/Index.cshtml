@@ -135,40 +135,174 @@
 }
 else
 {
+    var isFlatView = string.Equals(Context.Request.Query["view"], "flat", StringComparison.OrdinalIgnoreCase);
+    var groupedSamples = Model.Result.Items
+        .GroupBy(sample => new
+        {
+            sample.OrderId,
+            sample.CustomerFullName,
+            sample.ReferralNumber
+        })
+        .Select(group => new
+        {
+            OrderId = group.Key.OrderId,
+            CustomerFullName = group.Key.CustomerFullName,
+            ReferralNumber = group.Key.ReferralNumber,
+            Samples = group
+                .OrderByDescending(sample => sample.RegisteredAt)
+                .ToList()
+        })
+        .OrderByDescending(group => group.Samples.Max(sample => sample.RegisteredAt))
+        .ToList();
+
+    var viewQuery = new Dictionary<string, string?>();
+    if (!string.IsNullOrWhiteSpace(Model.Filter.SampleNumber))
+    {
+        viewQuery["sampleNumber"] = Model.Filter.SampleNumber;
+    }
+
+    if (Model.Filter.DateFrom.HasValue)
+    {
+        viewQuery["dateFrom"] = Model.Filter.DateFrom.Value.ToString("yyyy-MM-dd");
+    }
+
+    if (Model.Filter.DateTo.HasValue)
+    {
+        viewQuery["dateTo"] = Model.Filter.DateTo.Value.ToString("yyyy-MM-dd");
+    }
+
+    if (Model.Filter.Status.HasValue)
+    {
+        viewQuery["status"] = ((int)Model.Filter.Status.Value).ToString();
+    }
+
+    viewQuery["page"] = Model.Result.Page.ToString();
+    viewQuery["pageSize"] = Model.Result.PageSize.ToString();
+
+    <div class="d-flex justify-content-between align-items-end gap-2 flex-wrap mb-2">
+        @if (!isFlatView)
+        {
+            <div>
+                <label class="form-label small text-muted mb-1" for="groupSearchInput">Пошук по замовнику/направленню</label>
+                <input id="groupSearchInput"
+                       type="text"
+                       class="form-control form-control-sm"
+                       placeholder="Введіть ПІБ або номер направлення" />
+            </div>
+        }
+        @if (isFlatView)
+        {
+            viewQuery["view"] = "grouped";
+            <a class="btn btn-sm btn-outline-primary"
+               asp-action="Index"
+               asp-all-route-data="viewQuery">Групований вигляд</a>
+        }
+        else
+        {
+            viewQuery["view"] = "flat";
+            <a class="btn btn-sm btn-outline-secondary"
+               asp-action="Index"
+               asp-all-route-data="viewQuery">Плоский список</a>
+        }
+    </div>
+
     <div class="table-responsive">
         <table class="table table-sm table-hover align-middle lims-workspace-table">
-            <thead>
-                <tr>
-                    <th>Номер проби</th>
-                    <th>Направлення</th>
-                    <th>Замовник</th>
-                    <th>Тип дослідження</th>
-                    <th>Лабораторія</th>
-                    <th>Дата реєстрації</th>
-                    <th>Статус</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var sample in Model.Result.Items)
-                {
+            @if (isFlatView)
+            {
+                <thead>
                     <tr>
-                        <td class="fw-semibold">@sample.SampleNumber</td>
-                        <td>@(string.IsNullOrWhiteSpace(sample.ReferralNumber) ? "—" : sample.ReferralNumber)</td>
-                        <td>@sample.CustomerFullName</td>
-                        <td>@sample.InvestigationTypeName</td>
-                        <td>@sample.TargetBranchName</td>
-                        <td class="text-nowrap">@sample.RegisteredAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
-                        <td><span class="badge lims-status-badge @SampleStatusDisplay.BadgeClass(sample.Status)">@SampleStatusDisplay.ToUk(sample.Status)</span></td>
-                        <td class="text-end text-nowrap">
-                            <a class="btn btn-sm btn-outline-primary"
-                               asp-action="Results"
-                               asp-route-sampleId="@sample.SampleId"
-                               title="Заповнення PDF за правами ролі">PDF</a>
-                        </td>
+                        <th>Номер проби</th>
+                        <th>Направлення</th>
+                        <th>Замовник</th>
+                        <th>Тип дослідження</th>
+                        <th>Лабораторія</th>
+                        <th>Дата реєстрації</th>
+                        <th>Статус</th>
+                        <th></th>
                     </tr>
+                </thead>
+                <tbody>
+                    @foreach (var sample in Model.Result.Items)
+                    {
+                        <tr>
+                            <td class="fw-semibold">@sample.SampleNumber</td>
+                            <td>@(string.IsNullOrWhiteSpace(sample.ReferralNumber) ? "—" : sample.ReferralNumber)</td>
+                            <td>@sample.CustomerFullName</td>
+                            <td>@sample.InvestigationTypeName</td>
+                            <td>@sample.TargetBranchName</td>
+                            <td class="text-nowrap">@sample.RegisteredAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                            <td><span class="badge lims-status-badge @SampleStatusDisplay.BadgeClass(sample.Status)">@SampleStatusDisplay.ToUk(sample.Status)</span></td>
+                            <td class="text-end text-nowrap">
+                                <a class="btn btn-sm btn-outline-primary"
+                                   asp-action="Results"
+                                   asp-route-sampleId="@sample.SampleId"
+                                   title="Заповнення PDF за правами ролі">PDF</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            }
+            else
+            {
+                <thead>
+                    <tr>
+                        <th>Номер проби</th>
+                        <th>Тип дослідження</th>
+                        <th>Лабораторія</th>
+                        <th>Дата реєстрації</th>
+                        <th>Статус</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                @foreach (var group in groupedSamples)
+                {
+                    var collapseId = $"order-group-{group.OrderId:N}";
+                    <tbody class="group-header-row"
+                           data-group-id="@group.OrderId"
+                           data-group-search="@(string.Concat(group.CustomerFullName, " ", group.ReferralNumber).ToLowerInvariant())">
+                        <tr class="table-light">
+                            <td colspan="6">
+                                <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap">
+                                    <div>
+                                        <span class="fw-semibold">@group.CustomerFullName</span>
+                                        <span class="text-muted ms-2">
+                                            Направлення: @(string.IsNullOrWhiteSpace(group.ReferralNumber) ? "—" : group.ReferralNumber)
+                                        </span>
+                                        <span class="badge text-bg-secondary ms-2">Проб: @group.Samples.Count</span>
+                                    </div>
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-primary"
+                                            data-bs-toggle="collapse"
+                                            data-bs-target="#@collapseId"
+                                            aria-expanded="false"
+                                            aria-controls="@collapseId">
+                                        Показати/сховати
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                    <tbody id="@collapseId" class="collapse group-detail-row" data-group-id="@group.OrderId">
+                        @foreach (var sample in group.Samples)
+                        {
+                            <tr>
+                                <td class="fw-semibold">@sample.SampleNumber</td>
+                                <td>@sample.InvestigationTypeName</td>
+                                <td>@sample.TargetBranchName</td>
+                                <td class="text-nowrap">@sample.RegisteredAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                                <td><span class="badge lims-status-badge @SampleStatusDisplay.BadgeClass(sample.Status)">@SampleStatusDisplay.ToUk(sample.Status)</span></td>
+                                <td class="text-end text-nowrap">
+                                    <a class="btn btn-sm btn-outline-primary"
+                                       asp-action="Results"
+                                       asp-route-sampleId="@sample.SampleId"
+                                       title="Заповнення PDF за правами ролі">PDF</a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
                 }
-            </tbody>
+            }
         </table>
     </div>
 
@@ -198,6 +332,8 @@ else
                     {
                         query["status"] = ((int)Model.Filter.Status.Value).ToString();
                     }
+
+                    query["view"] = isFlatView ? "flat" : "grouped";
                 }
                 @for (var pageNumber = 1; pageNumber <= Model.Result.TotalPages; pageNumber++)
                 {
@@ -218,4 +354,99 @@ else
         Показано @Model.Result.Items.Count з @Model.Result.TotalCount
         (сторінка @Model.Result.Page з @(Model.Result.TotalPages == 0 ? 1 : Model.Result.TotalPages)).
     </p>
+}
+
+@section Scripts
+{
+    <script>
+        (() => {
+            const storageKey = "laboratory-journal-expanded-groups-v1";
+            const headerRows = Array.from(document.querySelectorAll(".group-header-row"));
+            const detailRows = Array.from(document.querySelectorAll(".group-detail-row"));
+            if (!headerRows.length || !detailRows.length) {
+                return;
+            }
+
+            let expandedGroupIds = [];
+            try {
+                const savedValue = localStorage.getItem(storageKey);
+                expandedGroupIds = savedValue ? JSON.parse(savedValue) : [];
+                if (!Array.isArray(expandedGroupIds)) {
+                    expandedGroupIds = [];
+                }
+            } catch {
+                expandedGroupIds = [];
+            }
+
+            const setExpandedState = (groupId, expanded) => {
+                const detailRow = document.querySelector(`.group-detail-row[data-group-id="${groupId}"]`);
+                const button = document.querySelector(`.group-header-row[data-group-id="${groupId}"] [data-bs-target]`);
+                if (!detailRow || !button) {
+                    return;
+                }
+
+                if (expanded) {
+                    detailRow.classList.add("show");
+                    button.setAttribute("aria-expanded", "true");
+                } else {
+                    detailRow.classList.remove("show");
+                    button.setAttribute("aria-expanded", "false");
+                }
+            };
+
+            headerRows.forEach((headerRow) => {
+                const groupId = headerRow.getAttribute("data-group-id");
+                if (!groupId) {
+                    return;
+                }
+
+                const isExpanded = expandedGroupIds.includes(groupId);
+                setExpandedState(groupId, isExpanded);
+            });
+
+            detailRows.forEach((detailRow) => {
+                detailRow.addEventListener("shown.bs.collapse", () => {
+                    const groupId = detailRow.getAttribute("data-group-id");
+                    if (!groupId || expandedGroupIds.includes(groupId)) {
+                        return;
+                    }
+
+                    expandedGroupIds.push(groupId);
+                    localStorage.setItem(storageKey, JSON.stringify(expandedGroupIds));
+                });
+
+                detailRow.addEventListener("hidden.bs.collapse", () => {
+                    const groupId = detailRow.getAttribute("data-group-id");
+                    if (!groupId) {
+                        return;
+                    }
+
+                    expandedGroupIds = expandedGroupIds.filter((id) => id !== groupId);
+                    localStorage.setItem(storageKey, JSON.stringify(expandedGroupIds));
+                });
+            });
+
+            const searchInput = document.getElementById("groupSearchInput");
+            if (!searchInput) {
+                return;
+            }
+
+            searchInput.addEventListener("input", () => {
+                const normalizedQuery = searchInput.value.trim().toLowerCase();
+                headerRows.forEach((headerRow) => {
+                    const searchValue = headerRow.getAttribute("data-group-search") ?? "";
+                    const groupId = headerRow.getAttribute("data-group-id");
+                    const detailRow = groupId
+                        ? document.querySelector(`.group-detail-row[data-group-id="${groupId}"]`)
+                        : null;
+
+                    const matches = normalizedQuery.length === 0 || searchValue.includes(normalizedQuery);
+                    headerRow.style.display = matches ? "" : "none";
+                    if (detailRow) {
+                        detailRow.style.display = matches ? "" : "none";
+                    }
+                });
+            });
+        })();
+    </script>
 }

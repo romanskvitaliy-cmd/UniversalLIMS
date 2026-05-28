@@ -1,0 +1,68 @@
+@model ExpertReviewQueueItemDto
+@using UniversalLIMS.Application.Expert
+@using UniversalLIMS.Domain.Laboratory
+
+@{
+    var reviewStatus = Model.ReviewStatus ?? ExpertConclusionStatus.PendingReview;
+}
+
+<a class="btn btn-sm btn-outline-secondary"
+   asp-action="Details"
+   asp-route-sampleId="@Model.SampleId"
+   title="Деталі проби">
+    Деталі
+</a>
+@if (Model.DocumentCount == 1
+    && Model.SingleTemplateVersionIdForFinalPdf.HasValue
+    && Model.SingleDocumentIdForFinalPdf.HasValue)
+{
+    <a class="btn btn-sm btn-outline-success"
+       asp-controller="PdfWorkspace"
+       asp-action="FinalPdf"
+       asp-route-templateVersionId="@Model.SingleTemplateVersionIdForFinalPdf.Value"
+       asp-route-orderId="@Model.OrderId"
+       asp-route-orderDocumentId="@Model.SingleDocumentIdForFinalPdf.Value"
+       target="_blank"
+       rel="noopener"
+       title="Переглянути фінальний PDF">
+        Фінал
+    </a>
+}
+@if (reviewStatus != ExpertConclusionStatus.Approved)
+{
+    @if (reviewStatus == ExpertConclusionStatus.InProgress)
+    {
+        <form asp-action="ReturnToQueue" method="post" class="d-inline">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="sampleId" value="@Model.SampleId" />
+            <button type="submit" class="btn btn-sm btn-outline-warning"
+                    title="Повернути пробу у статус очікування">
+                Повернути в чергу
+            </button>
+        </form>
+    }
+    <a class="btn btn-sm btn-outline-primary"
+       asp-action="Review"
+       asp-route-sampleId="@Model.SampleId"
+       title="Висновок у PDF">PDF</a>
+    <button type="button"
+            class="btn btn-sm btn-success expert-approve-open"
+            data-bs-toggle="modal"
+            data-bs-target="#expertApproveModal"
+            data-sample-id="@Model.SampleId"
+            data-sample-number="@Model.SampleNumber">
+        Затвердити
+    </button>
+    <form asp-action="Approve" method="post" class="d-inline expert-approve-quick-form">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="sampleId" value="@Model.SampleId" />
+        <button type="submit" class="btn btn-sm btn-outline-success"
+                title="Швидке затвердження без приміток">
+            ✓
+        </button>
+    </form>
+}
+else
+{
+    <span class="text-muted small">Затверджено</span>
+}
