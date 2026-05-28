@@ -153,6 +153,37 @@
     </div>
 </form>
 
+<div class="modal fade"
+     id="orderTemplatePreviewModal"
+     tabindex="-1"
+     aria-labelledby="orderTemplatePreviewTitle"
+     aria-hidden="true"
+     data-bs-focus="false"
+     data-bs-keyboard="true">
+    <div class="modal-dialog modal-xl order-template-preview-modal__dialog">
+        <div class="modal-content order-template-preview-modal__content">
+            <div class="modal-header py-2 flex-shrink-0">
+                <h2 class="modal-title h6 mb-0" id="orderTemplatePreviewTitle">Оригінал PDF</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрити"></button>
+            </div>
+            <div class="modal-body p-0 order-template-preview-modal__body">
+                <iframe id="orderTemplatePreviewFrame"
+                        class="order-template-preview-modal__frame"
+                        title="Перегляд оригінального PDF"
+                        src="about:blank"></iframe>
+            </div>
+            <div class="modal-footer py-2 flex-shrink-0">
+                <a id="orderTemplatePreviewOpenTab"
+                   class="btn btn-outline-secondary btn-sm"
+                   href="#"
+                   target="_blank"
+                   rel="noopener noreferrer">У новій вкладці</a>
+                <button type="button" class="btn btn-secondary btn-sm" id="orderTemplatePreviewClose" data-bs-dismiss="modal">Закрити</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
     <script>

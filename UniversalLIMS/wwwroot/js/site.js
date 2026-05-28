@@ -13,6 +13,29 @@
         document.body.appendChild(overlay);
     }
 
+    const syncCalendarTheme = () => {
+        const body = document.querySelector(".lims-workspace-body");
+        if (!body) {
+            return;
+        }
+
+        overlay.className = "lims-workspace-calendar-overlay";
+        body.classList.forEach((cls) => {
+            if (cls.startsWith("workspace-theme-")) {
+                overlay.classList.add(cls);
+            }
+        });
+
+        const accent = body.style.getPropertyValue("--workspace-accent").trim();
+        if (accent) {
+            overlay.style.setProperty("--workspace-accent", accent);
+        } else {
+            overlay.style.removeProperty("--workspace-accent");
+        }
+    };
+
+    syncCalendarTheme();
+
     const storageKey = "lims.workspace.calendarOverlay.enabled";
     const monthNames = [
         "Січень", "Лютий", "Березень", "Квітень", "Травень", "Червень",
@@ -28,12 +51,21 @@
     renderCalendarGrid(now, grid);
 
     const setEnabled = (enabled) => {
+        syncCalendarTheme();
         overlay.hidden = !enabled;
         overlay.setAttribute("aria-hidden", enabled ? "false" : "true");
         toggle.setAttribute("aria-pressed", enabled ? "true" : "false");
         toggle.classList.toggle("is-active", enabled);
         toggle.title = enabled ? "Вимкнути календар-фон" : "Увімкнути календар-фон";
         localStorage.setItem(storageKey, enabled ? "1" : "0");
+
+        if (enabled) {
+            overlay.classList.remove("is-open");
+            void overlay.offsetWidth;
+            overlay.classList.add("is-open");
+        } else {
+            overlay.classList.remove("is-open");
+        }
     };
 
     const saved = localStorage.getItem(storageKey);
@@ -54,17 +86,25 @@ function renderCalendarGrid(now, host) {
     const startOffset = ((firstDay.getDay() + 6) % 7); // Monday-first
     const daysInPrevMonth = new Date(year, month, 0).getDate();
 
+    let cellIndex = 0;
+
     for (let i = 0; i < startOffset; i++) {
         const el = document.createElement("span");
         el.className = "lims-workspace-calendar-day is-muted";
         el.textContent = String(daysInPrevMonth - startOffset + i + 1);
+        el.style.setProperty("--cal-day-i", String(cellIndex++));
         host.appendChild(el);
     }
 
     for (let d = 1; d <= daysInMonth; d++) {
         const el = document.createElement("span");
+        const dayOfWeek = (startOffset + d - 1) % 7;
         el.className = "lims-workspace-calendar-day";
+        if (dayOfWeek >= 5) {
+            el.classList.add("is-weekend");
+        }
         el.textContent = String(d);
+        el.style.setProperty("--cal-day-i", String(cellIndex++));
         if (d === now.getDate()) {
             el.classList.add("is-today");
         }

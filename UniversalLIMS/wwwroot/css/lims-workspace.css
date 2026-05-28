@@ -1,4 +1,4 @@
-/* UniversalLIMS — робочий простір (чотири теми порталу) */
+/* UniversalLIMS — робочий простір (п'ять тем порталу) */
 
 .lims-workspace-body {
     --font-ui: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -74,16 +74,16 @@
 
 /* Тема 4 — Білий: чистий світлий інтерфейс (як portal-theme-4) */
 .workspace-theme-4 {
-    --ws-bg: #ffffff;
-    --ws-bg-accent: rgba(37, 99, 235, 0.06);
-    --ws-border: #e2e8f0;
+    --ws-bg: #eef2f7;
+    --ws-bg-accent: rgba(37, 99, 235, 0.1);
+    --ws-border: #cbd5e1;
     --ws-nav-bg: rgba(255, 255, 255, 0.96);
     --ws-grid-line: rgba(15, 23, 42, 0.04);
-    --ws-atmos-base: linear-gradient(165deg, #ffffff 0%, #f8fafc 50%, #f1f5f9 100%);
+    --ws-atmos-base: linear-gradient(165deg, #eef2f7 0%, #e8edf4 42%, #dfe6ef 100%);
     --ws-atmos-radial:
-        radial-gradient(ellipse 75% 50% at 50% 15%, rgba(37, 99, 235, 0.08) 0%, transparent 55%),
-        radial-gradient(ellipse 55% 38% at 90% 70%, rgba(14, 165, 233, 0.06) 0%, transparent 50%),
-        radial-gradient(ellipse 45% 32% at 8% 75%, rgba(99, 102, 241, 0.05) 0%, transparent 45%);
+        radial-gradient(ellipse 75% 50% at 50% 12%, rgba(37, 99, 235, 0.14) 0%, transparent 55%),
+        radial-gradient(ellipse 55% 38% at 92% 72%, rgba(14, 165, 233, 0.1) 0%, transparent 50%),
+        radial-gradient(ellipse 45% 32% at 6% 78%, rgba(99, 102, 241, 0.09) 0%, transparent 45%);
     --ws-glow-a: rgba(37, 99, 235, 0.1);
     --ws-glow-b: rgba(14, 165, 233, 0.08);
     --ws-glow-c: rgba(99, 102, 241, 0.06);
@@ -122,6 +122,32 @@
     --ws-theme-menu-active: rgba(190, 242, 100, 0.2);
     --ws-text-on-dark-soft: #d2deea;
     --ws-text-on-dark-muted: #b5c9dc;
+}
+
+/* Тема 5 — Технологічний: темний teal + cyan (як portal-theme-5) */
+.workspace-theme-5 {
+    --ws-bg: #e0f4f8;
+    --ws-bg-accent: rgba(6, 182, 212, 0.09);
+    --ws-border: #a5f3fc;
+    --ws-nav-bg: rgba(236, 254, 255, 0.94);
+    --ws-grid-line: rgba(103, 232, 249, 0.08);
+    --ws-atmos-base: linear-gradient(162deg, #020617 0%, #0f172a 28%, #0b3b4a 68%, #155e75 100%);
+    --ws-atmos-radial:
+        radial-gradient(ellipse 76% 52% at 50% 14%, rgba(34, 211, 238, 0.24) 0%, transparent 55%),
+        radial-gradient(ellipse 55% 38% at 90% 66%, rgba(14, 116, 144, 0.32) 0%, transparent 50%),
+        radial-gradient(ellipse 48% 36% at 8% 74%, rgba(6, 182, 212, 0.28) 0%, transparent 46%);
+    --ws-glow-a: rgba(34, 211, 238, 0.3);
+    --ws-glow-b: rgba(8, 145, 178, 0.34);
+    --ws-glow-c: rgba(103, 232, 249, 0.2);
+    --ws-theme-from: #e6f9ff;
+    --ws-theme-to: #67e8f9;
+    --ws-theme-mid: #22d3ee;
+    --ws-theme-deep: #0b3b4a;
+    --ws-theme-cta-end: #06b6d4;
+    --ws-theme-check: #67e8f9;
+    --ws-theme-menu-active: rgba(34, 211, 238, 0.22);
+    --ws-text-on-dark-soft: #bfecff;
+    --ws-text-on-dark-muted: #99cde3;
 }
 
 .lims-workspace-body::before {
@@ -687,7 +713,7 @@ a.lims-workspace-theme-option {
 }
 
 .lims-workspace-calendar-toggle.is-active {
-    color: #fff;
+    
     border-color: color-mix(in srgb, var(--workspace-accent, #0d9488) 60%, #fff);
     background: linear-gradient(
         135deg,
@@ -695,87 +721,328 @@ a.lims-workspace-theme-option {
         var(--workspace-accent, #0d9488) 100%);
 }
 
+/* Календар-оверлей: змінні теми (клас теми копіюється з body у JS) */
 .lims-workspace-calendar-overlay {
+    --cal-accent: var(--workspace-accent, #0d9488);
+    --cal-surface: linear-gradient(155deg, rgba(15, 23, 42, 0.94) 0%, rgba(15, 23, 42, 0.82) 100%);
+    --cal-surface-glow: radial-gradient(
+        ellipse 90% 70% at 100% 0%,
+        color-mix(in srgb, var(--cal-accent) 32%, transparent),
+        transparent 62%);
+    --cal-border: color-mix(in srgb, var(--cal-accent) 38%, rgba(255, 255, 255, 0.18));
+    --cal-text: #f1f5f9;
+    --cal-text-muted: #94a3b8;
+    --cal-weekday: #94a3b8;
+    --cal-weekend: color-mix(in srgb, var(--cal-accent) 55%, #fda4af);
+    --cal-day-bg: rgba(148, 163, 184, 0.1);
+    --cal-day-border: rgba(148, 163, 184, 0.22);
+    --cal-day-text: #e2e8f0;
+    --cal-muted-opacity: 0.38;
+    --cal-today-bg: linear-gradient(
+        145deg,
+        color-mix(in srgb, var(--cal-accent) 72%, #fff),
+        var(--cal-accent));
+    --cal-today-border: color-mix(in srgb, var(--cal-accent) 70%, #fff);
+    --cal-today-text: #fff;
+    --cal-today-shadow:
+        0 0 0 1px color-mix(in srgb, var(--cal-accent) 35%, transparent),
+        0 0 22px color-mix(in srgb, var(--cal-accent) 45%, transparent),
+        0 6px 16px rgba(0, 0, 0, 0.28);
+    --cal-panel-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.1) inset,
+        0 28px 72px rgba(2, 6, 23, 0.55);
+    --cal-backdrop: blur(14px) saturate(1.25);
+
     position: fixed;
     right: 1.25rem;
     bottom: 1rem;
     z-index: 1200;
     width: min(20rem, calc(100vw - 2rem));
-    border-radius: 16px;
-    border: 1px solid color-mix(in srgb, var(--workspace-accent, #0d9488) 35%, rgba(255, 255, 255, 0.2));
-    background:
-        linear-gradient(160deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.75)),
-        radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--workspace-accent, #0d9488) 25%, transparent), transparent 60%);
-    box-shadow: 0 24px 64px rgba(2, 6, 23, 0.5);
-    padding: 0.8rem;
-    backdrop-filter: blur(12px);
-    color: #e2e8f0;
-    animation: lims-calendar-in 320ms ease;
+    border-radius: 18px;
+    border: 1px solid var(--cal-border);
+    background: var(--cal-surface);
+    box-shadow: var(--cal-panel-shadow);
+    padding: 0.85rem 0.9rem 0.95rem;
+    backdrop-filter: var(--cal-backdrop);
+    -webkit-backdrop-filter: var(--cal-backdrop);
+    color: var(--cal-text);
+    overflow: hidden;
+    isolation: isolate;
+}
+
+.lims-workspace-calendar-overlay::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: var(--cal-surface-glow);
+    pointer-events: none;
+    z-index: 0;
+}
+
+.lims-workspace-calendar-overlay::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1.5px;
+    background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--cal-accent) 55%, transparent),
+        transparent 42%,
+        color-mix(in srgb, var(--cal-accent) 25%, transparent));
+    -webkit-mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    pointer-events: none;
+    z-index: 2;
+    opacity: 0.85;
+}
+
+.lims-workspace-calendar-overlay.is-open {
+    animation: lims-calendar-in 480ms cubic-bezier(0.22, 1.15, 0.36, 1) both;
 }
 
 @keyframes lims-calendar-in {
-    from { opacity: 0; transform: translateY(10px) scale(0.98); }
-    to { opacity: 1; transform: translateY(0) scale(1); }
+    from {
+        opacity: 0;
+        transform: translateY(16px) scale(0.94) rotate(-0.6deg);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1) rotate(0);
+    }
+}
+
+.lims-workspace-calendar-overlay__head,
+.lims-workspace-calendar-overlay__weekdays,
+.lims-workspace-calendar-overlay__grid {
+    position: relative;
+    z-index: 1;
 }
 
 .lims-workspace-calendar-overlay__head {
     display: flex;
     align-items: baseline;
     gap: 0.45rem;
-    margin-bottom: 0.6rem;
+    margin-bottom: 0.65rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--cal-accent) 22%, transparent);
 }
 
 .lims-workspace-calendar-overlay__month {
     font-family: var(--font-display);
-    font-size: 1rem;
+    font-size: 1.05rem;
     font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--cal-text);
 }
 
 .lims-workspace-calendar-overlay__year {
     font-size: 0.8rem;
-    color: #94a3b8;
+    font-weight: 600;
+    color: var(--cal-text-muted);
 }
 
 .lims-workspace-calendar-overlay__weekdays,
 .lims-workspace-calendar-overlay__grid {
     display: grid;
     grid-template-columns: repeat(7, minmax(0, 1fr));
-    gap: 0.3rem;
+    gap: 0.32rem;
 }
 
 .lims-workspace-calendar-overlay__weekdays {
-    margin-bottom: 0.35rem;
+    margin-bottom: 0.4rem;
 }
 
 .lims-workspace-calendar-overlay__weekdays span {
     text-align: center;
     font-size: 0.65rem;
     text-transform: uppercase;
-    color: #94a3b8;
-    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--cal-weekday);
+    font-weight: 800;
+}
+
+.lims-workspace-calendar-overlay__weekdays span:nth-child(6),
+.lims-workspace-calendar-overlay__weekdays span:nth-child(7) {
+    color: var(--cal-weekend);
 }
 
 .lims-workspace-calendar-day {
     display: grid;
     place-items: center;
-    height: 1.9rem;
+    height: 2rem;
     border-radius: 10px;
     font-size: 0.78rem;
-    border: 1px solid rgba(148, 163, 184, 0.2);
-    background: rgba(148, 163, 184, 0.08);
-    color: #e2e8f0;
+    font-weight: 600;
+    border: 1px solid var(--cal-day-border);
+    background: var(--cal-day-bg);
+    color: var(--cal-day-text);
+    transition:
+        transform 0.2s ease,
+        border-color 0.2s ease,
+        background 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.lims-workspace-calendar-overlay.is-open .lims-workspace-calendar-day {
+    animation: lims-cal-day-in 0.42s cubic-bezier(0.22, 1.1, 0.36, 1) both;
+    animation-delay: calc(var(--cal-day-i, 0) * 14ms);
+}
+
+@keyframes lims-cal-day-in {
+    from {
+        opacity: 0;
+        transform: translateY(6px) scale(0.88);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 }
 
 .lims-workspace-calendar-day.is-muted {
-    opacity: 0.35;
+    opacity: var(--cal-muted-opacity);
+}
+
+.lims-workspace-calendar-day.is-weekend:not(.is-today) {
+    color: color-mix(in srgb, var(--cal-weekend) 75%, var(--cal-day-text));
+    background: color-mix(in srgb, var(--cal-weekend) 8%, var(--cal-day-bg));
 }
 
 .lims-workspace-calendar-day.is-today {
-    border-color: color-mix(in srgb, var(--workspace-accent, #0d9488) 60%, #fff);
-    background: color-mix(in srgb, var(--workspace-accent, #0d9488) 26%, rgba(15, 23, 42, 0.8));
-    color: #fff;
+    border-color: var(--cal-today-border);
+    background: var(--cal-today-bg);
+    color: var(--cal-today-text);
     font-weight: 800;
-    box-shadow: 0 0 18px color-mix(in srgb, var(--workspace-accent, #0d9488) 32%, transparent);
+    box-shadow: var(--cal-today-shadow);
+    animation:
+        lims-cal-day-in 0.42s cubic-bezier(0.22, 1.1, 0.36, 1) both,
+        lims-cal-today-pulse 2.6s ease-in-out infinite;
+    animation-delay:
+        calc(var(--cal-day-i, 0) * 14ms),
+        0.5s;
+}
+
+@keyframes lims-cal-today-pulse {
+    0%, 100% {
+        box-shadow: var(--cal-today-shadow);
+        transform: scale(1);
+    }
+    50% {
+        box-shadow:
+            0 0 0 1px color-mix(in srgb, var(--cal-accent) 45%, transparent),
+            0 0 28px color-mix(in srgb, var(--cal-accent) 55%, transparent),
+            0 8px 20px rgba(0, 0, 0, 0.2);
+        transform: scale(1.06);
+    }
+}
+
+/* Тема 1 — сталь / графіт */
+.lims-workspace-calendar-overlay.workspace-theme-1 {
+    --cal-surface: linear-gradient(155deg, #18181b 0%, #27272a 52%, #3f3f46 100%);
+    --cal-surface-glow: radial-gradient(ellipse 85% 65% at 100% 0%, rgba(212, 212, 216, 0.22), transparent 60%);
+    --cal-border: color-mix(in srgb, var(--cal-accent) 30%, rgba(212, 212, 216, 0.35));
+    --cal-weekend: #d4d4d8;
+    --cal-today-shadow:
+        0 0 0 1px rgba(212, 212, 216, 0.35),
+        0 0 26px rgba(161, 161, 170, 0.45),
+        0 8px 18px rgba(0, 0, 0, 0.35);
+}
+
+/* Тема 2 — медичний emerald */
+.lims-workspace-calendar-overlay.workspace-theme-2 {
+    --cal-surface: linear-gradient(155deg, #052e16 0%, #14532d 48%, #134e4a 100%);
+    --cal-surface-glow: radial-gradient(ellipse 90% 70% at 100% 0%, rgba(34, 197, 94, 0.35), transparent 62%);
+    --cal-border: color-mix(in srgb, #34d399 42%, rgba(255, 255, 255, 0.15));
+    --cal-weekend: #6ee7b7;
+    --cal-today-bg: linear-gradient(145deg, #4ade80, #16a34a);
+    --cal-today-shadow:
+        0 0 0 1px rgba(110, 231, 183, 0.4),
+        0 0 28px rgba(34, 197, 94, 0.5),
+        0 8px 20px rgba(5, 46, 22, 0.45);
+}
+
+/* Тема 3 — салатовий / лайм */
+.lims-workspace-calendar-overlay.workspace-theme-3 {
+    --cal-surface: linear-gradient(155deg, #1a2e05 0%, #365314 50%, #3f6212 100%);
+    --cal-surface-glow: radial-gradient(ellipse 90% 70% at 100% 0%, rgba(190, 242, 100, 0.38), transparent 62%);
+    --cal-border: color-mix(in srgb, #bef264 45%, rgba(255, 255, 255, 0.14));
+    --cal-weekend: #d9f99d;
+    --cal-today-bg: linear-gradient(145deg, #d9f99d, #84cc16);
+    --cal-today-text: #1a2e05;
+    --cal-today-border: #ecfccb;
+    --cal-today-shadow:
+        0 0 0 1px rgba(217, 249, 158, 0.5),
+        0 0 30px rgba(190, 242, 100, 0.55),
+        0 8px 20px rgba(26, 46, 5, 0.4);
+}
+
+/* Тема 5 — технологічний cyan / teal */
+.lims-workspace-calendar-overlay.workspace-theme-5 {
+    --cal-surface: linear-gradient(155deg, #020617 0%, #0b3b4a 48%, #155e75 100%);
+    --cal-surface-glow: radial-gradient(ellipse 90% 70% at 100% 0%, rgba(34, 211, 238, 0.38), transparent 62%);
+    --cal-border: color-mix(in srgb, #22d3ee 45%, rgba(255, 255, 255, 0.14));
+    --cal-weekend: #67e8f9;
+    --cal-today-bg: linear-gradient(145deg, #67e8f9, #0891b2);
+    --cal-today-text: #042f2e;
+    --cal-today-border: #cffafe;
+    --cal-today-shadow:
+        0 0 0 1px rgba(103, 232, 249, 0.5),
+        0 0 30px rgba(34, 211, 238, 0.55),
+        0 8px 20px rgba(2, 6, 23, 0.45);
+}
+
+/* Тема 4 — світлий клінічний (білий фон кабінету) */
+.lims-workspace-calendar-overlay.workspace-theme-4 {
+    --cal-surface: linear-gradient(155deg, #ffffff 0%, #f8fafc 55%, #eff6ff 100%);
+    --cal-surface-glow: radial-gradient(
+        ellipse 90% 70% at 100% 0%,
+        color-mix(in srgb, var(--cal-accent) 18%, transparent),
+        transparent 65%);
+    --cal-border: color-mix(in srgb, var(--cal-accent) 35%, #cbd5e1);
+    --cal-text: #0f172a;
+    --cal-text-muted: #64748b;
+    --cal-weekday: #64748b;
+    --cal-weekend: #dc2626;
+    --cal-day-bg: #f8fafc;
+    --cal-day-border: #e2e8f0;
+    --cal-day-text: #334155;
+    --cal-muted-opacity: 0.45;
+    --cal-today-bg: linear-gradient(
+        145deg,
+        color-mix(in srgb, var(--cal-accent) 88%, #fff),
+        var(--cal-accent));
+    --cal-today-border: color-mix(in srgb, var(--cal-accent) 65%, #93c5fd);
+    --cal-today-text: #fff;
+    --cal-today-shadow:
+        0 0 0 1px color-mix(in srgb, var(--cal-accent) 28%, transparent),
+        0 0 24px color-mix(in srgb, var(--cal-accent) 38%, transparent),
+        0 10px 24px rgba(15, 23, 42, 0.14);
+    --cal-panel-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.95) inset,
+        0 20px 50px rgba(15, 23, 42, 0.14),
+        0 8px 20px rgba(15, 23, 42, 0.08);
+    --cal-backdrop: blur(18px) saturate(1.35);
+}
+
+.lims-workspace-calendar-overlay.workspace-theme-4 .lims-workspace-calendar-day.is-weekend:not(.is-today) {
+    color: #b91c1c;
+    background: #fef2f2;
+    border-color: #fecaca;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .lims-workspace-calendar-overlay.is-open,
+    .lims-workspace-calendar-overlay.is-open .lims-workspace-calendar-day,
+    .lims-workspace-calendar-day.is-today {
+        animation: none;
+    }
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1264,13 +1531,45 @@ a.lims-workspace-theme-option {
     background: linear-gradient(90deg, #bef264, #84cc16);
 }
 
+/* ── Тема 5: Технологічний — cyan aura, digital glow ── */
+.lims-workspace-body.lims-workspace--dashboard.workspace-theme-5 .lims-workspace-hero__name {
+    text-shadow: 0 0 44px rgba(34, 211, 238, 0.28);
+}
+
+.lims-workspace-body.lims-workspace--dashboard.workspace-theme-5 .lims-workspace-hero {
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.14) inset,
+        0 16px 48px rgba(0, 0, 0, 0.28),
+        0 0 70px rgba(34, 211, 238, 0.1);
+}
+
+.lims-workspace-body.lims-workspace--dashboard.workspace-theme-5 .lims-workspace-primary-action {
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.35) inset,
+        0 22px 56px rgba(11, 59, 74, 0.38),
+        0 0 52px rgba(34, 211, 238, 0.18);
+}
+
+.lims-workspace-body.lims-workspace--dashboard.workspace-theme-5 a.lims-workspace-quicklink::before {
+    background: linear-gradient(90deg, #22d3ee, #0891b2);
+}
+
+.lims-workspace-body.lims-workspace--dashboard.workspace-theme-5 a.lims-workspace-quicklink:hover {
+    box-shadow:
+        0 18px 44px rgba(0, 0, 0, 0.32),
+        0 0 0 1px rgba(34, 211, 238, 0.28);
+}
+
 /* ── Тема 4: Білий — світлий кабінет (як portal-theme-4) ── */
 .lims-workspace-body.lims-workspace--dashboard.workspace-theme-4 {
     color: #0f172a;
-    --ws-nav-bg: rgba(255, 255, 255, 0.94);
-    --ws-border: #e2e8f0;
+    --ws-bg: #e8edf4;
+    --ws-nav-bg: rgba(255, 255, 255, 0.97);
+    --ws-border: #cbd5e1;
     --ws-surface: #ffffff;
-    --ws-shadow: 0 8px 28px rgba(15, 23, 42, 0.08);
+    --ws-text: #0f172a;
+    --ws-muted: #475569;
+    --ws-shadow: 0 4px 6px rgba(15, 23, 42, 0.04), 0 14px 36px rgba(15, 23, 42, 0.1);
 }
 
 .lims-workspace-body.lims-workspace--dashboard.workspace-theme-4::after {
@@ -1347,28 +1646,95 @@ a.lims-workspace-theme-option {
 
 .lims-workspace-body.lims-workspace--dashboard.workspace-theme-4 .lims-section-title {
     color: #334155;
+    font-weight: 800;
+}
+
+.lims-workspace-body.lims-workspace--dashboard.workspace-theme-4 .lims-section-title::after {
+    background: linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--workspace-accent, #2563eb) 55%, #94a3b8),
+        transparent);
+}
+
+.lims-workspace-body.lims-workspace--dashboard.workspace-theme-4 .lims-workspace-navbar .navbar-brand .navbar-brand__text {
+    color: var(--workspace-accent, #2563eb);
+    filter: none;
 }
 
 .lims-workspace-body.lims-workspace--dashboard.workspace-theme-4 .lims-workspace-hero {
-    border-color: #e2e8f0;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background:
+        linear-gradient(135deg,
+            #ffffff 0%,
+            color-mix(in srgb, var(--workspace-accent, #2563eb) 4%, #ffffff) 48%,
+            #f8fafc 100%);
+    border: 1px solid #cbd5e1;
     box-shadow:
-        0 1px 0 rgba(255, 255, 255, 0.9) inset,
-        0 12px 36px rgba(15, 23, 42, 0.08);
+        0 1px 0 rgba(255, 255, 255, 0.95) inset,
+        0 0 0 1px rgba(255, 255, 255, 0.6),
+        0 16px 40px rgba(15, 23, 42, 0.1);
+}
+
+.lims-workspace-body.lims-workspace--dashboard.workspace-theme-4 .lims-workspace-hero::before {
+    display: none;
+}
+
+.lims-workspace-body.lims-workspace--dashboard.workspace-theme-4 .lims-workspace-hero__glow {
+    opacity: 0.35;
+    background: radial-gradient(
+        circle,
+        color-mix(in srgb, var(--workspace-accent, #2563eb) 28%, transparent) 0%,
+        transparent 72%);
+}
+
+.lims-workspace-body.lims-workspace--dashboard.workspace-theme-4 .lims-workspace-hero__avatar {
+    color: var(--workspace-accent, #2563eb);
+    background: color-mix(in srgb, var(--workspace-accent, #2563eb) 14%, #ffffff);
+    border-color: color-mix(in srgb, var(--workspace-accent, #2563eb) 32%, #cbd5e1);
+    box-shadow: 0 4px 14px color-mix(in srgb, var(--workspace-accent, #2563eb) 22%, transparent);
 }
 
 .lims-workspace-body.lims-workspace--dashboard.workspace-theme-4 .lims-workspace-hero__greeting {
-    color: #64748b;
+    color: #475569;
+    font-weight: 600;
 }
 
 .lims-workspace-body.lims-workspace--dashboard.workspace-theme-4 .lims-workspace-hero__name {
     background: none;
-    color: #1e3a8a;
+    color: #0f172a;
     text-shadow: none;
+}
+
+.lims-workspace-body.lims-workspace--dashboard.workspace-theme-4 .lims-workspace-hero__role-pill {
+    color: color-mix(in srgb, var(--workspace-accent, #2563eb) 88%, #0f172a);
+    background: color-mix(in srgb, var(--workspace-accent, #2563eb) 12%, #ffffff);
+    border-color: color-mix(in srgb, var(--workspace-accent, #2563eb) 35%, #cbd5e1);
+    box-shadow: 0 2px 10px color-mix(in srgb, var(--workspace-accent, #2563eb) 16%, transparent);
+}
+
+.lims-workspace-body.lims-workspace--dashboard.workspace-theme-4 .lims-workspace-hero__role-dot {
+    background: var(--workspace-accent, #2563eb);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--workspace-accent, #2563eb) 28%, transparent);
 }
 
 .lims-workspace-body.lims-workspace--dashboard.workspace-theme-4 .lims-workspace-hero__hint {
     color: #64748b;
 }
+
+.lims-workspace-body.lims-workspace--dashboard.workspace-theme-4 .lims-workspace-calendar-toggle {
+    color: #0f172a;
+    background: #ffffff;
+    border-color: color-mix(in srgb, var(--workspace-accent, #2563eb) 38%, #cbd5e1);
+    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
+}
+
+.lims-workspace-body.lims-workspace--dashboard.workspace-theme-4 .lims-workspace-calendar-toggle:hover {
+    background: color-mix(in srgb, var(--workspace-accent, #2563eb) 8%, #ffffff);
+    box-shadow: 0 6px 18px color-mix(in srgb, var(--workspace-accent, #2563eb) 20%, transparent);
+}
+
+
 
 .lims-workspace-body.lims-workspace--dashboard.workspace-theme-4 .lims-workspace-notice {
     background: rgba(255, 255, 255, 0.92);
@@ -1378,20 +1744,59 @@ a.lims-workspace-theme-option {
 
 .lims-workspace-body.lims-workspace--dashboard.workspace-theme-4 a.lims-workspace-quicklink,
 .lims-workspace-body.lims-workspace--dashboard.workspace-theme-4 .lims-workspace-metric {
-    border-color: #e2e8f0;
-    box-shadow: 0 4px 18px rgba(15, 23, 42, 0.06);
+    border-color: #cbd5e1;
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.9) inset,
+        0 4px 14px rgba(15, 23, 42, 0.06),
+        0 12px 32px rgba(15, 23, 42, 0.08);
+}
+
+.lims-workspace-body.lims-workspace--dashboard.workspace-theme-4 .lims-workspace-metric__icon,
+.lims-workspace-body.lims-workspace--dashboard.workspace-theme-4 .lims-workspace-quicklink__icon {
+    background: linear-gradient(
+        145deg,
+        color-mix(in srgb, var(--workspace-accent, #2563eb) 16%, #ffffff),
+        color-mix(in srgb, var(--ws-theme-mid, #3b82f6) 22%, #eff6ff));
+    color: color-mix(in srgb, var(--workspace-accent, #2563eb) 75%, #1e3a8a);
+    border: 1px solid color-mix(in srgb, var(--workspace-accent, #2563eb) 22%, #dbeafe);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--workspace-accent, #2563eb) 14%, transparent);
+}
+
+.lims-workspace-body.lims-workspace--dashboard.workspace-theme-4 .lims-workspace-metric__label {
+    color: #475569;
+}
+
+.lims-workspace-body.lims-workspace--dashboard.workspace-theme-4 .lims-workspace-metric__value {
+    color: #0f172a;
+}
+
+.lims-workspace-body.lims-workspace--dashboard.workspace-theme-4 .lims-workspace-metric__desc,
+.lims-workspace-body.lims-workspace--dashboard.workspace-theme-4 .lims-workspace-quicklink__desc {
+    color: #64748b;
+}
+
+.lims-workspace-body.lims-workspace--dashboard.workspace-theme-4 .lims-workspace-quicklink__title {
+    color: #0f172a;
 }
 
 .lims-workspace-body.lims-workspace--dashboard.workspace-theme-4 a.lims-workspace-quicklink:hover {
+    border-color: color-mix(in srgb, var(--workspace-accent, #2563eb) 45%, #cbd5e1);
     box-shadow:
-        0 14px 36px rgba(15, 23, 42, 0.1),
-        0 0 0 1px color-mix(in srgb, var(--ws-theme-mid) 22%, #e2e8f0);
+        0 1px 0 rgba(255, 255, 255, 0.95) inset,
+        0 18px 40px rgba(15, 23, 42, 0.12),
+        0 0 0 1px color-mix(in srgb, var(--workspace-accent, #2563eb) 28%, #e2e8f0);
+}
+
+.lims-workspace-body.lims-workspace--dashboard.workspace-theme-4 a.lims-workspace-quicklink:hover .lims-workspace-quicklink__icon {
+    transform: scale(1.06);
+    box-shadow: 0 6px 18px color-mix(in srgb, var(--workspace-accent, #2563eb) 24%, transparent);
 }
 
 .lims-workspace-body.lims-workspace--dashboard.workspace-theme-4 .lims-workspace-primary-action {
     box-shadow:
-        0 1px 0 rgba(255, 255, 255, 0.5) inset,
-        0 18px 44px color-mix(in srgb, var(--workspace-accent, #0d9488) 28%, transparent);
+        0 1px 0 rgba(255, 255, 255, 0.55) inset,
+        0 20px 48px color-mix(in srgb, var(--workspace-accent, #2563eb) 32%, transparent),
+        0 8px 20px rgba(15, 23, 42, 0.12);
 }
 
 .lims-workspace-body.lims-workspace--dashboard.workspace-theme-4 .lims-workspace-cabinet-link {
@@ -2772,6 +3177,11 @@ a.lims-workspace-quicklink:hover {
     background: rgba(15, 23, 42, 0.45);
 }
 
+.pdf-fill-library-modal--designer-scroll .pdf-fill-library-modal__backdrop {
+    background: transparent;
+    cursor: default;
+}
+
 .pdf-fill-library-modal__dialog {
     position: relative;
     z-index: 1;
@@ -3520,4 +3930,72 @@ body.pdf-fill-library-modal-open {
         max-height: none;
         width: 100%;
     }
+}
+
+.order-sample-template-picker {
+    display: flex;
+    gap: 0.25rem;
+    align-items: stretch;
+}
+
+.order-sample-template-picker .form-select {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.order-sample-template-picker__preview {
+    flex: 0 0 auto;
+    padding-left: 0.45rem;
+    padding-right: 0.45rem;
+}
+
+#orderTemplatePreviewModal {
+    z-index: 1060;
+}
+
+#orderTemplatePreviewModal ~ .modal-backdrop {
+    z-index: 1055;
+}
+
+#orderTemplatePreviewModal .order-template-preview-modal__dialog {
+    width: min(96vw, 1200px);
+    max-width: none;
+    height: min(920px, calc(100vh - 2rem));
+    margin: 1rem auto;
+}
+
+#orderTemplatePreviewModal .order-template-preview-modal__content {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    position: relative;
+}
+
+#orderTemplatePreviewModal .modal-header,
+#orderTemplatePreviewModal .modal-footer {
+    position: relative;
+    z-index: 3;
+    flex-shrink: 0;
+    background: #fff;
+}
+
+#orderTemplatePreviewModal .order-template-preview-modal__body {
+    position: relative;
+    z-index: 1;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    background: #f1f5f9;
+    isolation: isolate;
+}
+
+#orderTemplatePreviewModal .order-template-preview-modal__frame {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: #fff;
 }

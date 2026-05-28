@@ -19,8 +19,17 @@
     const form = document.getElementById("orderCreateForm");
     const btnPrepareMapping = document.getElementById("btnPrepareFieldMapping");
     const fieldMappingHint = document.getElementById("fieldMappingHint");
+    const previewModal = document.getElementById("orderTemplatePreviewModal");
+    const previewFrame = document.getElementById("orderTemplatePreviewFrame");
+    const previewTitle = document.getElementById("orderTemplatePreviewTitle");
+    const previewOpenTab = document.getElementById("orderTemplatePreviewOpenTab");
 
     let searchTimer = null;
+    let previewModalInstance = null;
+
+    if (previewModal && previewModal.parentElement !== document.body) {
+        document.body.appendChild(previewModal);
+    }
 
     function escapeHtml(value) {
         return String(value ?? "")
@@ -32,6 +41,10 @@
     }
 
     function optionLabel(option) {
+        if (!option) {
+            return "";
+        }
+
         const version = option.versionNumber ? ` (v${option.versionNumber})` : "";
         const marker = option.isDefault ? " *" : "";
         return `${option.templateNameUk}${version}${marker}`;
@@ -43,6 +56,22 @@
 
     function getOptionsForInvestigation(investigationTypeId) {
         return templateOptions.filter((option) => option.investigationTypeId === investigationTypeId);
+    }
+
+    function templatePickerHtml(selectClass, buttonClass, optionsHtml) {
+        return `
+            <div class="order-sample-template-picker">
+                <select class="form-select form-select-sm ${selectClass}">
+                    ${optionsHtml}
+                </select>
+                <button type="button"
+                        class="btn btn-sm btn-outline-secondary ${buttonClass} order-sample-template-picker__preview"
+                        title="Переглянути оригінал PDF"
+                        aria-label="Переглянути оригінал PDF"
+                        disabled>
+                    <i class="bi bi-eye" aria-hidden="true"></i>
+                </button>
+            </div>`;
     }
 
     function activeTemplateOptionsHtml(selectedTemplateVersionId) {
@@ -70,6 +99,51 @@
         }
 
         return options.join("");
+    }
+
+    function syncPreviewButton(button, templateVersionId) {
+        if (!button) {
+            return;
+        }
+
+        const option = getOptionByTemplateVersionId(templateVersionId);
+        const previewUrl = option?.previewUrl || "";
+        button.disabled = !previewUrl;
+        button.dataset.previewUrl = previewUrl;
+        button.dataset.previewTitle = option ? optionLabel(option) : "";
+    }
+
+    function getPreviewModalInstance() {
+        if (!previewModal || !window.bootstrap?.Modal) {
+            return null;
+        }
+
+        previewModalInstance ??= window.bootstrap.Modal.getOrCreateInstance(previewModal);
+        return previewModalInstance;
+    }
+
+    function openTemplatePreview(previewUrl, title) {
+        if (!previewUrl || !previewFrame) {
+            return;
+        }
+
+        if (previewTitle) {
+            previewTitle.textContent = title ? `Оригінал: ${title}` : "Оригінал PDF";
+        }
+
+        previewFrame.src = previewUrl;
+        if (previewOpenTab) {
+            previewOpenTab.href = previewUrl;
+            previewOpenTab.classList.remove("disabled");
+        }
+
+        const instance = getPreviewModalInstance();
+        if (instance) {
+            instance.show();
+            return;
+        }
+
+        window.open(previewUrl, "_blank", "noopener,noreferrer");
     }
 
     function syncFieldMappingActions() {
@@ -137,15 +211,17 @@
         row.innerHTML = `
             <div class="col-md-4">
                 <label class="form-label small text-muted d-md-none">Активний шаблон / тип дослідження</label>
-                <select class="form-select form-select-sm sample-active-template-select">
-                    ${activeTemplateOptionsHtml(seed.templateVersionId)}
-                </select>
+                ${templatePickerHtml(
+                    "sample-active-template-select",
+                    "sample-active-preview-button",
+                    activeTemplateOptionsHtml(seed.templateVersionId))}
             </div>
             <div class="col-md-4">
                 <label class="form-label small text-muted d-md-none">PDF-бланк</label>
-                <select class="form-select form-select-sm sample-pdf-select">
-                    ${pdfOptionsHtml(seed.investigationTypeId, seed.templateVersionId)}
-                </select>
+                ${templatePickerHtml(
+                    "sample-pdf-select",
+                    "sample-pdf-preview-button",
+                    pdfOptionsHtml(seed.investigationTypeId, seed.templateVersionId))}
             </div>
             <div class="col-md-3">
                 <label class="form-label small text-muted d-md-none">Лабораторія-виконавець</label>
@@ -162,19 +238,42 @@
         syncSampleRows();
     }
 
+    function bindPreviewButton(button, select) {
+        button?.addEventListener("click", () => {
+            const templateVersionId = select?.value || "";
+            const option = getOptionByTemplateVersionId(templateVersionId);
+            const previewUrl = option?.previewUrl || button.dataset.previewUrl || "";
+            openTemplatePreview(previewUrl, option ? optionLabel(option) : "");
+        });
+    }
+
     function bindSampleRow(row) {
         const activeSelect = row.querySelector(".sample-active-template-select");
+        const activePreviewButton = row.querySelector(".sample-active-preview-button");
         const pdfSelect = row.querySelector(".sample-pdf-select");
+        const pdfPreviewButton = row.querySelector(".sample-pdf-preview-button");
         const removeButton = row.querySelector(".sample-remove-button");
+
+        syncPreviewButton(activePreviewButton, activeSelect?.value);
+        syncPreviewButton(pdfPreviewButton, pdfSelect?.value);
 
         activeSelect?.addEventListener("change", () => {
             const selectedOption = getOptionByTemplateVersionId(activeSelect.value);
             const investigationTypeId = selectedOption?.investigationTypeId || "";
             pdfSelect.innerHTML = pdfOptionsHtml(investigationTypeId, selectedOption?.templateVersionId || "");
+            syncPreviewButton(activePreviewButton, activeSelect.value);
+            syncPreviewButton(pdfPreviewButton, pdfSelect.value);
             syncSampleRows();
         });
 
-        pdfSelect?.addEventListener("change", syncSampleRows);
+        pdfSelect?.addEventListener("change", () => {
+            syncPreviewButton(pdfPreviewButton, pdfSelect.value);
+            syncSampleRows();
+        });
+
+        bindPreviewButton(activePreviewButton, activeSelect);
+        bindPreviewButton(pdfPreviewButton, pdfSelect);
+
         row.querySelector(".sample-branch-select")?.addEventListener("change", syncSampleRows);
         removeButton?.addEventListener("click", () => {
             row.remove();
@@ -255,6 +354,19 @@
 
         resultsBox.classList.remove("d-none");
     }
+
+    previewModal?.addEventListener("hidden.bs.modal", () => {
+        if (previewFrame) {
+            previewFrame.src = "about:blank";
+        }
+        if (previewOpenTab) {
+            previewOpenTab.href = "#";
+        }
+    });
+
+    document.getElementById("orderTemplatePreviewClose")?.addEventListener("click", () => {
+        getPreviewModalInstance()?.hide();
+    });
 
     form?.addEventListener("submit", () => {
         syncSampleRows();

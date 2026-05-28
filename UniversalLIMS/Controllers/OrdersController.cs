@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using UniversalLIMS.Application.Registration;
 using UniversalLIMS.Application.Registration.Abstractions;
 using UniversalLIMS.Application.Security;
+using UniversalLIMS.Application.Templates.Abstractions;
 using UniversalLIMS.Domain.Registration;
 using UniversalLIMS.Infrastructure.Filters;
 using UniversalLIMS.ViewModels.Registration;
@@ -22,15 +23,18 @@ public sealed class OrdersController : Controller
     private readonly IOrderRegistrationService _orderRegistration;
     private readonly IOrderFieldLinkService _orderFieldLinks;
     private readonly ICustomerService _customerService;
+    private readonly ITemplateOriginalOpenTokenIssuer _openTokenIssuer;
 
     public OrdersController(
         IOrderRegistrationService orderRegistration,
         IOrderFieldLinkService orderFieldLinks,
-        ICustomerService customerService)
+        ICustomerService customerService,
+        ITemplateOriginalOpenTokenIssuer openTokenIssuer)
     {
         _orderRegistration = orderRegistration;
         _orderFieldLinks = orderFieldLinks;
         _customerService = customerService;
+        _openTokenIssuer = openTokenIssuer;
     }
 
     [HttpGet]
@@ -51,7 +55,7 @@ public sealed class OrdersController : Controller
     public async Task<IActionResult> Create(CancellationToken cancellationToken)
     {
         var form = await _orderRegistration.GetCreateFormAsync(cancellationToken);
-        return View(new OrderCreateViewModel { Form = form });
+        return View(BuildCreateViewModel(form));
     }
 
     [HttpPost]
@@ -75,7 +79,7 @@ public sealed class OrdersController : Controller
 
         if (!ModelState.IsValid)
         {
-            return View("Create", new OrderCreateViewModel { Form = form, Input = input });
+            return View("Create", BuildCreateViewModel(form, input));
         }
 
         try
@@ -89,7 +93,7 @@ public sealed class OrdersController : Controller
         catch (InvalidOperationException ex)
         {
             ModelState.AddModelError(string.Empty, ex.Message);
-            return View("Create", new OrderCreateViewModel { Form = form, Input = input });
+            return View("Create", BuildCreateViewModel(form, input));
         }
     }
 
@@ -126,11 +130,7 @@ public sealed class OrdersController : Controller
         CancellationToken cancellationToken)
     {
         var form = await _orderRegistration.GetCreateFormAsync(cancellationToken);
-        return View("Create", new OrderCreateViewModel
-        {
-            Form = form,
-            Input = input
-        });
+        return View("Create", BuildCreateViewModel(form, input));
     }
 
     [HttpPost]
@@ -162,7 +162,7 @@ public sealed class OrdersController : Controller
             }
             catch
             {
-                return View("Create", new OrderCreateViewModel { Form = form, Input = input });
+                return View("Create", BuildCreateViewModel(form, input));
             }
         }
 
@@ -217,7 +217,7 @@ public sealed class OrdersController : Controller
 
         if (!ModelState.IsValid)
         {
-            return View(new OrderCreateViewModel { Form = form, Input = input });
+            return View(BuildCreateViewModel(form, input));
         }
 
         try
@@ -237,7 +237,7 @@ public sealed class OrdersController : Controller
         catch (InvalidOperationException ex)
         {
             ModelState.AddModelError(string.Empty, ex.Message);
-            return View(new OrderCreateViewModel { Form = form, Input = input });
+            return View(BuildCreateViewModel(form, input));
         }
     }
 
@@ -601,6 +601,43 @@ public sealed class OrdersController : Controller
         public List<OrderFieldLinkGroupInput>? Groups { get; set; }
 
         public List<OrderSharedFieldValueInput>? SharedValues { get; set; }
+    }
+
+    private OrderCreateViewModel BuildCreateViewModel(
+        OrderCreateFormDto form,
+        OrderCreateInputModel? input = null) =>
+        new()
+        {
+            Form = EnrichCreateFormWithPreviewUrls(form),
+            Input = input ?? new OrderCreateInputModel()
+        };
+
+    private OrderCreateFormDto EnrichCreateFormWithPreviewUrls(OrderCreateFormDto form) =>
+        new()
+        {
+            InvestigationTypes = form.InvestigationTypes,
+            Branches = form.Branches,
+            DefaultBranchId = form.DefaultBranchId,
+            TemplateOptions = form.TemplateOptions
+                .Select(option => new OrderTemplateOptionDto
+                {
+                    InvestigationTypeId = option.InvestigationTypeId,
+                    TemplateVersionId = option.TemplateVersionId,
+                    TemplateNameUk = option.TemplateNameUk,
+                    VersionNumber = option.VersionNumber,
+                    IsDefault = option.IsDefault,
+                    PreviewUrl = BuildTemplatePreviewUrl(option.TemplateVersionId)
+                })
+                .ToList()
+        };
+
+    private string? BuildTemplatePreviewUrl(Guid templateVersionId)
+    {
+        var token = _openTokenIssuer.CreateToken(templateVersionId);
+        return Url.Action(
+            nameof(TemplateVersionsController.OpenOriginal),
+            "TemplateVersions",
+            new { id = templateVersionId, token });
     }
 
     private static UpdateOrderCustomerInputModel BuildCustomerEditModel(OrderDetailDto detail) =>

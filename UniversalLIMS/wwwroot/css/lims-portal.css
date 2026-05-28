@@ -1016,16 +1016,6 @@ a.lims-portal-theme-option {
     transition: opacity 0.35s ease, filter 0.35s ease, transform 0.35s ease;
 }
 
-.lims-role-card__bg::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background:
-        linear-gradient(115deg, rgba(5, 12, 28, 0.5) 0%, rgba(5, 12, 28, 0.2) 38%, rgba(5, 12, 28, 0.08) 100%),
-        radial-gradient(ellipse 55% 45% at 16% 22%, rgba(2, 6, 23, 0.36) 0%, transparent 75%);
-    pointer-events: none;
-}
-
 .lims-role-card__bg::after {
     content: "";
     position: absolute;
@@ -1068,32 +1058,65 @@ a.lims-portal-theme-option {
     background-image: url("/assets/images/expert.png");
 }
 
-/* Asset backgrounds are emphasized in technological theme only. */
-.lims-portal-page:not(.portal-theme-5) .lims-role-card__bg {
-    opacity: 0;
-    animation: none;
+.portal-theme-1 .lims-role-card__bg,
+.portal-theme-2 .lims-role-card__bg,
+.portal-theme-3 .lims-role-card__bg,
+.portal-theme-4 .lims-role-card__bg {
+    background-image:
+        radial-gradient(circle at 14% 18%, var(--role-card-glow) 0%, transparent 34%),
+        radial-gradient(circle at 88% 18%, var(--role-card-soft) 0%, transparent 30%),
+        linear-gradient(135deg, var(--role-card-base) 0%, var(--role-card-depth) 100%);
+    opacity: 0.7;
+    mix-blend-mode: normal;
+    filter: saturate(1.08) contrast(1.02);
 }
 
-.portal-theme-5 .lims-role-card__bg {
-    opacity: 0.24;
-    mix-blend-mode: luminosity;
+.portal-theme-1 .lims-role-card--admin-bg,
+.portal-theme-1 .lims-role-card--registrar-bg,
+.portal-theme-1 .lims-role-card--lab-bg,
+.portal-theme-1 .lims-role-card--expert-bg {
+    --role-card-base: rgba(39, 39, 42, 0.72);
+    --role-card-depth: rgba(9, 9, 11, 0.88);
+    --role-card-soft: rgba(161, 161, 170, 0.28);
+    --role-card-glow: rgba(var(--role-accent-rgb), 0.22);
 }
 
-/* Fine-tuned composition for each card in technological theme. */
-.portal-theme-5 .lims-role-card--admin-bg .lims-role-card__bg {
-    background-position: 42% 52%;
+.portal-theme-2 .lims-role-card--admin-bg,
+.portal-theme-2 .lims-role-card--registrar-bg,
+.portal-theme-2 .lims-role-card--lab-bg,
+.portal-theme-2 .lims-role-card--expert-bg {
+    --role-card-base: rgba(6, 78, 59, 0.7);
+    --role-card-depth: rgba(15, 23, 42, 0.86);
+    --role-card-soft: rgba(187, 247, 208, 0.18);
+    --role-card-glow: rgba(var(--role-accent-rgb), 0.22);
 }
 
-.portal-theme-5 .lims-role-card--registrar-bg .lims-role-card__bg {
-    background-position: 54% 50%;
+.portal-theme-3 .lims-role-card--admin-bg,
+.portal-theme-3 .lims-role-card--registrar-bg,
+.portal-theme-3 .lims-role-card--lab-bg,
+.portal-theme-3 .lims-role-card--expert-bg {
+    --role-card-base: rgba(63, 98, 18, 0.72);
+    --role-card-depth: rgba(15, 23, 42, 0.86);
+    --role-card-soft: rgba(217, 249, 157, 0.2);
+    --role-card-glow: rgba(var(--role-accent-rgb), 0.22);
 }
 
-.portal-theme-5 .lims-role-card--lab-bg .lims-role-card__bg {
-    background-position: 50% 46%;
+.portal-theme-4 .lims-role-card--admin-bg,
+.portal-theme-4 .lims-role-card--registrar-bg,
+.portal-theme-4 .lims-role-card--lab-bg,
+.portal-theme-4 .lims-role-card--expert-bg {
+    --role-card-base: rgba(248, 250, 252, 0.98);
+    --role-card-depth: rgba(219, 234, 254, 0.78);
+    --role-card-soft: rgba(255, 255, 255, 0.86);
+    --role-card-glow: rgba(var(--role-accent-rgb), 0.14);
 }
 
-.portal-theme-5 .lims-role-card--expert-bg .lims-role-card__bg {
-    background-position: 56% 50%;
+.portal-theme-1 .lims-role-card--granted:hover .lims-role-card__bg,
+.portal-theme-2 .lims-role-card--granted:hover .lims-role-card__bg,
+.portal-theme-3 .lims-role-card--granted:hover .lims-role-card__bg,
+.portal-theme-4 .lims-role-card--granted:hover .lims-role-card__bg {
+    opacity: 0.88;
+    filter: saturate(1.16) contrast(1.05);
 }
 
 .lims-role-card__content {
@@ -1156,10 +1179,6 @@ a.lims-portal-theme-option {
     opacity: 0.3;
     filter: saturate(1.15) contrast(1.1);
     transform: scale(1.04);
-}
-
-.portal-theme-5 .lims-role-card--granted:hover .lims-role-card__bg {
-    opacity: 0.33;
 }
 
 .lims-role-card--granted:hover::after {

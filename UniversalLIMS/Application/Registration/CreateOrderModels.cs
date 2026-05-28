@@ -69,6 +69,9 @@ public sealed class OrderTemplateOptionDto
     public int VersionNumber { get; init; }
 
     public bool IsDefault { get; init; }
+
+    /// <summary>URL для inline-перегляду оригінального PDF (з токеном).</summary>
+    public string? PreviewUrl { get; init; }
 }
 
 public sealed class OrderCreateFormDto
