@@ -54,12 +54,13 @@ public class HomeController : Controller
             return RedirectToAction(nameof(Workspace));
         }
 
+        var activeRole = _activeLimsRole.ResolveActiveRole(User);
         var model = RolePortalViewModelBuilder.Build(
             User,
             _currentUser,
             _dateTime.UtcNow.ToLocalTime(),
-            _activeLimsRole.GetActiveRole(),
-            _portalTheme.GetTheme(_activeLimsRole.ResolveActiveRole(User)));
+            activeRole,
+            _portalTheme.GetTheme(activeRole));
 
         return View(model);
     }

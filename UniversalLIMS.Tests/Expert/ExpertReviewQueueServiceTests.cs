@@ -127,6 +127,64 @@ public sealed class ExpertReviewQueueServiceTests
         Assert.Equal(startedAt, item.ReviewStartedAtUtc);
     }
 
+    [Fact]
+    public async Task GetQueueAsync_KeepsSampleInApprovedFilter_WhenSampleHasApprovedAndInProgressReviews()
+    {
+        var sampleId = Guid.NewGuid();
+        await using var context = await CreateSeededContextAsync(sampleId, OrderDocumentStatus.ResultsEntered);
+        context.ExpertConclusionReviews.AddRange(
+            new ExpertConclusionReview
+            {
+                SampleId = sampleId,
+                Status = ExpertConclusionStatus.InProgress,
+                ReviewStartedAtUtc = DateTime.UtcNow.AddMinutes(-10)
+            },
+            new ExpertConclusionReview
+            {
+                SampleId = sampleId,
+                Status = ExpertConclusionStatus.Approved,
+                ApprovedAtUtc = DateTime.UtcNow
+            });
+        await context.SaveChangesAsync();
+
+        var service = new ExpertReviewQueueService(context);
+        var result = await service.GetQueueAsync(new ExpertReviewQueueFilter
+        {
+            ReviewStatus = ExpertConclusionStatus.Approved
+        });
+
+        Assert.Contains(result.Items, item => item.SampleId == sampleId);
+    }
+
+    [Fact]
+    public async Task GetQueueAsync_ExcludesSampleFromInProgressFilter_WhenSampleHasApprovedReview()
+    {
+        var sampleId = Guid.NewGuid();
+        await using var context = await CreateSeededContextAsync(sampleId, OrderDocumentStatus.ResultsEntered);
+        context.ExpertConclusionReviews.AddRange(
+            new ExpertConclusionReview
+            {
+                SampleId = sampleId,
+                Status = ExpertConclusionStatus.InProgress,
+                ReviewStartedAtUtc = DateTime.UtcNow.AddMinutes(-10)
+            },
+            new ExpertConclusionReview
+            {
+                SampleId = sampleId,
+                Status = ExpertConclusionStatus.Approved,
+                ApprovedAtUtc = DateTime.UtcNow
+            });
+        await context.SaveChangesAsync();
+
+        var service = new ExpertReviewQueueService(context);
+        var result = await service.GetQueueAsync(new ExpertReviewQueueFilter
+        {
+            ReviewStatus = ExpertConclusionStatus.InProgress
+        });
+
+        Assert.DoesNotContain(result.Items, item => item.SampleId == sampleId);
+    }
+
     private static async Task<ApplicationDbContext> CreateSeededContextAsync(
         Guid sampleId,
         OrderDocumentStatus primaryDocumentStatus,

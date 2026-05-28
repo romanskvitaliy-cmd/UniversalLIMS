@@ -9,6 +9,12 @@ public static class LimsIdentityCookieConfigurator
     {
         services.ConfigureApplicationCookie(options =>
         {
+            options.Events.OnSigningOut = context =>
+            {
+                LimsPortalSessionCleanup.ClearAuthenticatedSessionState(context.HttpContext.Session);
+                return Task.CompletedTask;
+            };
+
             options.Events.OnRedirectToReturnUrl = context =>
             {
                 if (PortalEntryFlow.ShouldRedirectToPortalHome(context.RedirectUri))

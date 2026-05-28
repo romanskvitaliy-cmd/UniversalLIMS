@@ -8,6 +8,11 @@
         return;
     }
 
+    // Keep the overlay outside local stacking contexts so cards/headers never cover it.
+    if (overlay.parentElement !== document.body) {
+        document.body.appendChild(overlay);
+    }
+
     const storageKey = "lims.workspace.calendarOverlay.enabled";
     const monthNames = [
         "Січень", "Лютий", "Березень", "Квітень", "Травень", "Червень",

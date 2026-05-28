@@ -14,6 +14,12 @@ public sealed class ActiveLimsRoleService : IActiveLimsRoleService
 
     public string? GetActiveRole()
     {
+        if (!IsAuthenticated())
+        {
+            LimsPortalSessionCleanup.ClearAuthenticatedSessionState(_httpContextAccessor.HttpContext?.Session);
+            return null;
+        }
+
         var session = _httpContextAccessor.HttpContext?.Session;
         return session?.GetString(SessionKeys.ActiveLimsRole);
     }
@@ -39,6 +45,12 @@ public sealed class ActiveLimsRoleService : IActiveLimsRoleService
 
     public string? ResolveActiveRole(ClaimsPrincipal user)
     {
+        if (user.Identity?.IsAuthenticated != true)
+        {
+            LimsPortalSessionCleanup.ClearAuthenticatedSessionState(_httpContextAccessor.HttpContext?.Session);
+            return null;
+        }
+
         var active = GetActiveRole();
         if (!string.IsNullOrWhiteSpace(active))
         {
@@ -59,4 +71,7 @@ public sealed class ActiveLimsRoleService : IActiveLimsRoleService
 
         return GetActiveRole();
     }
+
+    private bool IsAuthenticated() =>
+        _httpContextAccessor.HttpContext?.User.Identity?.IsAuthenticated == true;
 }

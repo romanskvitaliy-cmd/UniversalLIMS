@@ -101,6 +101,59 @@ public sealed class ExpertConclusionServiceTests
         Assert.Equal(ExpertConclusionStatus.PendingReview, review.Status);
     }
 
+    [Fact]
+    public async Task ReturnToPendingReviewAsync_ReturnsFalse_WhenReviewAlreadyApproved()
+    {
+        var sampleId = Guid.NewGuid();
+        await using var context = await CreateReadySampleContextAsync(sampleId);
+        context.ExpertConclusionReviews.Add(new ExpertConclusionReview
+        {
+            SampleId = sampleId,
+            Status = ExpertConclusionStatus.Approved,
+            ApprovedAtUtc = DateTime.UtcNow,
+            CreatedAtUtc = DateTime.UtcNow,
+            CreatedByUserId = "expert-user"
+        });
+        await context.SaveChangesAsync();
+
+        var service = new ExpertConclusionService(
+            context,
+            new TestCurrentUserService(),
+            new TestDateTimeProvider(DateTime.UtcNow));
+
+        var moved = await service.ReturnToPendingReviewAsync(sampleId);
+
+        Assert.False(moved);
+        var review = await context.ExpertConclusionReviews.SingleAsync(item => item.SampleId == sampleId);
+        Assert.Equal(ExpertConclusionStatus.Approved, review.Status);
+    }
+
+    [Fact]
+    public async Task ReturnToPendingReviewAsync_ReturnsTrue_WhenAlreadyPending()
+    {
+        var sampleId = Guid.NewGuid();
+        await using var context = await CreateReadySampleContextAsync(sampleId);
+        context.ExpertConclusionReviews.Add(new ExpertConclusionReview
+        {
+            SampleId = sampleId,
+            Status = ExpertConclusionStatus.PendingReview,
+            CreatedAtUtc = DateTime.UtcNow,
+            CreatedByUserId = "expert-user"
+        });
+        await context.SaveChangesAsync();
+
+        var service = new ExpertConclusionService(
+            context,
+            new TestCurrentUserService(),
+            new TestDateTimeProvider(DateTime.UtcNow));
+
+        var moved = await service.ReturnToPendingReviewAsync(sampleId);
+
+        Assert.True(moved);
+        var review = await context.ExpertConclusionReviews.SingleAsync(item => item.SampleId == sampleId);
+        Assert.Equal(ExpertConclusionStatus.PendingReview, review.Status);
+    }
+
     private static async Task<ApplicationDbContext> CreateReadySampleContextAsync(
         Guid sampleId,
         OrderDocumentStatus documentStatus = OrderDocumentStatus.ResultsEntered)

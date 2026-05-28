@@ -704,7 +704,7 @@ a.lims-workspace-theme-option {
     position: fixed;
     right: 1.25rem;
     bottom: 1rem;
-    z-index: 1045;
+    z-index: 1200;
     width: min(20rem, calc(100vw - 2rem));
     border-radius: 16px;
     border: 1px solid color-mix(in srgb, var(--workspace-accent, #0d9488) 35%, rgba(255, 255, 255, 0.2));
