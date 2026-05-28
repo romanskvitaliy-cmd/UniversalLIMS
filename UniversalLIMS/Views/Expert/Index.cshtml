@@ -170,6 +170,22 @@ else
                                title="Деталі проби">
                                 Деталі
                             </a>
+                            @if (sample.DocumentCount == 1
+                                && sample.SingleTemplateVersionIdForFinalPdf.HasValue
+                                && sample.SingleDocumentIdForFinalPdf.HasValue)
+                            {
+                                <a class="btn btn-sm btn-outline-success"
+                                   asp-controller="PdfWorkspace"
+                                   asp-action="FinalPdf"
+                                   asp-route-templateVersionId="@sample.SingleTemplateVersionIdForFinalPdf.Value"
+                                   asp-route-orderId="@sample.OrderId"
+                                   asp-route-orderDocumentId="@sample.SingleDocumentIdForFinalPdf.Value"
+                                   target="_blank"
+                                   rel="noopener"
+                                   title="Переглянути фінальний PDF">
+                                    Фінал
+                                </a>
+                            }
                             @if (reviewStatus != ExpertConclusionStatus.Approved)
                             {
                                 @if (reviewStatus == ExpertConclusionStatus.InProgress)

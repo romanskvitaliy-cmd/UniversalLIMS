@@ -108,6 +108,20 @@ public sealed class ExpertReviewQueueService : IExpertReviewQueueService
                 DocumentCount = sample.OrderDocuments.Count(document =>
                     !document.IsAnnulled
                     && document.Status != OrderDocumentStatus.Pending),
+                SingleDocumentIdForFinalPdf = sample.OrderDocuments
+                    .Where(document =>
+                        !document.IsAnnulled
+                        && document.Status != OrderDocumentStatus.Pending)
+                    .OrderBy(document => document.Id)
+                    .Select(document => (Guid?)document.Id)
+                    .FirstOrDefault(),
+                SingleTemplateVersionIdForFinalPdf = sample.OrderDocuments
+                    .Where(document =>
+                        !document.IsAnnulled
+                        && document.Status != OrderDocumentStatus.Pending)
+                    .OrderBy(document => document.Id)
+                    .Select(document => (Guid?)document.TemplateVersionId)
+                    .FirstOrDefault(),
                 TargetBranchNames = sample.OrderDocuments
                     .Where(document =>
                         !document.IsAnnulled
@@ -149,6 +163,8 @@ public sealed class ExpertReviewQueueService : IExpertReviewQueueService
                 RegisteredAt = row.RegisteredAt,
                 InvestigationTypeName = row.InvestigationTypeName,
                 DocumentCount = row.DocumentCount,
+                SingleDocumentIdForFinalPdf = row.DocumentCount == 1 ? row.SingleDocumentIdForFinalPdf : null,
+                SingleTemplateVersionIdForFinalPdf = row.DocumentCount == 1 ? row.SingleTemplateVersionIdForFinalPdf : null,
                 TargetBranchName = string.Join(", ", row.TargetBranchNames),
                 ReviewStatus = row.ReviewStatus,
                 ReviewStartedAtUtc = row.ReviewStartedAtUtc,

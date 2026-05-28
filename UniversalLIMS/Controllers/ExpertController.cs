@@ -115,6 +115,7 @@ public sealed class ExpertController : Controller
                 entity.Number,
                 InvestigationTypeName = entity.InvestigationType.NameUk,
                 CustomerFullName = entity.Order.Customer.FullName,
+                entity.OrderId,
                 entity.Order.ReferralNumber,
                 entity.RegisteredAt
             })
@@ -145,6 +146,7 @@ public sealed class ExpertController : Controller
             .Select(document => new ExpertSampleDocumentItemViewModel
             {
                 OrderDocumentId = document.Id,
+                TemplateVersionId = document.TemplateVersionId,
                 TemplateName = document.Template.NameUk,
                 VersionNumber = document.TemplateVersion.VersionNumber,
                 TargetBranchName = document.TargetBranch.Name,
@@ -165,6 +167,7 @@ public sealed class ExpertController : Controller
             ReviewStartedAtUtc = review?.ReviewStartedAtUtc,
             ApprovedAtUtc = review?.ApprovedAtUtc,
             NotesUk = review?.NotesUk,
+            OrderId = sample.OrderId,
             Documents = documents
         };
 

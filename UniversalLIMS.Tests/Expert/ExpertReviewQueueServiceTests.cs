@@ -128,6 +128,21 @@ public sealed class ExpertReviewQueueServiceTests
     }
 
     [Fact]
+    public async Task GetQueueAsync_PopulatesSingleFinalPdfShortcut_WhenSampleHasOneDocument()
+    {
+        var sampleId = Guid.NewGuid();
+        await using var context = await CreateSeededContextAsync(sampleId, OrderDocumentStatus.ResultsEntered);
+
+        var service = new ExpertReviewQueueService(context);
+        var result = await service.GetQueueAsync(new ExpertReviewQueueFilter());
+
+        var item = Assert.Single(result.Items);
+        Assert.Equal(1, item.DocumentCount);
+        Assert.True(item.SingleDocumentIdForFinalPdf.HasValue);
+        Assert.True(item.SingleTemplateVersionIdForFinalPdf.HasValue);
+    }
+
+    [Fact]
     public async Task GetQueueAsync_KeepsSampleInApprovedFilter_WhenSampleHasApprovedAndInProgressReviews()
     {
         var sampleId = Guid.NewGuid();

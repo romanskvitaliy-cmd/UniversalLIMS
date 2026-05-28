@@ -23,6 +23,10 @@ public sealed class ExpertReviewQueueItemDto
 
     public int DocumentCount { get; init; }
 
+    public Guid? SingleDocumentIdForFinalPdf { get; init; }
+
+    public Guid? SingleTemplateVersionIdForFinalPdf { get; init; }
+
     public ExpertConclusionStatus? ReviewStatus { get; init; }
 
     public DateTime? ReviewStartedAtUtc { get; init; }

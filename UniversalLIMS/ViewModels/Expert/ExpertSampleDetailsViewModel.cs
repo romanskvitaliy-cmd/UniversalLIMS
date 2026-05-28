@@ -25,12 +25,16 @@ public sealed class ExpertSampleDetailsViewModel
 
     public string? NotesUk { get; init; }
 
+    public Guid OrderId { get; init; }
+
     public IReadOnlyList<ExpertSampleDocumentItemViewModel> Documents { get; init; } = [];
 }
 
 public sealed class ExpertSampleDocumentItemViewModel
 {
     public Guid OrderDocumentId { get; init; }
+
+    public Guid TemplateVersionId { get; init; }
 
     public required string TemplateName { get; init; }
 

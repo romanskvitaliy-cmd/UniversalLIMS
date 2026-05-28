@@ -94,6 +94,7 @@
                             <th>Лабораторія</th>
                             <th>Статус</th>
                             <th>Відправлено</th>
+                            <th></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -111,6 +112,29 @@
                                 </span>
                             </td>
                             <td>@(document.SentToLabAtUtc.HasValue ? document.SentToLabAtUtc.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm") : "—")</td>
+                            <td class="text-end text-nowrap">
+                                <a class="btn btn-sm btn-outline-success"
+                                   asp-controller="PdfWorkspace"
+                                   asp-action="FinalPdf"
+                                   asp-route-templateVersionId="@document.TemplateVersionId"
+                                   asp-route-orderId="@Model.OrderId"
+                                   asp-route-orderDocumentId="@document.OrderDocumentId"
+                                   target="_blank"
+                                   rel="noopener"
+                                   title="Переглянути фінальний PDF">
+                                    Фінал
+                                </a>
+                                <a class="btn btn-sm btn-outline-secondary"
+                                   asp-controller="PdfWorkspace"
+                                   asp-action="FinalPdf"
+                                   asp-route-templateVersionId="@document.TemplateVersionId"
+                                   asp-route-orderId="@Model.OrderId"
+                                   asp-route-orderDocumentId="@document.OrderDocumentId"
+                                   asp-route-download="true"
+                                   title="Завантажити PDF">
+                                    ↓ PDF
+                                </a>
+                            </td>
                         </tr>
                     }
                     </tbody>
