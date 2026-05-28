@@ -1561,17 +1561,33 @@
         previewError.style.display = "block";
     };
 
-    const showStatus = (message, type = "success") => {
+    const showStatus = (message, type = "success", options = {}) => {
+        const { allowHtml = false } = options;
         if (!statusBox) {
             return;
         }
-        statusBox.textContent = message;
+        if (allowHtml) {
+            statusBox.innerHTML = message;
+        } else {
+            statusBox.textContent = message;
+        }
         statusBox.className = `alert alert-${type} mb-2`;
         statusBox.classList.remove("d-none");
     };
 
     const getAntiforgeryToken = () =>
         document.querySelector('#pdfFillAntiforgeryForm input[name="__RequestVerificationToken"]')?.value ?? "";
+
+    const appendExpertPostSaveHint = (message) => {
+        const sampleId = clientConfig.sampleId || null;
+        const queueUrl = clientConfig.expertQueueUrl || "/Expert";
+        if (!sampleId || !queueUrl) {
+            return { message, allowHtml: false };
+        }
+        const detailsUrl = clientConfig.expertDetailsUrl || `/Expert/Details?sampleId=${encodeURIComponent(String(sampleId))}`;
+        const html = `${message} <span class="d-block mt-1">Крок експерта: після перевірки заповнених полів перейдіть у <a href="${queueUrl}">чергу експерта</a> і затвердьте висновок. <a href="${detailsUrl}">Деталі проби</a>.</span>`;
+        return { message: html, allowHtml: true };
+    };
 
     const buildFinalPdfUrl = (orderId, download) => {
         const template = clientConfig.finalPdfUrlTemplate || window.__pdfFillFinalPdfUrlTemplate || "";
@@ -2186,7 +2202,12 @@
                     activateFillTab("actions");
                 }
 
-                showStatus(message, statusType);
+                const isSpecialistRole = String(clientConfig.activeRoleCode || "").toLowerCase() === "specialist";
+                const shouldShowExpertHint = ok && !hasFailures && isSpecialistRole;
+                const finalStatus = shouldShowExpertHint
+                    ? appendExpertPostSaveHint(message)
+                    : { message, allowHtml: false };
+                showStatus(finalStatus.message, statusType, { allowHtml: finalStatus.allowHtml });
             } else if (silent && ok) {
                 statusBox?.classList.add("d-none");
             }

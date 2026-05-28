@@ -139,7 +139,7 @@ dotnet test UniversalLIMS.Tests/UniversalLIMS.Tests.csproj --filter "FullyQualif
 |---|--------|------------|
 | B1 | Сторінка/блок **деталей проби для експерта** (read-only: документи, статуси, поточна примітка) | ✅ Закрито (2026-05-27, `/Expert/Details`) |
 | B2 | **Reject / потребує доопрацювання** (новий статус або reuse notes + flag) — лише якщо замовник підтвердить | M |
-| B3 | Зв’язок Fill після save експертських полів → auto `MarkInProgress` / підказка «затвердити в черзі» | S |
+| B3 | Зв’язок Fill після save експертських полів → auto `MarkInProgress` / підказка «затвердити в черзі» | ✅ Закрито (2026-05-28, hint у Fill після save) |
 | B4 | Експорт/друк фінального PDF з черги (лінк уже є в PdfWorkspace) — UX shortcut у черзі | S |
 | B5 | Unit-тести на `ReturnToQueue` + фільтр `Approved` edge cases | S |
 

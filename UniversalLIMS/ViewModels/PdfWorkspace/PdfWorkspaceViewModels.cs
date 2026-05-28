@@ -36,6 +36,8 @@ public sealed class PdfWorkspaceFillViewModel
 
     public Guid? OrderDocumentId { get; set; }
 
+    public Guid? SampleId { get; set; }
+
     public string? PdfPreviewUrl { get; set; }
 
     public Dictionary<string, string?> SavedValuesByKey { get; set; } = new(StringComparer.Ordinal);
@@ -60,6 +62,10 @@ public sealed class PdfWorkspaceFillViewModel
     public string? ActiveRoleDisplayName { get; set; }
 
     public string? FieldPermissionsUrl { get; set; }
+
+    public string? ExpertQueueUrl { get; set; }
+
+    public string? ExpertDetailsUrl { get; set; }
 }
 
 public sealed class PdfWorkspaceFillSegmentViewModel

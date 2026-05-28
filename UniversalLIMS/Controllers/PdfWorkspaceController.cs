@@ -87,9 +87,10 @@ public sealed class PdfWorkspaceController : Controller
         Guid templateVersionId,
         Guid? orderId,
         Guid? orderDocumentId,
+        Guid? sampleId,
         CancellationToken cancellationToken)
     {
-        var model = await BuildFillViewModelAsync(templateVersionId, orderId, orderDocumentId, cancellationToken);
+        var model = await BuildFillViewModelAsync(templateVersionId, orderId, orderDocumentId, sampleId, cancellationToken);
         if (model is null)
         {
             return NotFound();
@@ -452,6 +453,7 @@ public sealed class PdfWorkspaceController : Controller
         Guid templateVersionId,
         Guid? orderId,
         Guid? orderDocumentId,
+        Guid? sampleId,
         CancellationToken cancellationToken)
     {
         var version = await _context.TemplateVersions
@@ -511,6 +513,16 @@ public sealed class PdfWorkspaceController : Controller
                 StringComparer.Ordinal);
         }
 
+        var resolvedSampleId = sampleId;
+        if (!resolvedSampleId.HasValue && orderDocumentId.HasValue)
+        {
+            resolvedSampleId = await _context.OrderDocuments
+                .AsNoTracking()
+                .Where(document => document.Id == orderDocumentId.Value && !document.IsAnnulled)
+                .Select(document => (Guid?)document.SampleId)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
         var activeRole = _activeRole.ResolveActiveRole(User);
         var roleDisplay = RolePortalCatalog.FindByRoleCode(activeRole)?.DisplayName ?? activeRole;
 
@@ -522,6 +534,7 @@ public sealed class PdfWorkspaceController : Controller
             VersionNumber = version.VersionNumber,
             OrderId = orderId,
             OrderDocumentId = orderDocumentId,
+            SampleId = resolvedSampleId,
             PdfPreviewUrl = BuildOpenOriginalLink(version.Id),
             SavedValuesByKey = savedValues,
             Segments = segments,
@@ -533,7 +546,11 @@ public sealed class PdfWorkspaceController : Controller
             FieldPermissionsUrl = Url.Action(
                 "Permissions",
                 "TemplateFields",
-                new { templateVersionId = version.Id })
+                new { templateVersionId = version.Id }),
+            ExpertQueueUrl = Url.Action("Index", "Expert"),
+            ExpertDetailsUrl = resolvedSampleId.HasValue
+                ? Url.Action("Details", "Expert", new { sampleId = resolvedSampleId.Value })
+                : null
         };
     }
 
