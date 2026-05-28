@@ -9,12 +9,17 @@
     const sharedHost = document.getElementById("fieldMappingSharedValues");
     const jsonInput = document.getElementById("fieldMappingJson");
     const form = document.getElementById("orderFieldMappingForm");
+    const autoMergePreviewButton = document.getElementById("btnAutoMergePreview");
+    const autoMergeConfirmButton = document.getElementById("btnAutoMergeConfirm");
+    const autoMergeStatus = document.getElementById("autoMergeStatus");
 
     /** @type {{ label: string, members: { templateVersionId: string, templateFieldId: string, tag: string, title: string }[] }[]} */
     let groups = [];
 
     /** @type {{ groupIndex: number, value: string }[]} */
     let pendingSharedValues = [];
+    /** @type {{ label: string, members: { templateVersionId: string, templateFieldId: string, tag: string, title: string }[] }[]} */
+    let pendingAutoMergeGroups = [];
 
     function fieldLabel(field) {
         const title = field.title?.trim();
@@ -87,6 +92,7 @@
             btn.addEventListener("click", () => {
                 const idx = Number(btn.getAttribute("data-group-index"));
                 groups = groups.filter((_, i) => i !== idx);
+                resetPendingAutoMergeStatus();
                 renderGroups();
             });
         });
@@ -166,7 +172,7 @@
         return String(tag ?? "").trim().toLowerCase();
     }
 
-    function autoMergeByExactTag() {
+    function computeAutoMergeGroupsByExactTag() {
         const checks = Array.from(document.querySelectorAll(".field-map-check"))
             .filter((check) => !check.disabled);
         const bucketByTag = new Map();
@@ -196,7 +202,7 @@
             bucketByTag.get(normalizedTag).push(member);
         });
 
-        let created = 0;
+        const createdGroups = [];
         bucketByTag.forEach((members) => {
             if (members.length < 2) {
                 return;
@@ -207,20 +213,64 @@
                 return;
             }
 
-            groups.push({
+            createdGroups.push({
                 label: members[0].tag,
                 members
             });
-            created++;
         });
 
-        if (created === 0) {
-            window.alert("Не знайдено нових збігів тегів для автооб’єднання.");
+        return createdGroups;
+    }
+
+    function resetPendingAutoMergeStatus() {
+        pendingAutoMergeGroups = [];
+        if (autoMergeConfirmButton) {
+            autoMergeConfirmButton.classList.add("d-none");
+        }
+        if (autoMergeStatus) {
+            autoMergeStatus.classList.add("d-none");
+            autoMergeStatus.textContent = "";
+            autoMergeStatus.classList.remove("text-success", "text-warning");
+            autoMergeStatus.classList.add("text-muted");
+        }
+    }
+
+    function previewAutoMergeByExactTag() {
+        pendingAutoMergeGroups = computeAutoMergeGroupsByExactTag();
+        if (pendingAutoMergeGroups.length === 0) {
+            if (autoMergeStatus) {
+                autoMergeStatus.textContent = "Збігів для автооб’єднання не знайдено.";
+                autoMergeStatus.classList.remove("d-none", "text-success", "text-muted");
+                autoMergeStatus.classList.add("text-warning");
+            }
+            if (autoMergeConfirmButton) {
+                autoMergeConfirmButton.classList.add("d-none");
+            }
             return;
         }
 
+        if (autoMergeStatus) {
+            autoMergeStatus.textContent =
+                `Знайдено груп для автооб’єднання: ${pendingAutoMergeGroups.length}. Перевірте і натисніть «Підтвердити автооб’єднання».`;
+            autoMergeStatus.classList.remove("d-none", "text-warning", "text-muted");
+            autoMergeStatus.classList.add("text-success");
+        }
+        if (autoMergeConfirmButton) {
+            autoMergeConfirmButton.classList.remove("d-none");
+        }
+    }
+
+    function confirmAutoMergeByExactTag() {
+        if (!pendingAutoMergeGroups.length) {
+            previewAutoMergeByExactTag();
+            return;
+        }
+
+        pendingAutoMergeGroups.forEach((group) => groups.push(group));
+        const created = pendingAutoMergeGroups.length;
         renderGroups();
-        window.alert(`Створено груп: ${created}. Автооб’єднання виконано лише за точним збігом тегу.`);
+        resetPendingAutoMergeStatus();
+        window.alert(`Створено груп: ${created}. Автооб’єднання виконано за точним збігом тегу.`);
     }
 
     document.getElementById("btnMergeSelected")?.addEventListener("click", () => {
@@ -255,6 +305,7 @@
             check.checked = false;
         });
 
+        resetPendingAutoMergeStatus();
         renderGroups();
     });
 
@@ -264,8 +315,12 @@
         });
     });
 
-    document.getElementById("btnAutoMergeByTag")?.addEventListener("click", () => {
-        autoMergeByExactTag();
+    autoMergePreviewButton?.addEventListener("click", () => {
+        previewAutoMergeByExactTag();
+    });
+
+    autoMergeConfirmButton?.addEventListener("click", () => {
+        confirmAutoMergeByExactTag();
     });
 
     function getSelectedTemplateVersionIds() {
@@ -292,6 +347,7 @@
             value: item.value ?? ""
         }));
 
+        resetPendingAutoMergeStatus();
         renderGroups();
     }
 
@@ -376,4 +432,5 @@
 
     renderTemplates();
     renderGroups();
+    resetPendingAutoMergeStatus();
 })();

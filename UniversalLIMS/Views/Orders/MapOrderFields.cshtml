@@ -26,27 +26,27 @@
 
 <form asp-action="CreateWithFieldMapping" method="post" id="orderFieldMappingForm">
     @Html.AntiForgeryToken()
-    <input type="hidden" asp-for="CreateInput.CustomerMode" />
-    <input type="hidden" asp-for="CreateInput.SelectedCustomerId" />
-    <input type="hidden" asp-for="CreateInput.SelectedCustomerLabel" />
-    <input type="hidden" asp-for="CreateInput.NewCustomerKind" />
-    <input type="hidden" asp-for="CreateInput.NewCustomerFullName" />
-    <input type="hidden" asp-for="CreateInput.NewCustomerOrganizationName" />
-    <input type="hidden" asp-for="CreateInput.NewCustomerContactPhone" />
-    <input type="hidden" asp-for="CreateInput.NewCustomerAddress" />
-    <input type="hidden" asp-for="CreateInput.NewCustomerEdrpou" />
-    <input type="hidden" asp-for="CreateInput.OpenPdfAfterCreate" />
+    <input type="hidden" name="CustomerMode" value="@Model.CreateInput.CustomerMode" />
+    <input type="hidden" name="SelectedCustomerId" value="@Model.CreateInput.SelectedCustomerId" />
+    <input type="hidden" name="SelectedCustomerLabel" value="@Model.CreateInput.SelectedCustomerLabel" />
+    <input type="hidden" name="NewCustomerKind" value="@Model.CreateInput.NewCustomerKind" />
+    <input type="hidden" name="NewCustomerFullName" value="@Model.CreateInput.NewCustomerFullName" />
+    <input type="hidden" name="NewCustomerOrganizationName" value="@Model.CreateInput.NewCustomerOrganizationName" />
+    <input type="hidden" name="NewCustomerContactPhone" value="@Model.CreateInput.NewCustomerContactPhone" />
+    <input type="hidden" name="NewCustomerAddress" value="@Model.CreateInput.NewCustomerAddress" />
+    <input type="hidden" name="NewCustomerEdrpou" value="@Model.CreateInput.NewCustomerEdrpou" />
+    <input type="hidden" name="OpenPdfAfterCreate" value="@Model.CreateInput.OpenPdfAfterCreate" />
     @for (var sampleIndex = 0; sampleIndex < Model.CreateInput.Samples.Count; sampleIndex++)
     {
-        <input type="hidden" name="CreateInput.Samples[@sampleIndex].InvestigationTypeId" value="@Model.CreateInput.Samples[sampleIndex].InvestigationTypeId" />
-        <input type="hidden" name="CreateInput.Samples[@sampleIndex].TemplateVersionId" value="@Model.CreateInput.Samples[sampleIndex].TemplateVersionId" />
+        <input type="hidden" name="Samples[@sampleIndex].InvestigationTypeId" value="@Model.CreateInput.Samples[sampleIndex].InvestigationTypeId" />
+        <input type="hidden" name="Samples[@sampleIndex].TemplateVersionId" value="@Model.CreateInput.Samples[sampleIndex].TemplateVersionId" />
         @for (var documentIndex = 0; documentIndex < Model.CreateInput.Samples[sampleIndex].SelectedTemplateVersionIds.Count; documentIndex++)
         {
-            <input type="hidden" name="CreateInput.Samples[@sampleIndex].SelectedTemplateVersionIds[@documentIndex]" value="@Model.CreateInput.Samples[sampleIndex].SelectedTemplateVersionIds[documentIndex]" />
+            <input type="hidden" name="Samples[@sampleIndex].SelectedTemplateVersionIds[@documentIndex]" value="@Model.CreateInput.Samples[sampleIndex].SelectedTemplateVersionIds[documentIndex]" />
         }
         @for (var branchIndex = 0; branchIndex < Model.CreateInput.Samples[sampleIndex].DocumentTargetBranchIds.Count; branchIndex++)
         {
-            <input type="hidden" name="CreateInput.Samples[@sampleIndex].DocumentTargetBranchIds[@branchIndex]" value="@Model.CreateInput.Samples[sampleIndex].DocumentTargetBranchIds[branchIndex]" />
+            <input type="hidden" name="Samples[@sampleIndex].DocumentTargetBranchIds[@branchIndex]" value="@Model.CreateInput.Samples[sampleIndex].DocumentTargetBranchIds[branchIndex]" />
         }
     }
     <input type="hidden" name="fieldMappingJson" id="fieldMappingJson" />
@@ -107,9 +107,13 @@
                     <button type="button" class="btn btn-sm btn-outline-secondary mt-2" id="btnClearSelection">
                         Зняти виділення
                     </button>
-                    <button type="button" class="btn btn-sm btn-outline-success mt-2" id="btnAutoMergeByTag">
-                        Автооб’єднати за тегами
+                    <button type="button" class="btn btn-sm btn-outline-success mt-2" id="btnAutoMergePreview">
+                        Перевірити автооб’єднання
                     </button>
+                    <button type="button" class="btn btn-sm btn-success mt-2 d-none" id="btnAutoMergeConfirm">
+                        Підтвердити автооб’єднання
+                    </button>
+                    <p class="small mt-2 mb-0 text-muted d-none" id="autoMergeStatus"></p>
                 </div>
             </div>
             <div class="card">
