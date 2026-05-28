@@ -56,13 +56,16 @@ public sealed class OrderFieldLinkService : IOrderFieldLinkService
             var accessByFieldId = await _fieldPermissions.GetFieldAccessLevelsForVersionAsync(
                 version.Id,
                 cancellationToken);
+            var useDefaultWriteAccess = accessByFieldId.Count == 0;
 
             var fields = version.Fields
                 .OrderBy(field => field.SortOrder)
                 .ThenBy(field => field.Tag)
                 .Select(field =>
                 {
-                    var access = accessByFieldId.GetValueOrDefault(field.Id, FieldAccessLevel.None);
+                    var access = useDefaultWriteAccess
+                        ? FieldAccessLevel.Write
+                        : accessByFieldId.GetValueOrDefault(field.Id, FieldAccessLevel.None);
                     return new OrderFieldMappingFieldDto
                     {
                         TemplateFieldId = field.Id,

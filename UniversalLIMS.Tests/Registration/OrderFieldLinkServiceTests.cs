@@ -13,6 +13,57 @@ namespace UniversalLIMS.Tests.Registration;
 public sealed class OrderFieldLinkServiceTests
 {
     [Fact]
+    public async Task GetMappingPrepareAsync_UsesWriteFallback_WhenNoFieldPermissionsConfigured()
+    {
+        await using var context = CreateContext();
+        var versionA = Guid.NewGuid();
+        var versionB = Guid.NewGuid();
+        var fieldA = Guid.NewGuid();
+        var fieldB = Guid.NewGuid();
+        var dataFieldA = Guid.NewGuid();
+        var dataFieldB = Guid.NewGuid();
+
+        context.DataFields.AddRange(
+            new DataField
+            {
+                Id = dataFieldA,
+                Key = "f327_pH",
+                DisplayNameUk = "pH",
+                FieldType = DataFieldType.Text,
+                Scope = DataFieldScope.Sample,
+                IsActive = true
+            },
+            new DataField
+            {
+                Id = dataFieldB,
+                Key = "Food_pH",
+                DisplayNameUk = "pH",
+                FieldType = DataFieldType.Text,
+                Scope = DataFieldScope.Sample,
+                IsActive = true
+            });
+
+        SeedVersionWithField(context, versionA, "T-A", fieldA, "f327_pH", dataFieldA);
+        SeedVersionWithField(context, versionB, "T-B", fieldB, "Food_pH", dataFieldB);
+        await context.SaveChangesAsync();
+
+        var service = new OrderFieldLinkService(context, new EmptyTemplateFieldPermissionService());
+
+        var result = await service.GetMappingPrepareAsync([versionA, versionB]);
+
+        Assert.Equal(2, result.Templates.Count);
+        Assert.All(result.Templates, template =>
+        {
+            Assert.NotEmpty(template.Fields);
+            Assert.All(template.Fields, field =>
+            {
+                Assert.True(field.CanRead);
+                Assert.True(field.CanWrite);
+            });
+        });
+    }
+
+    [Fact]
     public async Task ApplySharedFieldValuesAsync_WritesToAllDataFieldsInGroup()
     {
         await using var context = CreateContext();
@@ -340,5 +391,13 @@ public sealed class OrderFieldLinkServiceTests
 
             return fieldIds.ToDictionary(id => id, _ => FieldAccessLevel.Write);
         }
+    }
+
+    private sealed class EmptyTemplateFieldPermissionService : ITemplateFieldPermissionService
+    {
+        public Task<IReadOnlyDictionary<Guid, FieldAccessLevel>> GetFieldAccessLevelsForVersionAsync(
+            Guid templateVersionId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyDictionary<Guid, FieldAccessLevel>>(new Dictionary<Guid, FieldAccessLevel>());
     }
 }
