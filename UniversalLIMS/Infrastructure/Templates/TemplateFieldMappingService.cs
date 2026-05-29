@@ -169,15 +169,24 @@ public sealed class TemplateFieldMappingService : ITemplateFieldMappingService
         CancellationToken cancellationToken = default)
     {
         var field = await _context.TemplateFields
+            .IgnoreQueryFilters()
             .Include(templateField => templateField.Segments)
-            .FirstOrDefaultAsync(
-                templateField => templateField.Id == fieldId
-                    && templateField.TemplateVersionId == templateVersionId,
-                cancellationToken);
+            .FirstOrDefaultAsync(templateField => templateField.Id == fieldId, cancellationToken);
 
         if (field is null)
         {
-            throw new InvalidOperationException($"Поле шаблону {fieldId} не знайдено у версії {templateVersionId}.");
+            throw new InvalidOperationException($"Поле шаблону {fieldId} не знайдено.");
+        }
+
+        if (field.IsAnnulled)
+        {
+            return;
+        }
+
+        if (field.TemplateVersionId != templateVersionId)
+        {
+            throw new InvalidOperationException(
+                $"Поле шаблону {fieldId} належить іншій версії шаблону. Оновіть сторінку мапінгу (F5) і збережіть знову.");
         }
 
         var existingSegments = await _context.TemplateFieldSegments
@@ -786,8 +795,9 @@ public sealed class TemplateFieldMappingService : ITemplateFieldMappingService
 
     private async Task AutoMapNewFieldAsync(TemplateField field, CancellationToken cancellationToken)
     {
+        var lookupKey = ResolveSemanticDataFieldKey(field.Tag);
         var dataField = await _context.DataFields
-            .FirstOrDefaultAsync(item => item.Key == field.Tag && item.IsActive, cancellationToken);
+            .FirstOrDefaultAsync(item => item.Key == lookupKey && item.IsActive, cancellationToken);
 
         if (dataField is null)
         {
@@ -800,6 +810,14 @@ public sealed class TemplateFieldMappingService : ITemplateFieldMappingService
         field.LastMappedByUserId = _currentUserService.UserId;
         field.EstimatedCapacityChars ??= dataField.MaxLength;
     }
+
+    /// <summary>Legacy Global.* теги конструктора → семантичні ключі DataField.</summary>
+    private static string ResolveSemanticDataFieldKey(string tag) =>
+        tag.Trim() switch
+        {
+            "Global.SamplePoint" => "Sample.SamplingLocation",
+            _ => tag.Trim()
+        };
 
     private static bool CanUpdatePermissions(TemplateVersionStatus status) =>
         status is TemplateVersionStatus.Draft

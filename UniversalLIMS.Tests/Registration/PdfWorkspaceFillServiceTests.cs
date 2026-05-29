@@ -644,7 +644,7 @@ public sealed class PdfWorkspaceFillServiceTests
 
         Assert.NotEmpty(preview.PdfBytes);
         Assert.Equal(0, preview.SegmentsDrawn);
-        Assert.Equal(1, preview.SegmentsSkippedEmpty);
+        Assert.Equal(0, preview.SegmentsSkippedEmpty);
     }
 
     [Fact]

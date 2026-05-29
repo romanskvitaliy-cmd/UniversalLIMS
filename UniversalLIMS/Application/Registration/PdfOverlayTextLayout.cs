@@ -12,6 +12,17 @@ public static class PdfOverlayTextLayout
     /// <summary>Базовий зсув по Y у пікселях preview (еквівалент baseline у PDF).</summary>
     public const decimal BaselineYOffsetPx = 3m;
 
+    /// <summary>Типовий розмір body-тексту бланка (pt), для узгодження з preview у Map/Fill.</summary>
+    public const decimal PdfBodyFontPt = 13m;
+
+    /// <summary>Висота тега (preview-координати), при якій preview-шрифт збігається з body PDF.</summary>
+    public const decimal OverlayTagReferenceHeight = 32m;
+
+    /// <summary>
+    /// Еталон для пропорційного масштабу тексту: при висоті 40 preview — як раніше при 83 (еталон 32).
+    /// </summary>
+    public const decimal OverlayTagTextScaleReferenceHeight = 40m * OverlayTagReferenceHeight / 83m;
+
     public sealed record PreviewBounds(
         decimal X,
         decimal Y,

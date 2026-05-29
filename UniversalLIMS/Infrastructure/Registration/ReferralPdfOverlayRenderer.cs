@@ -74,20 +74,25 @@ public sealed class ReferralPdfOverlayRenderer
             var id = overlaySegment.TemplateFieldId?.ToString("D") ?? "no-id";
             var key = id;
 
-            var value = string.Empty;
-            if (useSimpleTextById
-                && overlaySegment.TemplateFieldId is Guid templateFieldId
-                && textById!.TryGetValue(templateFieldId.ToString("D"), out var uiText))
+            // Пріоритет: текст на сегменті (WYSIWYG preview / waterfall), потім словники.
+            var value = ResolveSegmentDrawableText(overlaySegment);
+
+            if (string.IsNullOrWhiteSpace(value))
             {
-                value = uiText;
-            }
-            else if (!useSimpleTextById)
-            {
-                value = ResolveOverlayText(
-                    overlaySegment,
-                    valuesByDataFieldId,
-                    textByUiField,
-                    textByTemplateFieldId) ?? string.Empty;
+                if (useSimpleTextById
+                    && overlaySegment.TemplateFieldId is Guid templateFieldId
+                    && textById!.TryGetValue(templateFieldId.ToString("D"), out var uiText))
+                {
+                    value = uiText;
+                }
+                else if (!useSimpleTextById)
+                {
+                    value = ResolveOverlayText(
+                        overlaySegment,
+                        valuesByDataFieldId,
+                        textByUiField,
+                        textByTemplateFieldId) ?? string.Empty;
+                }
             }
 
             if (string.IsNullOrWhiteSpace(value))

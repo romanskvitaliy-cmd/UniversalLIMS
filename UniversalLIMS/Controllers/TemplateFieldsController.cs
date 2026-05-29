@@ -519,6 +519,8 @@ public sealed class TemplateFieldsController : Controller
         {
             await _fieldMappingService.EnsureEditableTemplateVersionAsync(templateVersionId, cancellationToken);
 
+            var deletedFieldIds = request.DeletedFieldIds.ToHashSet();
+
             if (hasDeletions)
             {
                 await _fieldMappingService.DeleteFieldsAsync(
@@ -527,7 +529,9 @@ public sealed class TemplateFieldsController : Controller
                     cancellationToken);
             }
 
-            foreach (var field in request.Fields.OrderBy(field => field.FieldId))
+            foreach (var field in request.Fields
+                         .Where(item => !deletedFieldIds.Contains(item.FieldId))
+                         .OrderBy(field => field.FieldId))
             {
                 var segmentUpdates = field.Segments
                     .OrderBy(segment => segment.Sequence)

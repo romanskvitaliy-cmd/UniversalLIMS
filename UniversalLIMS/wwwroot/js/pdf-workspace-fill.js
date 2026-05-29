@@ -1782,7 +1782,35 @@
         return "flex-start";
     };
 
-    const createEditableField = (segment, segmentId, templateFieldId, coordScale, writable) => {
+    const styleOverlayFieldElement = (fieldEl, segment, layout, containerHeightPx, coordScale = 1) => {
+        const layoutModule = window.PdfOverlayTextLayout;
+        if (!layoutModule?.layoutTextInTextBox || !fieldEl) {
+            return;
+        }
+
+        layoutModule.layoutTextInTextBox(fieldEl, {
+            positionX: num(segment.x),
+            positionY: num(segment.y),
+            width: num(segment.width, 120),
+            height: num(segment.height, 28),
+            textOffsetX: num(layout.textOffsetX, 0),
+            textOffsetY: num(layout.textOffsetY, 0),
+            coordScale,
+            containerHeightPx,
+            segmentFontSize: layout.fontSize,
+            fontName: layout.fontName,
+            lineHeight: layout.lineHeight,
+            horizontalAlignment: layout.horizontalAlignment,
+            textAlignment: layout.textAlignment,
+            verticalAlignment: layout.verticalAlignment,
+            fontBold: layout.fontBold,
+            fontItalic: layout.fontItalic,
+            textUnderline: layout.textUnderline,
+            multiline: segment.allowMultiline === true
+        });
+    };
+
+    const createEditableField = (segment, segmentId, templateFieldId, coordScale, writable, containerHeightPx) => {
         const layout = readLayoutState(segment);
         const multiline = segment.allowMultiline === true;
         const fieldEl = document.createElement(multiline ? "textarea" : "input");
@@ -1806,18 +1834,7 @@
             fieldEl.tabIndex = -1;
         }
 
-        const fontSize = num(layout.fontSize) > 0 ? num(layout.fontSize) * coordScale : 12 * coordScale;
-        const lineHeight = num(layout.lineHeight) > 0 ? num(layout.lineHeight) : 1.2;
-        fieldEl.style.fontSize = `${fontSize}px`;
-        fieldEl.style.lineHeight = String(lineHeight);
-        fieldEl.style.textAlign = mapTextAlign(layout);
-        fieldEl.style.fontWeight = layout.fontBold ? "700" : "400";
-        fieldEl.style.fontStyle = layout.fontItalic ? "italic" : "normal";
-        fieldEl.style.textDecoration = layout.textUnderline ? "underline" : "none";
-
-        if (layout.fontName) {
-            fieldEl.style.fontFamily = `${layout.fontName}, Arial, sans-serif`;
-        }
+        styleOverlayFieldElement(fieldEl, segment, layout, containerHeightPx, coordScale);
 
         fieldEl.addEventListener("mousedown", (event) => event.stopPropagation());
         fieldEl.addEventListener("click", (event) => event.stopPropagation());
@@ -2029,11 +2046,16 @@
             box.style.top = `${top}px`;
             box.style.width = `${width}px`;
             box.style.height = `${height}px`;
-            box.style.alignItems = mapVerticalAlign(segment);
             box.style.zIndex = "20";
             box.title = segment.title || segment.tag || "";
 
-            const fieldEl = createEditableField(segment, segmentId, templateFieldId, coordScale, writable);
+            const fieldEl = createEditableField(
+                segment,
+                segmentId,
+                templateFieldId,
+                coordScale,
+                writable,
+                height);
             const initialValue = values.has(segmentId)
                 ? values.get(segmentId)
                 : resolveSavedValueForSegment(segment);

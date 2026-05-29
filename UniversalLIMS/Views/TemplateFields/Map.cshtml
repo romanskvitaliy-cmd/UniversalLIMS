@@ -3165,6 +3165,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         this.hasPendingDbSave = false;
                         this.isApplyingSavedDraft = false;
                         this.lastSavedSegmentFields = [];
+                        this.knownFieldIds = new Set();
                         this.calibrationMode = false;
                         this.calibrationByIndex = new Map();
                         this.calibrationEditingIndex = null;
@@ -3569,6 +3570,11 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         }
 
                         this.lastApiSample = fields[0];
+                        this.knownFieldIds = new Set(
+                            fields
+                                .map((field) => this.normalizeGuidKey(
+                                    field?.id ?? field?.fieldId ?? field?.FieldId ?? field?.Id))
+                                .filter((fieldId) => Boolean(fieldId)));
 
                         this.clearOverlays();
                         if (!this.hasPendingDbSave) {
@@ -3627,9 +3633,12 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         const overlayFields = [];
                         (fields ?? []).forEach((field) => {
                             this.resolveApiSegments(field).forEach((segment) => {
-                                overlayFields.push(this.normalizeField(
-                                    this.coerceSegmentField(field, segment, overlayFields.length),
-                                    overlayFields.length));
+                                const coerced = this.coerceSegmentField(field, segment, overlayFields.length);
+                                if (!coerced?.fieldId) {
+                                    return;
+                                }
+
+                                overlayFields.push(this.normalizeField(coerced, overlayFields.length));
                             });
                         });
                         return overlayFields;
@@ -3672,7 +3681,11 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         const source = field ?? {};
                         const segmentSource = segment ?? {};
                         const fieldId = this.normalizeGuidKey(
-                            source.id ?? source.fieldId ?? source.templateFieldId ?? this.getFieldIdByIndex(overlayIndex));
+                            source.id ?? source.fieldId ?? source.templateFieldId ?? source.Id ?? source.FieldId);
+                        if (!fieldId) {
+                            console.warn("[FieldEngine] Пропущено сегмент без fieldId", { overlayIndex, source });
+                            return null;
+                        }
                         const segmentSequence = this.readSegmentSequenceFromPayload(segmentSource, overlayIndex + 1);
                         const segmentId = segmentSource.id
                             ?? segmentSource.Id
@@ -6621,7 +6634,30 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         return updatedCount;
                     }
 
+                    countStaleOverlayFields(deletedFieldIds = []) {
+                        const deleted = new Set(
+                            (Array.isArray(deletedFieldIds) ? deletedFieldIds : this.collectDeletedFieldIds())
+                                .map((fieldId) => this.normalizeGuidKey(fieldId))
+                                .filter((fieldId) => Boolean(fieldId)));
+                        if (this.knownFieldIds.size === 0) {
+                            return 0;
+                        }
+
+                        const staleFieldIds = new Set();
+                        this.fieldByIndex.forEach((field) => {
+                            const fieldKey = this.normalizeGuidKey(field?.fieldId);
+                            if (!fieldKey || deleted.has(fieldKey) || this.knownFieldIds.has(fieldKey)) {
+                                return;
+                            }
+
+                            staleFieldIds.add(fieldKey);
+                        });
+
+                        return staleFieldIds.size;
+                    }
+
                     collectSegmentsPayload() {
+                        const deletedFieldIds = new Set(this.collectDeletedFieldIds());
                         const grouped = new Map();
                         this.fieldByIndex.forEach((field, overlayIndex) => {
                             const box = this.boxesByIndex.get(overlayIndex) ?? this.boxesByIndex.get(field.index);
@@ -6629,9 +6665,17 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                                 return;
                             }
 
+                            const fieldKey = this.normalizeGuidKey(field.fieldId);
+                            if (deletedFieldIds.has(fieldKey)) {
+                                return;
+                            }
+
+                            if (this.knownFieldIds.size > 0 && !this.knownFieldIds.has(fieldKey)) {
+                                return;
+                            }
+
                             const page = Number.parseInt(box.dataset.page || "1", 10);
                             const previewField = this.getFieldInPreviewSpace(box, page);
-                            const fieldKey = this.normalizeGuidKey(field.fieldId);
                             const group = grouped.get(fieldKey) ?? {
                                 fieldId: this.normalizeGuidKey(field.fieldId),
                                 textOffsetX: this.parsePixel(field.textOffsetX ?? 0),
@@ -6718,7 +6762,15 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             fields: this.collectSegmentsPayload(),
                             deletedFieldIds
                         };
+                        const skippedStaleCount = this.countStaleOverlayFields(deletedFieldIds);
                         if (!versionId || (payload.fields.length === 0 && deletedFieldIds.length === 0)) {
+                            if (skippedStaleCount > 0 && !silent) {
+                                const message = "На PDF залишились застарілі теги. Оновіть сторінку (F5) і повторіть збереження.";
+                                this.renderSaveHint(message);
+                                showOverlayToast(message, true);
+                                return false;
+                            }
+
                             return true;
                         }
 
@@ -6740,6 +6792,13 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                                     "Не вдалося зберегти сегменти.");
                                 this.renderSaveHint(message);
                                 showOverlayToast(message, true);
+                                if (/іншій версії|не знайдено у версії|не знайдено\./i.test(message)) {
+                                    try {
+                                        await this.reloadFromServer();
+                                    } catch {
+                                        // ignore reload errors after failed save
+                                    }
+                                }
                                 return false;
                             }
 
@@ -6761,8 +6820,14 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
 
                             if (!silent) {
                                 await this.reloadFromServer();
-                                this.renderSaveHint("Сегменти збережено в БД.");
-                                showOverlayToast("Сегменти збережено в БД.");
+                                const staleHint = skippedStaleCount > 0
+                                    ? ` (пропущено застарілих тегів: ${skippedStaleCount})`
+                                    : "";
+                                this.renderSaveHint(`Сегменти збережено в БД.${staleHint}`);
+                                showOverlayToast(
+                                    skippedStaleCount > 0
+                                        ? `Сегменти збережено. Застарілі теги (${skippedStaleCount}) прибрано зі збереження — оновіть сторінку (F5).`
+                                        : "Сегменти збережено в БД.");
                             }
 
                             const savedActiveIndex = this.activeIndex;
