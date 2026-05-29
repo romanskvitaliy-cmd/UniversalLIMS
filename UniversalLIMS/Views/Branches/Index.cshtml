@@ -1,0 +1,79 @@
+@model BranchIndexViewModel
+@{
+    Layout = "_LayoutWorkspace";
+    ViewData["Title"] = "Філії";
+}
+
+<section class="lims-page">
+    <header class="lims-page-header">
+        <div class="lims-page-header__text">
+            <h1 class="lims-page-header__title">Довідник філій</h1>
+            <p class="lims-page-header__subtitle">
+                Керування назвами та адресами лабораторних філій. Код філії не змінюється після створення
+                (від нього залежить нумерація проб). Деактивація приховує філію в нових замовленнях.
+            </p>
+        </div>
+        <a class="lims-btn lims-btn--primary" asp-action="Create">
+            <i class="bi bi-plus-lg" aria-hidden="true"></i>
+            Нова філія
+        </a>
+    </header>
+
+    @if (TempData["SuccessMessage"] is string successMessage)
+    {
+        <div class="alert alert-success py-2">@successMessage</div>
+    }
+
+    <div class="lims-panel">
+        <div class="lims-data-table-wrap">
+            <table class="lims-data-table">
+                <thead>
+                    <tr>
+                        <th>Код</th>
+                        <th>Назва</th>
+                        <th>Місто</th>
+                        <th>Статус</th>
+                        <th class="text-center">У workflow</th>
+                        <th class="text-center">Очікує</th>
+                        <th class="text-center">Користувачі</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var branch in Model.Branches)
+                    {
+                        <tr>
+                            <td><code class="lims-code">@branch.Code</code></td>
+                            <td class="lims-data-table__name">
+                                @branch.Name
+                                @if (!string.IsNullOrWhiteSpace(branch.Address))
+                                {
+                                    <div class="small text-muted">@branch.Address</div>
+                                }
+                            </td>
+                            <td>@branch.City</td>
+                            <td>
+                                @if (branch.IsActive)
+                                {
+                                    <span class="badge text-bg-success">Активна</span>
+                                }
+                                else
+                                {
+                                    <span class="lims-badge lims-badge--draft">Неактивна</span>
+                                }
+                            </td>
+                            <td class="text-center">@branch.WorkflowDocumentCount</td>
+                            <td class="text-center">@branch.PendingDocumentCount</td>
+                            <td class="text-center">@branch.AssignedUserCount</td>
+                            <td class="text-end text-nowrap">
+                                <a class="lims-btn lims-btn--outline lims-btn--sm" asp-action="Edit" asp-route-id="@branch.Id">
+                                    Редагувати
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>

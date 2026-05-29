@@ -1,0 +1,41 @@
+@model AnnulBranchViewModel
+@{
+    Layout = "_LayoutWorkspace";
+    ViewData["Title"] = "Анулювання філії";
+}
+
+<section class="lims-page">
+    <header class="lims-page-header">
+        <div class="lims-page-header__text">
+            <h1 class="lims-page-header__title">Анулювання філії</h1>
+            <p class="lims-page-header__subtitle">
+                Ви анулюєте <strong>@Model.Name</strong> (<code class="lims-code">@Model.Code</code>).
+                Фізичне видалення не виконується. Анулювання заборонено, якщо є документи в лабораторному workflow.
+            </p>
+        </div>
+    </header>
+
+    <div class="lims-panel">
+        <form asp-action="Annul" asp-route-id="@Model.Id" method="post" class="lims-form">
+            <input asp-for="Id" type="hidden" />
+            <input asp-for="Name" type="hidden" />
+            <input asp-for="Code" type="hidden" />
+            <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+            <div class="mb-3">
+                <label asp-for="AnnulmentReason" class="form-label"></label>
+                <textarea asp-for="AnnulmentReason" class="form-control" rows="4"></textarea>
+                <span asp-validation-for="AnnulmentReason" class="text-danger"></span>
+            </div>
+
+            <div class="d-flex flex-wrap gap-2">
+                <button type="submit" class="btn btn-danger">Анулювати</button>
+                <a class="lims-btn lims-btn--outline" asp-action="Edit" asp-route-id="@Model.Id">Назад</a>
+            </div>
+        </form>
+    </div>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

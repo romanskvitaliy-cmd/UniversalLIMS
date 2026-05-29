@@ -41,6 +41,8 @@ public static class WorkspaceNavigationCatalog
             [
                 Link("Лабораторії", "Огляд усіх філій і вхід у журнал проб", "bi-building",
                     "/Laboratories", true),
+                Link("Філії", "Довідник назв і адрес лабораторних філій", "bi-diagram-3",
+                    "/Branches", true),
                 Link("Лабораторний журнал", "Проби в роботі з урахуванням обраного контексту", "bi-droplet-half",
                     "/Laboratory", true),
                 Link("Шаблони документів", "Створення та публікація шаблонів", "bi-layout-text-window-reverse",
@@ -84,6 +86,7 @@ public static class WorkspaceNavigationCatalog
         {
             new("Головна", "Home", "Workspace", "bi-house-door-fill"),
             new("Лабораторії", "Laboratories", "Index", "bi-building"),
+            new("Філії", "Branches", "Index", "bi-diagram-3"),
             new("Журнал проб", "Laboratory", "Index", "bi-droplet-half"),
             new("Шаблони", "Templates", "Index", "bi-layout-text-window-reverse"),
             new("PDF Workspace", "PdfWorkspace", "Index", "bi-file-earmark-pdf"),

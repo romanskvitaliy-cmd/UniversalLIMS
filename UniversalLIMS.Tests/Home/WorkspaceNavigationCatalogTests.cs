@@ -41,4 +41,18 @@ public sealed class WorkspaceNavigationCatalogTests
         var approvedLink = Assert.Single(quickLinks, link => link.Title == "Затверджені");
         Assert.Equal("/Expert?reviewStatus=2", approvedLink.Url);
     }
+
+    [Fact]
+    public void SystemAdministrator_HasBranchesNavAndQuickLink()
+    {
+        var navItems = WorkspaceNavigationCatalog.GetNavItems(LimsRoles.SystemAdministrator);
+        var quickLinks = WorkspaceNavigationCatalog.GetQuickLinks(LimsRoles.SystemAdministrator);
+
+        Assert.Contains(navItems, item =>
+            item.Controller == "Branches" && item.Action == "Index");
+
+        var branchesLink = Assert.Single(quickLinks, link => link.Title == "Філії");
+        Assert.True(branchesLink.IsAvailable);
+        Assert.Equal("/Branches", branchesLink.Url);
+    }
 }

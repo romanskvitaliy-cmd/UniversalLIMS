@@ -1,0 +1,52 @@
+@model BranchCreateViewModel
+@{
+    Layout = "_LayoutWorkspace";
+    ViewData["Title"] = "Нова філія";
+}
+
+<section class="lims-page">
+    <header class="lims-page-header">
+        <div class="lims-page-header__text">
+            <h1 class="lims-page-header__title">Нова філія</h1>
+            <p class="lims-page-header__subtitle">
+                Код (наприклад ZHY, BER) використовується в нумерації проб і не змінюється після створення.
+            </p>
+        </div>
+    </header>
+
+    <div class="lims-panel">
+        <form asp-action="Create" method="post" class="lims-form">
+            <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+            <div class="mb-3">
+                <label asp-for="Code" class="form-label"></label>
+                <input asp-for="Code" class="form-control" autocomplete="off" />
+                <span asp-validation-for="Code" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Name" class="form-label"></label>
+                <input asp-for="Name" class="form-control" />
+                <span asp-validation-for="Name" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="City" class="form-label"></label>
+                <input asp-for="City" class="form-control" />
+                <span asp-validation-for="City" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Address" class="form-label"></label>
+                <input asp-for="Address" class="form-control" />
+                <span asp-validation-for="Address" class="text-danger"></span>
+            </div>
+
+            <div class="d-flex flex-wrap gap-2">
+                <button type="submit" class="lims-btn lims-btn--primary">Створити</button>
+                <a class="lims-btn lims-btn--outline" asp-action="Index">Скасувати</a>
+            </div>
+        </form>
+    </div>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
