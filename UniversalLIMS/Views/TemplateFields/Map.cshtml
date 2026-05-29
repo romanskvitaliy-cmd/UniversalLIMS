@@ -3895,14 +3895,24 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         return rawRect;
                     }
 
-                    getFieldInPreviewSpace(box, pageNum) {
+                    getFieldInPreviewSpace(box, pageNum, roundValues = true) {
                         const coordScale = this.getCoordinateScale();
+                        const rawX = this.normalizePixel(box.style.left) / coordScale;
+                        const rawY = this.normalizePixel(box.style.top) / coordScale;
+                        const rawWidth = box.offsetWidth / coordScale;
+                        const rawHeight = box.offsetHeight / coordScale;
+
+                        const normalizeValue = (value, min = 0) => {
+                            const bounded = Math.max(min, value);
+                            return roundValues ? Math.round(bounded) : bounded;
+                        };
+
                         return {
                             page: pageNum,
-                            x: Math.max(0, Math.round(this.normalizePixel(box.style.left) / coordScale)),
-                            y: Math.max(0, Math.round(this.normalizePixel(box.style.top) / coordScale)),
-                            width: Math.max(20, Math.round(box.offsetWidth / coordScale)),
-                            height: Math.max(14, Math.round(box.offsetHeight / coordScale))
+                            x: normalizeValue(rawX, 0),
+                            y: normalizeValue(rawY, 0),
+                            width: normalizeValue(rawWidth, 20),
+                            height: normalizeValue(rawHeight, 14)
                         };
                     }
 
@@ -4501,6 +4511,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
 
                         this.pageLayers.forEach((layer, pageNumber) => {
                             layer.addEventListener("click", (event) => {
+                                if (this.calibrationMode) return;
                                 if (this.editMode !== "edit") return;
                                 if (this.activeIndex === null) return;
                                 const box = this.boxesByIndex.get(this.activeIndex);
@@ -7108,7 +7119,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         // У калібруванні рамка в DOM може бути зміщена — беремо фактичний box, не застарілий field.x/y.
                         if (box) {
                             const page = Number.parseInt(box.dataset.page || String(field.page ?? 1), 10) || 1;
-                            const preview = this.getFieldInPreviewSpace(box, page);
+                            const preview = this.getFieldInPreviewSpace(box, page, false);
                             positionX = preview.x;
                             positionY = preview.y;
                             width = preview.width;
@@ -7705,7 +7716,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             box?.dataset?.page || String(field?.page ?? 1),
                             10);
                         if (box) {
-                            const preview = this.getFieldInPreviewSpace(box, page);
+                            const preview = this.getFieldInPreviewSpace(box, page, false);
                             return {
                                 page: preview.page,
                                 x: preview.x,
