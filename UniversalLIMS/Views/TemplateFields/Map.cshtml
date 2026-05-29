@@ -1534,6 +1534,21 @@
         pointer-events: auto;
     }
 
+    /* Бібліотека тегів (конструктор): ~60% базової ширини модалки (32rem → 19.2rem) */
+    #nudgeTagLibraryModal .pdf-fill-library-modal__dialog {
+        width: min(19.2rem, 100%);
+        padding: 0.65rem 0.75rem 0.8rem;
+    }
+
+    #nudgeTagLibraryModal .pdf-fill-library-modal__create .d-flex {
+        flex-wrap: wrap;
+    }
+
+    #nudgeTagLibraryModal .pdf-fill-library-modal__create-hint {
+        flex: 1 1 8rem;
+        min-width: 0;
+    }
+
     .pdf-tag-panel-host-hidden {
         position: absolute;
         width: 1px;
