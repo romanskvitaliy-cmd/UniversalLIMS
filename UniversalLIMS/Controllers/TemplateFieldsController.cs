@@ -762,6 +762,13 @@ public sealed class TemplateFieldsController : Controller
             TemplateNameUk = version.Template.NameUk,
             VersionNumber = version.VersionNumber,
             Status = version.Status,
+            DocumentFormat = version.DocumentFormat,
+            PdfPreviewUrl = version.DocumentFormat == TemplateDocumentFormat.Pdf
+                ? BuildOpenOriginalLink(version.Id)
+                : null,
+            OpenInWordUri = version.DocumentFormat == TemplateDocumentFormat.DocxLegacy
+                ? BuildOpenInWordLink(version.Id)
+                : null,
             IsEditable = ArePermissionsEditable(version),
             Fields = version.Fields
                 .OrderBy(field => field.SortOrder)

@@ -1,85 +1,244 @@
 @model TemplateFieldPermissionMatrixViewModel
+@using UniversalLIMS.Application.Home
+@using UniversalLIMS.Application.Security
+@using UniversalLIMS.Domain.Templates
 
 @{
     ViewData["Title"] = "Права доступу до полів";
+    ViewData["BodyClass"] = "template-permissions-body";
     var accessLevels = Enum.GetValues<FieldAccessLevel>();
+    string AccessShortLabel(FieldAccessLevel level) => level switch
+    {
+        FieldAccessLevel.None => "—",
+        FieldAccessLevel.Read => "Ч",
+        FieldAccessLevel.Write => "З",
+        FieldAccessLevel.Approve => "П",
+        _ => level.ToString()
+    };
 }
 
-<h1 class="h3">Права доступу до полів шаблону</h1>
-<p class="text-muted">@Model.TemplateNameUk · v@(Model.VersionNumber)</p>
+<link rel="stylesheet" href="~/css/lims-workspace.css" asp-append-version="true" />
 
-@if (TempData["TemplateSuccess"] is string successMessage)
-{
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-        @successMessage
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Закрити"></button>
-    </div>
-}
-
-@if (!ViewData.ModelState.IsValid)
-{
-    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
-}
-
-@if (Model.IsPublishedVersion && Model.IsEditable)
-{
-    <div class="alert alert-warning">
-        Версія <strong>опублікована</strong>. Тут можна змінювати лише <strong>права доступу до полів</strong>
-        (розміщення полів на PDF — у <a asp-action="Map" asp-route-templateVersionId="@Model.TemplateVersionId">Map</a> — для чернетки).
-    </div>
-}
-else if (!Model.IsEditable)
-{
-    <div class="alert alert-info">Замінену або анульовану версію змінювати заборонено.</div>
-}
-
-<form asp-action="Permissions" method="post">
-    <input asp-for="TemplateVersionId" type="hidden" />
-    <input asp-for="TemplateId" type="hidden" />
-    <input asp-for="TemplateNameUk" type="hidden" />
-    <input asp-for="VersionNumber" type="hidden" />
-    <table class="table table-striped align-middle">
-        <thead>
-            <tr>
-                <th>Tag</th>
-                <th>Title</th>
-                @foreach (var role in UniversalLIMS.Application.Security.LimsRoles.All)
-                {
-                    <th>@role</th>
-                }
-            </tr>
-        </thead>
-        <tbody>
-            @for (var i = 0; i < Model.Fields.Count; i++)
+<div class="template-permissions-page">
+    <header class="template-permissions-header">
+        <div class="template-permissions-header__title">
+            <h1 class="template-permissions-header__heading">Права доступу до полів</h1>
+            <span class="template-permissions-header__meta" title="@Model.TemplateNameUk">@Model.TemplateNameUk · v@(Model.VersionNumber)</span>
+        </div>
+        <div class="template-permissions-header__actions">
+            @if (Model.HasPdfPreview)
             {
-                <tr>
-                    <td>
-                        <input asp-for="Fields[i].FieldId" type="hidden" />
-                        <input asp-for="Fields[i].Tag" type="hidden" />
-                        <input asp-for="Fields[i].Title" type="hidden" />
-                        <code>@Model.Fields[i].Tag</code>
-                    </td>
-                    <td>@(Model.Fields[i].Title ?? "—")</td>
-                    @for (var j = 0; j < Model.Fields[i].RolePermissions.Count; j++)
-                    {
-                        <td>
-                            <input asp-for="Fields[i].RolePermissions[j].RoleName" type="hidden" />
-                            <select asp-for="Fields[i].RolePermissions[j].AccessLevel" class="form-select" disabled="@(!Model.IsEditable)">
-                                @foreach (var accessLevel in accessLevels)
+                <a class="btn btn-outline-secondary btn-sm" href="@Model.PdfPreviewUrl" target="_blank" rel="noopener">PDF</a>
+            }
+            @if (!string.IsNullOrWhiteSpace(Model.OpenInWordUri))
+            {
+                <a class="btn btn-outline-secondary btn-sm" href="@Model.OpenInWordUri">Word</a>
+            }
+            <a class="btn btn-outline-secondary btn-sm" asp-action="Map" asp-route-templateVersionId="@Model.TemplateVersionId">Map</a>
+            <a class="btn btn-link btn-sm" asp-controller="TemplateVersions" asp-action="Details" asp-route-id="@Model.TemplateVersionId">До версії</a>
+        </div>
+    </header>
+
+    @if (TempData["TemplateSuccess"] is string successMessage)
+    {
+        <div class="alert alert-success alert-dismissible fade show py-2 mb-2" role="alert">
+            @successMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Закрити"></button>
+        </div>
+    }
+
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 mb-2" role="alert"></div>
+    }
+
+    @if (Model.IsPublishedVersion && Model.IsEditable)
+    {
+        <div class="alert alert-warning py-2 mb-2 small">
+            Версія <strong>опублікована</strong>. Тут можна змінювати лише <strong>права доступу</strong>
+            (розміщення полів — у <a asp-action="Map" asp-route-templateVersionId="@Model.TemplateVersionId">Map</a>, лише для чернетки).
+        </div>
+    }
+    else if (!Model.IsEditable)
+    {
+        <div class="alert alert-info py-2 mb-2 small">Замінену або анульовану версію змінювати заборонено.</div>
+    }
+
+    <form asp-action="Permissions" method="post" class="template-permissions-form">
+        <input asp-for="TemplateVersionId" type="hidden" />
+        <input asp-for="TemplateId" type="hidden" />
+        <input asp-for="TemplateNameUk" type="hidden" />
+        <input asp-for="VersionNumber" type="hidden" />
+
+        <div id="templatePermissionsRoot"
+             class="template-permissions-shell"
+             data-has-map-preview="@(Model.HasPdfPreview ? "true" : "false")"
+             data-template-version-id="@Model.TemplateVersionId"
+             data-pdf-preview-url="@Model.PdfPreviewUrl">
+            <aside class="template-permissions-preview" aria-label="Перегляд шаблону">
+                @if (Model.HasPdfPreview)
+                {
+                    <div class="template-permissions-preview__toolbar">
+                        <div class="template-permissions-preview__nav">
+                            <button type="button"
+                                    id="templatePermissionsPrevField"
+                                    class="btn btn-outline-secondary btn-sm"
+                                    title="Попереднє поле">◀</button>
+                            <button type="button"
+                                    id="templatePermissionsNextField"
+                                    class="btn btn-outline-secondary btn-sm"
+                                    title="Наступне поле">▶</button>
+                            <span id="templatePermissionsActiveTag" class="template-permissions-preview__active-tag small text-muted"></span>
+                        </div>
+                        <div class="template-permissions-preview__zoom">
+                            <label class="form-label mb-0" for="templatePermissionsZoomSlider" title="Масштаб шаблону">
+                                <span id="templatePermissionsZoomValue">100%</span>
+                            </label>
+                            <input id="templatePermissionsZoomSlider"
+                                   class="form-range template-permissions-preview__zoom-range"
+                                   type="range"
+                                   min="75"
+                                   max="300"
+                                   step="5"
+                                   value="100"
+                                   aria-label="Масштаб шаблону" />
+                        </div>
+                        <a class="btn btn-outline-primary btn-sm"
+                           asp-action="Map"
+                           asp-route-templateVersionId="@Model.TemplateVersionId"
+                           target="_blank"
+                           rel="noopener"
+                           title="Відкрити конструктор у новій вкладці">Конструктор ↗</a>
+                    </div>
+                    <div id="templatePermissionsPreviewRoot"
+                         class="template-permissions-preview__canvas"
+                         aria-label="PDF шаблону з тегами полів">
+                        <div id="templatePermissionsPagesHost" class="template-permissions-preview__pages p-2"></div>
+                    </div>
+                }
+                else
+                {
+                    <div class="template-permissions-preview__fallback">
+                        <p class="small mb-2">
+                            Візуальний перегляд доступний для PDF-шаблонів.
+                            @if (Model.DocumentFormat == TemplateDocumentFormat.DocxLegacy)
+                            {
+                                <span>Відкрийте документ у Word або карту полів.</span>
+                            }
+                        </p>
+                        @if (!string.IsNullOrWhiteSpace(Model.OpenInWordUri))
+                        {
+                            <a class="btn btn-outline-primary btn-sm" href="@Model.OpenInWordUri">Відкрити в Word</a>
+                        }
+                        <a class="btn btn-outline-secondary btn-sm" asp-action="Map" asp-route-templateVersionId="@Model.TemplateVersionId">Карта полів (Map)</a>
+                    </div>
+                }
+            </aside>
+
+            <section class="template-permissions-matrix" aria-label="Матриця прав доступу">
+                @if (Model.IsEditable)
+                {
+                    <div class="template-permissions-bulk">
+                        <div class="template-permissions-bulk__group">
+                            <span class="template-permissions-bulk__label small text-muted">Масово для ролі</span>
+                            <select id="templatePermissionsBulkRole" class="form-select form-select-sm template-permissions-bulk__role">
+                                @foreach (var role in LimsRoles.All)
                                 {
-                                    <option value="@accessLevel">@accessLevel</option>
+                                    var roleDef = RolePortalCatalog.FindByRoleCode(role);
+                                    <option value="@role">@(roleDef?.DisplayName ?? role)</option>
                                 }
                             </select>
-                        </td>
-                    }
-                </tr>
-            }
-        </tbody>
-    </table>
+                            <div class="template-permissions-bulk__actions">
+                                <button type="button" class="btn btn-outline-secondary btn-sm" data-bulk-scope="role" data-bulk-level="None" title="Усі поля обраної ролі — немає доступу">Усі —</button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" data-bulk-scope="role" data-bulk-level="Read" title="Усі поля обраної ролі — читання">Усі Ч</button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" data-bulk-scope="role" data-bulk-level="Write" title="Усі поля обраної ролі — запис">Усі З</button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" data-bulk-scope="role" data-bulk-level="Approve" title="Усі поля обраної ролі — погодження">Усі П</button>
+                            </div>
+                        </div>
+                        <div class="template-permissions-bulk__group template-permissions-bulk__group--matrix">
+                            <span class="template-permissions-bulk__label small text-muted">Уся матриця</span>
+                            <div class="template-permissions-bulk__actions">
+                                <button type="button" class="btn btn-outline-warning btn-sm" data-bulk-scope="all" data-bulk-level="None" title="Усі поля × усі ролі — немає доступу">Матриця —</button>
+                                <button type="button" class="btn btn-outline-warning btn-sm" data-bulk-scope="all" data-bulk-level="Read" title="Усі поля × усі ролі — читання">Матриця Ч</button>
+                                <button type="button" class="btn btn-outline-warning btn-sm" data-bulk-scope="all" data-bulk-level="Write" title="Усі поля × усі ролі — запис">Матриця З</button>
+                                <button type="button" class="btn btn-outline-warning btn-sm" data-bulk-scope="all" data-bulk-level="Approve" title="Усі поля × усі ролі — погодження">Матриця П</button>
+                            </div>
+                        </div>
+                    </div>
+                }
+                <div class="table-responsive template-permissions-matrix__scroll">
+                    <table class="table table-sm table-bordered table-hover align-middle mb-0 template-permissions-table">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="template-permissions-table__field-col" scope="col">Поле</th>
+                                @foreach (var role in LimsRoles.All)
+                                {
+                                    var roleDef = RolePortalCatalog.FindByRoleCode(role);
+                                    <th class="template-permissions-table__role-col" scope="col" title="@role">
+                                        @(roleDef?.DisplayName ?? role)
+                                    </th>
+                                }
+                            </tr>
+                        </thead>
+                        <tbody id="templatePermissionsMatrixBody">
+                            @for (var i = 0; i < Model.Fields.Count; i++)
+                            {
+                                <tr class="template-permissions-row"
+                                    data-field-id="@Model.Fields[i].FieldId"
+                                    data-field-tag="@Model.Fields[i].Tag">
+                                    <td class="template-permissions-field-cell">
+                                        <input asp-for="Fields[i].FieldId" type="hidden" />
+                                        <input asp-for="Fields[i].Tag" type="hidden" />
+                                        <input asp-for="Fields[i].Title" type="hidden" />
+                                        <div class="template-permissions-field-title" title="@Model.Fields[i].Tag">
+                                            @(Model.Fields[i].Title ?? "—")
+                                        </div>
+                                        <code class="template-permissions-field-tag">@Model.Fields[i].Tag</code>
+                                    </td>
+                                    @for (var j = 0; j < Model.Fields[i].RolePermissions.Count; j++)
+                                    {
+                                        <td>
+                                            <input asp-for="Fields[i].RolePermissions[j].RoleName" type="hidden" />
+                                            <select asp-for="Fields[i].RolePermissions[j].AccessLevel"
+                                                    class="form-select form-select-sm template-permissions-access-select"
+                                                    data-role="@Model.Fields[i].RolePermissions[j].RoleName"
+                                                    disabled="@(!Model.IsEditable)"
+                                                    title="@Model.Fields[i].RolePermissions[j].RoleName">
+                                                @foreach (var accessLevel in accessLevels)
+                                                {
+                                                    <option value="@accessLevel" title="@accessLevel">@AccessShortLabel(accessLevel)</option>
+                                                }
+                                            </select>
+                                        </td>
+                                    }
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
 
-    @if (Model.IsEditable)
+                <div class="template-permissions-matrix__footer">
+                    <p class="small text-muted mb-2 mb-md-0 template-permissions-legend">
+                        <span>—</span> немає · <span>Ч</span> читання · <span>З</span> запис · <span>П</span> погодження
+                    </p>
+                    @if (Model.IsEditable)
+                    {
+                        <button type="submit" class="btn btn-primary btn-sm">Зберегти права</button>
+                    }
+                </div>
+            </section>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    @if (Model.HasPdfPreview)
     {
-        <button type="submit" class="btn btn-primary">Зберегти права</button>
+        <script src="~/lib/pdfjs/pdf.min.js" asp-append-version="true"></script>
+        <script>
+            window.__pdfJsWorkerSrc = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Url.Content("~/lib/pdfjs/pdf.worker.min.js")));
+        </script>
+        <script src="~/js/template-field-permissions-preview.js" asp-append-version="true"></script>
     }
-    <a class="btn btn-link" asp-controller="TemplateVersions" asp-action="Details" asp-route-id="@Model.TemplateVersionId">До версії</a>
-</form>
+    <script src="~/js/template-field-permissions.js" asp-append-version="true"></script>
+}

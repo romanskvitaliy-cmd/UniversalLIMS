@@ -99,9 +99,18 @@ public sealed class TemplateFieldPermissionMatrixViewModel
 
     public TemplateVersionStatus Status { get; set; }
 
+    public TemplateDocumentFormat DocumentFormat { get; set; }
+
+    public string? PdfPreviewUrl { get; set; }
+
+    public string? OpenInWordUri { get; set; }
+
     public bool IsEditable { get; set; }
 
     public bool IsPublishedVersion => Status == TemplateVersionStatus.Published;
+
+    public bool HasPdfPreview =>
+        DocumentFormat == TemplateDocumentFormat.Pdf && !string.IsNullOrWhiteSpace(PdfPreviewUrl);
 
     public List<TemplateFieldPermissionRowViewModel> Fields { get; set; } = [];
 }

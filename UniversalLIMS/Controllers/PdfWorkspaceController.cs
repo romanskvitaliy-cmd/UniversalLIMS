@@ -401,12 +401,32 @@ public sealed class PdfWorkspaceController : Controller
 
         try
         {
+            if (request.Scope == PdfWorkspaceFillLayoutSaveScope.OrderDocument)
+            {
+                if (!request.OrderId.HasValue || request.OrderId.Value == Guid.Empty)
+                {
+                    return BadRequest(new
+                    {
+                        message = "Спочатку збережіть значення замовлення — потім макет можна прив'язати до цього документа."
+                    });
+                }
+
+                var orderResult = await _fillService.SaveOrderDocumentLayoutOverridesAsync(
+                    templateVersionId,
+                    request.OrderId.Value,
+                    request.OrderDocumentId,
+                    request.Fields,
+                    cancellationToken);
+
+                return Json(new { saved = orderResult.Saved, message = orderResult.Message, scope = "order" });
+            }
+
             var result = await _fieldMapping.SaveFillLayoutRefinementAsync(
                 templateVersionId,
                 request.Fields,
                 cancellationToken);
 
-            return Json(new { saved = result.Saved, message = result.Message });
+            return Json(new { saved = result.Saved, message = result.Message, scope = "template" });
         }
         catch (InvalidOperationException exception)
         {
@@ -467,7 +487,10 @@ public sealed class PdfWorkspaceController : Controller
         }
 
         var layoutSegmentCount = await _fillService.GetLayoutSegmentCountAsync(templateVersionId, cancellationToken);
-        var segmentDtos = await _fillService.GetFillSegmentsAsync(templateVersionId, cancellationToken);
+        var segmentDtos = await _fillService.GetFillSegmentsAsync(
+            templateVersionId,
+            orderDocumentId,
+            cancellationToken);
         var segments = segmentDtos
             .Select(segment => new PdfWorkspaceFillSegmentViewModel
             {

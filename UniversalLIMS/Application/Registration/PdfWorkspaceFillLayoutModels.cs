@@ -3,6 +3,12 @@ namespace UniversalLIMS.Application.Registration;
 /// <summary>Збереження позиції/оформлення поля в макет поточної версії шаблону (не значення замовлення).</summary>
 public sealed class PdfWorkspaceFillLayoutSaveRequest
 {
+    public PdfWorkspaceFillLayoutSaveScope Scope { get; set; } = PdfWorkspaceFillLayoutSaveScope.OrderDocument;
+
+    public Guid? OrderId { get; set; }
+
+    public Guid? OrderDocumentId { get; set; }
+
     public List<PdfWorkspaceFillLayoutFieldUpdate> Fields { get; set; } = [];
 }
 

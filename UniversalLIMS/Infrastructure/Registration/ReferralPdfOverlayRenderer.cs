@@ -408,6 +408,12 @@ public sealed class ReferralPdfOverlayRenderer
     {
         var currentFontSize = ResolveFontSizePt(segment);
 
+        // Явний розмір з конструктора / реєстратури — не зменшуємо під ширину (WYSIWYG).
+        if (segment.FontSize is > 0)
+        {
+            return GetUnicodeFont(currentFontSize);
+        }
+
         while (true)
         {
             var font = GetUnicodeFont(currentFontSize);

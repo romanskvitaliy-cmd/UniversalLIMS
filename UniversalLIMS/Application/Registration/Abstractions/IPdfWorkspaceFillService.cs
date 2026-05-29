@@ -26,6 +26,14 @@ public interface IPdfWorkspaceFillService
     /// </summary>
     Task<IReadOnlyList<PdfWorkspaceFillSegmentDto>> GetFillSegmentsAsync(
         Guid templateVersionId,
+        Guid? orderDocumentId = null,
+        CancellationToken cancellationToken = default);
+
+    Task<PdfWorkspaceFillLayoutSaveResult> SaveOrderDocumentLayoutOverridesAsync(
+        Guid templateVersionId,
+        Guid orderId,
+        Guid? orderDocumentId,
+        IReadOnlyList<PdfWorkspaceFillLayoutFieldUpdate> updates,
         CancellationToken cancellationToken = default);
 
     /// <summary>Кількість сегментів у layout версії (без фільтра RBAC).</summary>

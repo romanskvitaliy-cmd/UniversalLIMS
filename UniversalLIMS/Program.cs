@@ -58,11 +58,27 @@ namespace UniversalLIMS
             if (builder.Environment.IsDevelopment())
             {
                 // Ключі шифрування cookie за замовчуванням лише в пам'яті — після dotnet watch / F5
-                // усі сесії стають недійсними. Зберігаємо їх локально між перезапусками.
+                // усі сесії стають недійсними. Зберігаємо їх поза bin/obj, щоб Clean/Rebuild у VS
+                // не затирав ключі разом із каталогом збірки.
                 var dataProtectionKeysPath = Path.Combine(
-                    builder.Environment.ContentRootPath,
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "UniversalLIMS",
                     "DataProtection-Keys");
                 Directory.CreateDirectory(dataProtectionKeysPath);
+
+                var legacyKeysPath = Path.Combine(builder.Environment.ContentRootPath, "DataProtection-Keys");
+                if (Directory.Exists(legacyKeysPath))
+                {
+                    foreach (var keyFile in Directory.GetFiles(legacyKeysPath, "key-*.xml"))
+                    {
+                        var destination = Path.Combine(dataProtectionKeysPath, Path.GetFileName(keyFile));
+                        if (!File.Exists(destination))
+                        {
+                            File.Copy(keyFile, destination);
+                        }
+                    }
+                }
+
                 builder.Services.AddDataProtection()
                     .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysPath))
                     .SetApplicationName("UniversalLIMS");

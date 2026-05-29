@@ -143,49 +143,95 @@ public sealed class DataSeeder
             }
             else
             {
-                // Keep email/user name aligned with requested test email.
-                user.Email = item.Email;
-                user.UserName = item.Email;
-                user.FullName = item.Email;
-                user.EmailConfirmed = true;
-
-                await _userManager.UpdateAsync(user);
-
-                // Update password without having the old one.
-                try
-                {
-                    await _userManager.RemovePasswordAsync(user);
-                }
-                catch
-                {
-                    // Ignore; AddPasswordAsync will be the source of truth.
-                }
-
-                var addPasswordResult = await _userManager.AddPasswordAsync(user, item.Password);
-                if (!addPasswordResult.Succeeded)
-                {
-                    var errors = string.Join("; ", addPasswordResult.Errors.Select(e => e.Description));
-                    throw new InvalidOperationException($"Failed to update password for '{item.Email}': {errors}");
-                }
+                await EnsureExistingTestUserAsync(user, item.Email, item.Password);
             }
 
-            // Assign ONLY the requested role.
-            var roles = await _userManager.GetRolesAsync(user);
-            if (roles.Count > 0)
-            {
-                await _userManager.RemoveFromRolesAsync(user, roles);
-            }
-
-            var addRoleResult = await _userManager.AddToRoleAsync(user, item.Role);
-            if (!addRoleResult.Succeeded)
-            {
-                var errors = string.Join("; ", addRoleResult.Errors.Select(e => e.Description));
-                throw new InvalidOperationException($"Failed to assign role '{item.Role}' to '{item.Email}': {errors}");
-            }
+            await EnsureTestUserRoleAsync(user, item.Role);
 
             // Req: print Email + Password + Role.
             Console.WriteLine($"[TEST-USER] {item.Email} | {item.Password} | {item.RoleUa}");
             _logger.LogInformation("Ensured test user {Email} with role {RoleUa}", item.Email, item.RoleUa);
+        }
+    }
+
+    /// <summary>
+    /// Оновлює тестового користувача лише коли профіль або пароль не збігаються.
+    /// Без зайвих UpdateAsync/ResetPassword — інакше змінюється SecurityStamp і cookie «Запам'ятати мене»
+    /// стає недійсним після кожного F5 / перезапуску Visual Studio.
+    /// </summary>
+    private async Task EnsureExistingTestUserAsync(ApplicationUser user, string email, string password)
+    {
+        var needsProfileSync =
+            !string.Equals(user.Email, email, StringComparison.Ordinal)
+            || !string.Equals(user.UserName, email, StringComparison.Ordinal)
+            || !string.Equals(user.FullName, email, StringComparison.Ordinal)
+            || !user.EmailConfirmed;
+
+        if (needsProfileSync)
+        {
+            user.Email = email;
+            user.UserName = email;
+            user.FullName = email;
+            user.EmailConfirmed = true;
+
+            var updateResult = await _userManager.UpdateAsync(user);
+            if (!updateResult.Succeeded)
+            {
+                var errors = string.Join("; ", updateResult.Errors.Select(error => error.Description));
+                throw new InvalidOperationException($"Failed to update test user '{email}': {errors}");
+            }
+        }
+
+        if (await _userManager.CheckPasswordAsync(user, password))
+        {
+            return;
+        }
+
+        IdentityResult passwordResult;
+        if (await _userManager.HasPasswordAsync(user))
+        {
+            var resetToken = await _userManager.GeneratePasswordResetTokenAsync(user);
+            passwordResult = await _userManager.ResetPasswordAsync(user, resetToken, password);
+        }
+        else
+        {
+            passwordResult = await _userManager.AddPasswordAsync(user, password);
+        }
+
+        if (!passwordResult.Succeeded)
+        {
+            var errors = string.Join("; ", passwordResult.Errors.Select(error => error.Description));
+            throw new InvalidOperationException($"Failed to update password for '{email}': {errors}");
+        }
+    }
+
+    private async Task EnsureTestUserRoleAsync(ApplicationUser user, string role)
+    {
+        var roles = await _userManager.GetRolesAsync(user);
+        if (roles.Count == 1 && roles[0] == role)
+        {
+            return;
+        }
+
+        var rolesToRemove = roles.Where(existingRole => existingRole != role).ToList();
+        if (rolesToRemove.Count > 0)
+        {
+            var removeResult = await _userManager.RemoveFromRolesAsync(user, rolesToRemove);
+            if (!removeResult.Succeeded)
+            {
+                var errors = string.Join("; ", removeResult.Errors.Select(error => error.Description));
+                throw new InvalidOperationException($"Failed to remove roles from '{user.Email}': {errors}");
+            }
+        }
+
+        if (!roles.Contains(role))
+        {
+            var addRoleResult = await _userManager.AddToRoleAsync(user, role);
+            if (!addRoleResult.Succeeded)
+            {
+                var errors = string.Join("; ", addRoleResult.Errors.Select(error => error.Description));
+                throw new InvalidOperationException($"Failed to assign role '{role}' to '{user.Email}': {errors}");
+            }
         }
     }
 

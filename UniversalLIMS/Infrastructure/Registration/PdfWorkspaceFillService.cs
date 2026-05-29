@@ -755,9 +755,12 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
 
     public async Task<IReadOnlyList<PdfWorkspaceFillSegmentDto>> GetFillSegmentsAsync(
         Guid templateVersionId,
+        Guid? orderDocumentId = null,
         CancellationToken cancellationToken = default)
     {
         await EnsureTemplateVersionExistsAsync(templateVersionId, cancellationToken);
+
+        var orderOverrides = await LoadOrderDocumentLayoutOverridesAsync(orderDocumentId, cancellationToken);
 
         var accessByFieldId = await _fieldPermissions.GetFieldAccessLevelsForVersionAsync(
             templateVersionId,
@@ -785,35 +788,140 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
         return rows
             .Where(row => accessByFieldId.TryGetValue(row.Field.Id, out var accessLevel)
                           && accessLevel >= FieldAccessLevel.Read)
-            .Select(row => new PdfWorkspaceFillSegmentDto
+            .Select(row =>
             {
-                SegmentId = row.Segment.Id,
-                TemplateFieldId = row.Field.Id,
-                Tag = row.Field.Tag,
-                Title = row.Field.Title,
-                DataFieldId = row.DataFieldId,
-                DataFieldKey = row.DataFieldKey ?? row.Field.Tag,
-                Sequence = row.Segment.Sequence,
-                PageNumber = row.Segment.PageNumber,
-                PositionX = row.Segment.PositionX,
-                PositionY = row.Segment.PositionY,
-                Width = row.Segment.Width,
-                Height = row.Segment.Height,
-                AllowMultiline = row.Field.AllowMultiline,
-                TextOffsetX = row.Field.TextOffsetX,
-                TextOffsetY = row.Field.TextOffsetY,
-                FontSize = row.Segment.FontSize,
-                FontName = row.Segment.FontName,
-                HorizontalAlignment = row.Segment.HorizontalAlignment ?? row.Segment.TextAlignment.ToString(),
-                VerticalAlignment = row.Segment.VerticalAlignment,
-                TextAlignment = row.Segment.TextAlignment.ToString(),
-                LineHeight = row.Segment.LineHeight,
-                SvgPathData = row.Segment.SvgPathData,
-                IsPrimary = row.Segment.IsPrimary,
-                SegmentRowVersion = row.Segment.RowVersion,
-                AccessLevel = accessByFieldId[row.Field.Id]
+                orderOverrides.TryGetValue(row.Segment.Id, out var layoutOverride);
+                var segment = new PdfWorkspaceFillSegmentDto
+                {
+                    SegmentId = row.Segment.Id,
+                    TemplateFieldId = row.Field.Id,
+                    Tag = row.Field.Tag,
+                    Title = row.Field.Title,
+                    DataFieldId = row.DataFieldId,
+                    DataFieldKey = row.DataFieldKey ?? row.Field.Tag,
+                    Sequence = row.Segment.Sequence,
+                    PageNumber = row.Segment.PageNumber,
+                    PositionX = row.Segment.PositionX,
+                    PositionY = row.Segment.PositionY,
+                    Width = row.Segment.Width,
+                    Height = row.Segment.Height,
+                    AllowMultiline = row.Field.AllowMultiline,
+                    TextOffsetX = row.Field.TextOffsetX,
+                    TextOffsetY = row.Field.TextOffsetY,
+                    FontSize = row.Segment.FontSize,
+                    FontName = row.Segment.FontName,
+                    HorizontalAlignment = row.Segment.HorizontalAlignment ?? row.Segment.TextAlignment.ToString(),
+                    VerticalAlignment = row.Segment.VerticalAlignment,
+                    TextAlignment = row.Segment.TextAlignment.ToString(),
+                    LineHeight = row.Segment.LineHeight,
+                    SvgPathData = row.Segment.SvgPathData,
+                    IsPrimary = row.Segment.IsPrimary,
+                    SegmentRowVersion = row.Segment.RowVersion,
+                    AccessLevel = accessByFieldId[row.Field.Id]
+                };
+
+                return OrderDocumentLayoutOverridesJson.Apply(segment, layoutOverride);
             })
             .ToList();
+    }
+
+    public async Task<PdfWorkspaceFillLayoutSaveResult> SaveOrderDocumentLayoutOverridesAsync(
+        Guid templateVersionId,
+        Guid orderId,
+        Guid? orderDocumentId,
+        IReadOnlyList<PdfWorkspaceFillLayoutFieldUpdate> updates,
+        CancellationToken cancellationToken = default)
+    {
+        if (updates.Count == 0)
+        {
+            return new PdfWorkspaceFillLayoutSaveResult
+            {
+                Saved = 0,
+                Message = "Немає змін макету для збереження."
+            };
+        }
+
+        await EnsureTemplateVersionExistsAsync(templateVersionId, cancellationToken);
+        var order = await EnsureOrderAsync(orderId, templateVersionId, cancellationToken);
+        var document = await ResolveOrderDocumentAsync(order, templateVersionId, orderDocumentId, cancellationToken);
+
+        var existing = OrderDocumentLayoutOverridesJson.Deserialize(document.SegmentLayoutOverridesJson);
+        var saved = 0;
+
+        foreach (var update in updates)
+        {
+            if (update.SegmentId == Guid.Empty)
+            {
+                continue;
+            }
+
+            existing[update.SegmentId] = OrderDocumentLayoutOverridesJson.FromFieldUpdate(update);
+            saved++;
+        }
+
+        if (saved == 0)
+        {
+            return new PdfWorkspaceFillLayoutSaveResult
+            {
+                Saved = 0,
+                Message = "Жодне поле не оновлено (перевірте segmentId)."
+            };
+        }
+
+        document.SegmentLayoutOverridesJson = OrderDocumentLayoutOverridesJson.Serialize(existing);
+        document.UpdatedAtUtc = DateTime.UtcNow;
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return new PdfWorkspaceFillLayoutSaveResult
+        {
+            Saved = saved,
+            Message = $"Макет збережено для цього замовлення: полів {saved}."
+        };
+    }
+
+    private async Task<Dictionary<Guid, OrderSegmentLayoutOverride>> LoadOrderDocumentLayoutOverridesAsync(
+        Guid? orderDocumentId,
+        CancellationToken cancellationToken)
+    {
+        if (!orderDocumentId.HasValue || orderDocumentId.Value == Guid.Empty)
+        {
+            return new Dictionary<Guid, OrderSegmentLayoutOverride>();
+        }
+
+        var json = await _context.OrderDocuments
+            .AsNoTracking()
+            .Where(document => document.Id == orderDocumentId.Value && !document.IsAnnulled)
+            .Select(document => document.SegmentLayoutOverridesJson)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return OrderDocumentLayoutOverridesJson.Deserialize(json);
+    }
+
+    private static OverlaySegmentJoinRow ApplyOrderLayoutOverride(
+        OverlaySegmentJoinRow row,
+        IReadOnlyDictionary<Guid, OrderSegmentLayoutOverride> overrides)
+    {
+        if (!overrides.TryGetValue(row.SegmentId, out var ov))
+        {
+            return row;
+        }
+
+        return row with
+        {
+            TextOffsetX = ov.TextOffsetX,
+            TextOffsetY = ov.TextOffsetY,
+            FontSize = ov.FontSize ?? row.FontSize,
+            FontName = ov.FontName ?? row.FontName,
+            HorizontalAlignment = ov.HorizontalAlignment ?? row.HorizontalAlignment,
+            VerticalAlignment = ov.VerticalAlignment ?? row.VerticalAlignment,
+            TextAlignment = ov.TextAlignment?.Trim().ToLowerInvariant() switch
+            {
+                "center" => TextAlignment.Center,
+                "right" => TextAlignment.Right,
+                "left" => TextAlignment.Left,
+                _ => row.TextAlignment
+            }
+        };
     }
 
     public async Task<IReadOnlyDictionary<string, string?>> GetSavedValuesByKeyAsync(
@@ -1303,6 +1411,7 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
                       && !segment.IsAnnulled
                 orderby field.SortOrder, segment.Sequence
                 select new OverlaySegmentJoinRow(
+                    segment.Id,
                     field.Id,
                     field.DataFieldId ?? Guid.Empty,
                     field.TextOffsetX,
@@ -1323,6 +1432,14 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
         if (layoutRows.Count == 0)
         {
             return ([], []);
+        }
+
+        var orderOverrides = await LoadOrderDocumentLayoutOverridesAsync(orderDocumentId, cancellationToken);
+        if (orderOverrides.Count > 0)
+        {
+            layoutRows = layoutRows
+                .Select(row => ApplyOrderLayoutOverride(row, orderOverrides))
+                .ToList();
         }
 
         var templateFieldIds = layoutRows.Select(row => row.TemplateFieldId).Distinct().ToList();
@@ -1449,6 +1566,7 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
     }
 
     private sealed record OverlaySegmentJoinRow(
+        Guid SegmentId,
         Guid TemplateFieldId,
         Guid DataFieldId,
         decimal TextOffsetX,

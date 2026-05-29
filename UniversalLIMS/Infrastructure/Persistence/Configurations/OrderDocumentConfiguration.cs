@@ -32,6 +32,9 @@ public sealed class OrderDocumentConfiguration : IEntityTypeConfiguration<OrderD
         builder.Property(document => document.AnnulmentReason)
             .HasMaxLength(1000);
 
+        builder.Property(document => document.SegmentLayoutOverridesJson)
+            .HasColumnType("nvarchar(max)");
+
         builder.Property(document => document.RowVersion)
             .IsRowVersion();
 

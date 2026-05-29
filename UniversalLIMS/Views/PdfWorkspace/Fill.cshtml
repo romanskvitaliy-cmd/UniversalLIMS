@@ -42,7 +42,7 @@
         margin: 0;
         padding: 0;
         border: 1px dashed rgba(0, 123, 255, 0.65);
-        overflow: hidden;
+        overflow: visible;
         pointer-events: auto;
         background: rgba(255, 255, 255, 0.55);
         cursor: text;
@@ -167,6 +167,17 @@ else
         </div>
         @if (Model.Segments.Any())
         {
+            <div class="pdf-fill-toolbar__layout-scope" role="group" aria-label="Куди зберігати шрифт і позицію">
+                <span class="pdf-fill-toolbar__layout-scope-label">Макет:</span>
+                <div class="pdf-fill-layout-scope-toggle btn-group btn-group-sm" role="radiogroup" aria-label="Область збереження макету">
+                    <input type="radio" class="btn-check" name="pdfFillLayoutScope" id="pdfFillLayoutScopeOrder" value="order" checked autocomplete="off" />
+                    <label class="btn btn-outline-secondary pdf-fill-toolbar__btn" for="pdfFillLayoutScopeOrder"
+                           title="Шрифт, offset і вирівнювання — лише для цього замовлення">Лише замовлення</label>
+                    <input type="radio" class="btn-check" name="pdfFillLayoutScope" id="pdfFillLayoutScopeTemplate" value="template" autocomplete="off" />
+                    <label class="btn btn-outline-secondary pdf-fill-toolbar__btn" for="pdfFillLayoutScopeTemplate"
+                           title="Застосувати до шаблону — усі майбутні протоколи цієї версії">У шаблон для всіх</label>
+                </div>
+            </div>
             <div class="pdf-fill-toolbar__zoom">
                 <label class="pdf-fill-toolbar__zoom-label" for="pdfFillZoomSlider">Масштаб</label>
                 <input id="pdfFillZoomSlider" class="form-range pdf-fill-toolbar__zoom-range" type="range" min="75" max="300" step="5" value="100" />
@@ -178,6 +189,18 @@ else
                         <span>· @Model.WritableFieldCount/@Model.Segments.Count</span>
                     }
                 </span>
+            </div>
+            <div class="pdf-fill-toolbar__history" role="group" aria-label="Історія дій">
+                <button type="button" id="pdfFillUndoButton" class="btn btn-outline-secondary btn-sm pdf-fill-toolbar__history-btn"
+                        disabled title="Скасувати (Ctrl+Z)" aria-label="Скасувати">
+                    <span class="pdf-fill-toolbar__history-icon" aria-hidden="true">↶</span>
+                    <span id="pdfFillUndoCount" class="pdf-fill-toolbar__history-count">0</span>
+                </button>
+                <button type="button" id="pdfFillRedoButton" class="btn btn-outline-secondary btn-sm pdf-fill-toolbar__history-btn"
+                        disabled title="Повторити (Ctrl+Y)" aria-label="Повторити">
+                    <span class="pdf-fill-toolbar__history-icon" aria-hidden="true">↷</span>
+                    <span id="pdfFillRedoCount" class="pdf-fill-toolbar__history-count">0</span>
+                </button>
             </div>
         }
         <div class="pdf-fill-toolbar__actions">
@@ -417,8 +440,9 @@ else
                     <div class="pdf-fill-panel__pane" data-fill-pane="actions" role="tabpanel">
                         <p class="small text-muted mb-2">
                             <strong>Значення</strong> — лише для цього замовлення (автозбереження, Ctrl+S).<br />
-                            <strong>Макет</strong> — позиція та шрифт для всіх майбутніх заповнень <strong>цієї версії</strong> шаблону.<br />
-                            Після «Зберегти» (зверху або тут) незбережений макет з вкладки «Позиція» також зберігається в шаблон автоматично.
+                            <strong>Макет</strong> (шрифт, offset, вирівнювання) — залежить від перемикача зверху:
+                            «Лише замовлення» або «У шаблон для всіх».<br />
+                            Після «Зберегти» незбережений макет також зберігається автоматично (за обраною областю).
                         </p>
                         <span id="pdfFillLayoutBadge" class="pdf-fill-panel__save-badge pdf-fill-panel__save-badge--saved mb-2">Макет збережено</span>
                         <label class="form-check form-check-sm mb-2">
@@ -430,9 +454,9 @@ else
                             Зберегти значення (замовлення)
                         </button>
                         <button type="button" id="pdfFillSaveLayoutButton" class="btn btn-outline-primary btn-sm w-100">
-                            Зберегти макет у шаблон
+                            Зберегти макет зараз
                         </button>
-                        <p class="pdf-fill-panel__meta mb-0 mt-2">v@(Model.VersionNumber) · застосується до нових замовлень з цим бланком.</p>
+                        <p class="pdf-fill-panel__meta mb-0 mt-2">v@(Model.VersionNumber) · область макету — перемикач у верхній панелі.</p>
                     </div>
                 </div>
                 </div>

@@ -28,6 +28,30 @@
         align-self: start;
     }
 
+    .pdf-nudge-pad-host {
+        min-width: 0;
+    }
+
+    /* Дубльований overlay-пульт (слайдери ширини/висоти) — лише для JS; у sidebar лише nudge-pad */
+    #pdfTopControlsLegacy {
+        display: none !important;
+    }
+
+    .pdf-nudge-pad-host .nudge-pad.nudge-sidebar-mode {
+        position: relative;
+        top: auto;
+        left: auto !important;
+        width: 100%;
+        max-width: 100%;
+        max-height: min(calc(100dvh - 56px), calc(100vh - 56px));
+        overflow-x: hidden;
+        overflow-y: auto;
+        box-shadow: none;
+        border-radius: 8px;
+        margin-top: 0.35rem;
+        -webkit-overflow-scrolling: touch;
+    }
+
     .pdf-designer-canvas {
         min-width: 0;
         --pdf-scroll-thumb: rgba(15, 23, 42, 0.22);
@@ -1110,19 +1134,30 @@
         left: auto !important;
         width: 100%;
         max-width: 100%;
-        max-height: calc(100vh - 70px);
+        max-height: min(calc(100dvh - 56px), calc(100vh - 70px));
         overflow-x: hidden;
         overflow-y: auto;
         z-index: 5;
+        padding-bottom: 12px;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .nudge-pad.nudge-sidebar-mode #overlayNudgePadHeader {
+        position: sticky;
+        top: 0;
+        z-index: 3;
+        background: rgba(255, 255, 255, 0.98);
     }
 
     .nudge-pad.nudge-sidebar-mode #overlayNudgePadBody {
         flex: 0 0 auto;
         min-height: auto;
+        overflow: visible;
     }
 
     .nudge-pad.nudge-sidebar-mode #overlayNudgePadFooter {
         max-height: none;
+        flex: 0 0 auto;
     }
 
     .nudge-pad.nudge-sidebar-mode #nudgeTagListSection {
@@ -1377,11 +1412,21 @@
 
     .nudge-tag-composer__toolbar-btn {
         flex: 0 0 auto;
-        min-width: 1.65rem;
-        height: 1.65rem;
+        min-width: 1.85rem;
+        min-height: 1.85rem;
+        height: 1.85rem;
         padding: 0;
         line-height: 1;
         font-size: 0.72rem;
+    }
+
+    #overlayNudgePadHeader .btn,
+    #toggleNudgeTagList,
+    #toggleNudgePadBody {
+        min-width: 1.85rem;
+        min-height: 1.85rem;
+        padding: 0.1rem 0.35rem;
+        line-height: 1;
     }
 
     #nudgeTagLibraryCombo .searchable-combo-trigger {
@@ -1695,7 +1740,6 @@
         display: flex;
         flex-direction: column;
         height: 100%;
-        margin-right: var(--designer-nudge-width);
     }
 
     body.template-map-focus-mode.designer-layout-body #pdfOverlayDesignerRoot {
@@ -1803,10 +1847,17 @@
 
     body.template-map-focus-mode .template-map-strip,
     body.template-map-focus-mode .template-map-pdf-footer,
-    body.template-map-focus-mode #pdfTopControlsPanel,
     body.template-map-focus-mode #fieldMapForm,
     body.template-map-focus-mode .template-map-page-alerts {
         display: none !important;
+    }
+
+    body.template-map-focus-mode .pdf-designer-sidebar {
+        position: sticky;
+        top: var(--designer-chrome-height, 32px);
+        align-self: start;
+        max-height: none;
+        overflow: visible;
     }
 
     body.template-map-focus-mode .pdf-overlay-card {
@@ -1830,7 +1881,7 @@
     }
 
     body.template-map-focus-mode .pdf-designer-grid {
-        grid-template-columns: minmax(0, 1fr);
+        grid-template-columns: minmax(0, 1fr) var(--designer-nudge-width, 360px);
     }
 
     body.template-map-focus-mode #pdfTopScroller {
@@ -1858,9 +1909,27 @@
         padding-bottom: 40px !important;
     }
 
+    body.template-map-focus-mode .nudge-pad.nudge-sidebar-mode {
+        top: 0;
+        max-height: calc(100dvh - var(--designer-chrome-height, 32px));
+        height: auto;
+        display: block;
+        overflow-x: hidden;
+        overflow-y: auto;
+        padding-bottom: 12px;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    body.template-map-focus-mode .nudge-pad.nudge-sidebar-mode #overlayNudgePadBody {
+        flex: 0 0 auto;
+        min-height: auto;
+        overflow: visible;
+    }
+
     body.template-map-focus-mode #overlayNudgePadFooter {
         margin-top: 2px;
-        padding-bottom: 10px;
+        padding-bottom: 12px;
+        flex: 0 0 auto;
     }
 
     body.template-map-focus-mode #nudgeTagListSection {
@@ -1874,14 +1943,21 @@
         font-size: 0.9rem;
     }
 
-    body.template-map-focus-mode #overlayNudgePadFooter {
-        max-height: none;
-    }
-
     body.template-map-focus-mode #overlayNudgePadFooter .nudge-tag-list {
         max-height: none;
         overflow-y: visible;
-        touch-action: pan-y;
+        touch-action: auto;
+    }
+
+    body.template-map-focus-mode .nudge-pad.nudge-pad-docked #overlayNudgePadBody {
+        flex: 0 0 auto;
+        min-height: auto;
+        overflow: visible;
+    }
+
+    body.template-map-focus-mode .nudge-pad.nudge-pad-docked #overlayNudgePadFooter .nudge-tag-list {
+        max-height: none;
+        overflow-y: visible;
     }
 
     body.template-map-focus-mode .nudge-compact-item {
@@ -2344,6 +2420,7 @@ else
                 </div>
             </div>
             <div id="pdfTopControlsPanel" class="pdf-designer-sidebar">
+                <div id="pdfTopControlsLegacy" class="d-none" aria-hidden="true">
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <div class="fw-semibold">Пульт керування overlay</div>
                     <button id="closeTopControlsPanel" type="button" class="btn btn-sm btn-outline-secondary">Сховати</button>
@@ -2456,6 +2533,8 @@ else
                     <div id="overlayDebugStats" class="small text-muted mt-2"></div>
                     </div>
                 </div>
+                </div>
+                <div id="pdfNudgePadHost" class="pdf-nudge-pad-host"></div>
                 </div>
         </div>
         <div class="template-map-pdf-footer">
@@ -2624,7 +2703,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
             <button id="toggleNudgeInspectMode" type="button" class="btn btn-sm btn-outline-secondary py-0 px-2">👁</button>
             <button id="toggleNudgeDetachMode" type="button" class="btn btn-sm btn-outline-secondary py-0 px-2">⧉</button>
             <button id="toggleNudgePadVisibility" type="button" class="btn btn-sm btn-outline-secondary py-0 px-2">✕</button>
-            <button id="toggleNudgePadBody" type="button" class="btn btn-sm btn-outline-secondary py-0 px-2">−</button>
+            <button id="toggleNudgePadBody" type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" title="Згорнути / розгорнути інструменти (тег, рух, розмір)">−</button>
         </div>
     </div>
     <div id="overlayNudgePadScale" class="nudge-scale-row" aria-label="Масштаб PDF">
@@ -2931,7 +3010,10 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
             <button id="toggleNudgeTagList" type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" aria-expanded="true">▾</button>
         </div>
         <div id="nudgeTagListSection">
-            <input id="nudgeTagSearch" class="form-control form-control-sm mb-1" type="text" placeholder="Пошук тегу..." />
+            <input id="nudgeTagSearch" class="form-control form-control-sm mb-1" type="search"
+                   placeholder="Пошук серед розміщених полів…"
+                   title="Фільтрує список полів, які вже на PDF. Новий тег — у блоці «Тег на шаблон» вище або 📚"
+                   autocomplete="off" spellcheck="false" />
             <div id="nudgePlacedFields" class="small nudge-tag-list"></div>
         </div>
     </div>
@@ -3055,6 +3137,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                 const openTopControlsPanel = document.getElementById("openTopControlsPanel");
                 const closeTopControlsPanel = document.getElementById("closeTopControlsPanel");
                 const topControlsPanel = document.getElementById("pdfTopControlsPanel");
+                const nudgePadHost = document.getElementById("pdfNudgePadHost");
                 const designerFocusChrome = document.getElementById("designerFocusChrome");
                 const toggleDesignerFocusModeBtn = document.getElementById("toggleDesignerFocusMode");
                 const designerFocusToggleButtons = document.querySelectorAll(".js-toggle-designer-focus");
@@ -3563,7 +3646,8 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             || "";
                         this.pdf = await pdfjsLib.getDocument(window.__pdfPreviewUrl).promise;
                         this.debugLog("PDF loaded", { pages: this.pdf.numPages });
-                        this.applyNudgeLayoutMode();
+                        this.loadUiPreferences();
+                        this.applyFocusMode();
                         await this.renderPages();
                         this.updateEditUI();
                         // Гарантоване перезавантаження даних після повної ініціалізації сторінки
@@ -3574,16 +3658,51 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         this.bindUiEvents();
                     }
 
+                    loadUiPreferences() {
+                        this.loadFocusModePreference();
+                        this.loadNudgeUiState();
+                        if (this.isFocusMode) {
+                            this.isNudgeDetached = false;
+                            this.expandNudgePadBody(false);
+                            return;
+                        }
+
+                        this.isNudgeDetached = false;
+                        if (nudgePad) {
+                            delete nudgePad.dataset.manualPos;
+                        }
+                    }
+
+                    syncNudgePadBodyCollapseUi() {
+                        if (nudgePadBody) {
+                            nudgePadBody.style.display = this.isNudgeBodyCollapsed ? "none" : "block";
+                        }
+                        if (toggleNudgePadBodyBtn) {
+                            toggleNudgePadBodyBtn.textContent = this.isNudgeBodyCollapsed ? "+" : "−";
+                        }
+                    }
+
+                    expandNudgePadBody(save = true) {
+                        if (!this.isNudgeBodyCollapsed) {
+                            return;
+                        }
+                        this.isNudgeBodyCollapsed = false;
+                        this.syncNudgePadBodyCollapseUi();
+                        if (save) {
+                            this.saveNudgeUiState();
+                        }
+                    }
+
                     loadFocusModePreference() {
                         try {
                             const raw = window.localStorage.getItem(this.focusModeStorageKey);
                             if (raw === null) {
-                                this.isFocusMode = true;
+                                this.isFocusMode = false;
                                 return;
                             }
                             this.isFocusMode = raw === "1";
                         } catch {
-                            this.isFocusMode = true;
+                            this.isFocusMode = false;
                         }
                     }
 
@@ -3601,9 +3720,6 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             designerFocusChrome.hidden = !this.isFocusMode;
                             designerFocusChrome.setAttribute("aria-hidden", this.isFocusMode ? "false" : "true");
                         }
-                        if (this.isFocusMode) {
-                            this.isNudgeDetached = true;
-                        }
                         this.applyNudgeLayoutMode();
                         this.applyNudgeDockedLayout();
                         if (!this.isNudgeDocked()) {
@@ -3617,6 +3733,15 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
 
                     setFocusMode(enabled) {
                         this.isFocusMode = enabled === true;
+                        if (this.isFocusMode) {
+                            this.isNudgeDetached = false;
+                            this.expandNudgePadBody(false);
+                        } else {
+                            this.isNudgeDetached = false;
+                            if (nudgePad) {
+                                delete nudgePad.dataset.manualPos;
+                            }
+                        }
                         this.saveFocusModePreference();
                         this.applyFocusMode();
                         this.applyNudgeLayoutMode();
@@ -3627,7 +3752,9 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         if (typeof syncHorizontalScrollbars === "function") {
                             setTimeout(syncHorizontalScrollbars, 0);
                         }
-                        showOverlayToast(this.isFocusMode ? "Режим конструктора увімкнено" : "Звичайний вигляд");
+                        showOverlayToast(this.isFocusMode
+                            ? "Режим конструктора: PDF і повний пульт (тег, рух, розмір)"
+                            : "Звичайний вигляд");
                     }
 
                     toggleFocusMode() {
@@ -3690,7 +3817,33 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                     applyNudgeLayoutMode() {
                         if (!topControlsPanel || !nudgePad) return;
                         const grid = topControlsPanel.closest(".pdf-designer-grid");
-                        if (this.isFocusMode || this.isNudgeDetached) {
+                        const sidebarHost = nudgePadHost ?? topControlsPanel;
+
+                        const mountSidebarLayout = () => {
+                            topControlsPanel.style.display = "block";
+                            grid?.classList.remove("nudge-detached");
+                            const legacyPanel = document.getElementById("pdfTopControlsLegacy");
+                            if (legacyPanel) {
+                                legacyPanel.classList.add("d-none");
+                                legacyPanel.setAttribute("aria-hidden", "true");
+                            }
+                            if (nudgePad.parentElement !== sidebarHost) {
+                                sidebarHost.appendChild(nudgePad);
+                            }
+                            nudgePad.classList.add("nudge-sidebar-mode");
+                            nudgePad.classList.remove("nudge-pad-docked");
+                            nudgePad.style.display = "block";
+                            delete nudgePad.dataset.manualPos;
+                            nudgePad.style.left = "";
+                            nudgePad.style.top = "";
+                            nudgePad.style.bottom = "";
+                            nudgePad.style.height = "";
+                            nudgePad.style.maxHeight = "";
+                        };
+
+                        if (this.isFocusMode) {
+                            mountSidebarLayout();
+                        } else if (this.isNudgeDetached) {
                             topControlsPanel.style.display = "none";
                             grid?.classList.add("nudge-detached");
                             if (nudgePad.parentElement !== document.body) {
@@ -3707,19 +3860,32 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                                 }
                             }
                         } else {
-                            nudgePad.classList.remove("nudge-pad-docked");
-                            topControlsPanel.style.display = "block";
-                            grid?.classList.remove("nudge-detached");
-                            if (nudgePad.parentElement !== topControlsPanel) {
-                                topControlsPanel.innerHTML = "";
-                                topControlsPanel.appendChild(nudgePad);
-                            }
-                            nudgePad.classList.add("nudge-sidebar-mode");
-                            nudgePad.style.display = "block";
-                            delete nudgePad.dataset.manualPos;
-                            nudgePad.style.left = "";
-                            nudgePad.style.top = "";
+                            mountSidebarLayout();
                         }
+                        this.updateNudgePadVisibility();
+                    }
+
+                    ensureEditModeForMutation() {
+                        if (this.calibrationMode) {
+                            showOverlayToast("Вимкніть калібрування для змін overlay.", true);
+                            return false;
+                        }
+
+                        if (this.isInspectMode) {
+                            this.isInspectMode = false;
+                            this.renderInspectModeButton();
+                            this.renderNudgeModeButtons();
+                            this.applyInspectModeUi();
+                        }
+
+                        if (this.editMode !== "edit") {
+                            this.editMode = "edit";
+                            this.allEditable = false;
+                            this.updateEditUI();
+                            showOverlayToast("Режим редагування увімкнено");
+                        }
+
+                        return true;
                     }
 
                     async renderPages() {
@@ -4610,6 +4776,19 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                                 if (!this.canEditBox(box)) {
                                     event.preventDefault();
                                     this.setActive(Number(box.dataset.index));
+                                    if (this.ensureEditModeForMutation() && this.canEditBox(box)) {
+                                        this.resizeState = {
+                                            box,
+                                            handle: handleEl.dataset.handle,
+                                            startX: event.clientX,
+                                            startY: event.clientY,
+                                            startLeft: parseFloat(box.style.left || "0"),
+                                            startTop: parseFloat(box.style.top || "0"),
+                                            startWidth: box.offsetWidth,
+                                            startHeight: box.offsetHeight
+                                        };
+                                        this.pushUndoState("resize");
+                                    }
                                     return;
                                 }
 
@@ -4636,7 +4815,13 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                                 this.setActive(boxIndex);
                             }
 
-                            const isMovable = this.canEditBox(box);
+                            let isMovable = this.canEditBox(box);
+
+                            if (!isMovable) {
+                                if (this.ensureEditModeForMutation()) {
+                                    isMovable = this.canEditBox(box);
+                                }
+                            }
 
                             if (!isMovable) {
                                 event.preventDefault();
@@ -4656,12 +4841,6 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                     }
 
                     bindUiEvents() {
-                        this.loadNudgeUiState();
-                        this.loadFocusModePreference();
-                        if (this.isFocusMode) {
-                            this.isNudgeDetached = true;
-                        }
-                        this.applyFocusMode();
                         document.addEventListener("mousemove", (event) => {
                             if (this.resizeState) {
                                 this.hideSmartGuides(this.resizeState.box?.parentElement ?? null);
@@ -4744,7 +4923,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         this.pageLayers.forEach((layer, pageNumber) => {
                             layer.addEventListener("click", (event) => {
                                 if (this.calibrationMode) return;
-                                if (this.editMode !== "edit") return;
+                                if (!this.ensureEditModeForMutation()) return;
                                 if (this.activeIndex === null) return;
                                 const box = this.boxesByIndex.get(this.activeIndex);
                                 if (!box) return;
@@ -4770,13 +4949,20 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             const fieldId = this.getFieldIdByIndex(formIndex);
                             const overlayIndex = this.getOverlayIndexForField(fieldId, this.lastActiveSegmentByFieldId.get(fieldId));
                             this.setActive(overlayIndex ?? -1);
+                            if (overlayIndex !== null && overlayIndex >= 0) {
+                                this.ensureEditModeForMutation();
+                            }
                         });
                         addSegmentLineButton?.addEventListener("click", () => this.addSegmentLine());
                         nudgeAddSegmentLineButton?.addEventListener("click", () => this.addSegmentLine());
-                        applySizeButton?.addEventListener("click", () => this.applySize());
+                        applySizeButton?.addEventListener("click", () => {
+                            if (!this.ensureEditModeForMutation()) return;
+                            this.applySize();
+                        });
                         deleteActiveFieldButton?.addEventListener("click", () => this.deleteActiveField());
                         widthInput?.addEventListener("input", () => {
                             if (!widthSlider) return;
+                            if (!this.ensureEditModeForMutation()) return;
                             const value = Math.max(20, Number.parseFloat(widthInput.value || "0") || 220);
                             widthSlider.value = String(Math.round(value));
                             this.updateSizeScaleLabels();
@@ -4784,6 +4970,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         });
                         heightInput?.addEventListener("input", () => {
                             if (!heightSlider) return;
+                            if (!this.ensureEditModeForMutation()) return;
                             const value = Math.max(14, Number.parseFloat(heightInput.value || "0") || 28);
                             heightSlider.value = String(Math.round(value));
                             this.updateSizeScaleLabels();
@@ -4791,12 +4978,14 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         });
                         widthSlider?.addEventListener("input", () => {
                             if (!widthInput) return;
+                            if (!this.ensureEditModeForMutation()) return;
                             widthInput.value = widthSlider.value;
                             this.updateSizeScaleLabels();
                             this.applySize();
                         });
                         heightSlider?.addEventListener("input", () => {
                             if (!heightInput) return;
+                            if (!this.ensureEditModeForMutation()) return;
                             heightInput.value = heightSlider.value;
                             this.updateSizeScaleLabels();
                             this.applySize();
@@ -4954,23 +5143,11 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             await this.persistFieldMapFormAsync();
                         });
                         nudgeTagSearch?.addEventListener("input", () => this.filterPlacedFields());
-                        overlayPlacedFields?.addEventListener("wheel", (event) => {
-                            const list = event.currentTarget;
-                            if (!(list instanceof HTMLElement) || list.scrollHeight <= list.clientHeight + 1) {
-                                return;
-                            }
-                            const delta = event.deltaY;
-                            const maxScroll = list.scrollHeight - list.clientHeight;
-                            if (delta < 0 && list.scrollTop > 0) {
-                                event.stopPropagation();
-                            } else if (delta > 0 && list.scrollTop < maxScroll - 1) {
-                                event.stopPropagation();
-                            }
-                        }, { passive: false });
-                        toggleNudgePadBodyBtn?.addEventListener("click", () => {
+                        toggleNudgePadBodyBtn?.addEventListener("click", (event) => {
+                            event.stopPropagation();
+                            event.preventDefault();
                             this.isNudgeBodyCollapsed = !this.isNudgeBodyCollapsed;
-                            if (nudgePadBody) nudgePadBody.style.display = this.isNudgeBodyCollapsed ? "none" : "block";
-                            toggleNudgePadBodyBtn.textContent = this.isNudgeBodyCollapsed ? "+" : "−";
+                            this.syncNudgePadBodyCollapseUi();
                             this.saveNudgeUiState();
                         });
                         toggleNudgeInspectModeBtn?.addEventListener("click", () => {
@@ -4991,6 +5168,17 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         designerFocusToggleButtons.forEach((button) => {
                             button.addEventListener("click", () => this.toggleFocusMode());
                         });
+                        closeTopControlsPanel?.addEventListener("click", () => {
+                            if (nudgePad?.classList.contains("nudge-sidebar-mode")) {
+                                this.isNudgeDetached = true;
+                                this.applyNudgeLayoutMode();
+                                showOverlayToast("Пульт у вільному вікні. Повернути в бічну панель: ⧉ або «Режим конструктора».");
+                                return;
+                            }
+                            if (!topControlsPanel) return;
+                            topControlsPanel.style.display = "none";
+                            showOverlayToast("Пульт сховано. Увімкніть «Режим конструктора» або перезавантажте сторінку.");
+                        });
                         toggleNudgeDetachModeBtn?.addEventListener("click", () => {
                             this.isNudgeDetached = !this.isNudgeDetached;
                             this.applyNudgeLayoutMode();
@@ -5001,15 +5189,17 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         });
                         toggleNudgePadVisibilityBtn?.addEventListener("click", () => {
                             this.isNudgeBodyCollapsed = true;
-                            if (nudgePadBody) nudgePadBody.style.display = "none";
-                            if (toggleNudgePadBodyBtn) toggleNudgePadBodyBtn.textContent = "+";
+                            this.syncNudgePadBodyCollapseUi();
                             this.saveNudgeUiState();
-                            showOverlayToast("Пульт згорнуто");
+                            showOverlayToast("Інструменти пульта згорнуто. Кнопка «+» — розгорнути.");
                         });
-                        toggleNudgeTagListBtn?.addEventListener("click", () => {
+                        toggleNudgeTagListBtn?.addEventListener("click", (event) => {
+                            event.stopPropagation();
+                            event.preventDefault();
                             this.isTagListCollapsed = !this.isTagListCollapsed;
                             if (nudgeTagListSection) nudgeTagListSection.style.display = this.isTagListCollapsed ? "none" : "block";
                             toggleNudgeTagListBtn.textContent = this.isTagListCollapsed ? "▸" : "▾";
+                            toggleNudgeTagListBtn.setAttribute("aria-expanded", this.isTagListCollapsed ? "false" : "true");
                             this.saveNudgeUiState();
                         });
                         nudgePadHeader?.addEventListener("mousedown", (event) => {
@@ -5083,15 +5273,9 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
 
                             if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === "f") {
                                 event.preventDefault();
+                                this.expandNudgePadBody();
                                 this.clearTagSearch();
                                 nudgeTagSearch?.focus();
-                                return;
-                            }
-
-                            if (event.ctrlKey && event.key.toLowerCase() === "f") {
-                                event.preventDefault();
-                                nudgeTagSearch?.focus();
-                                nudgeTagSearch?.select();
                                 return;
                             }
 
@@ -5142,11 +5326,12 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             nudgeZoomSlider.value = zoomSlider.value;
                             updateNudgeZoomLabel();
                         }
-                        if (nudgePadBody) nudgePadBody.style.display = this.isNudgeBodyCollapsed ? "none" : "block";
-                        if (toggleNudgePadBodyBtn) toggleNudgePadBodyBtn.textContent = this.isNudgeBodyCollapsed ? "+" : "−";
+                        this.syncNudgePadBodyCollapseUi();
                         if (nudgeTagListSection) nudgeTagListSection.style.display = this.isTagListCollapsed ? "none" : "block";
                         if (toggleNudgeTagListBtn) toggleNudgeTagListBtn.textContent = this.isTagListCollapsed ? "▸" : "▾";
                         this.updateHistoryUi();
+                        this.applyNudgeLayoutMode();
+                        this.updateNudgePadVisibility();
                     }
 
                     setActive(index) {
@@ -5453,6 +5638,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         const box = this.boxesByIndex.get(this.activeIndex);
                         const layer = box?.parentElement;
                         if (!box || !layer) return;
+                        if (!this.ensureEditModeForMutation()) return;
                         if (!this.canEditBox(box)) return;
                         this.pushUndoState("applySize");
                         const width = Math.max(20, Number.parseFloat(widthInput?.value || "0") || box.offsetWidth);
@@ -5545,6 +5731,16 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         if (!overlayPlacedFields) return;
                         overlayPlacedFields.innerHTML = "";
                         const searchQuery = (nudgeTagSearch?.value || "").trim().toLowerCase();
+                        const searchTokens = searchQuery
+                            ? searchQuery.split(/\s+/).filter(Boolean)
+                            : [];
+                        const matchesPlacedFieldSearch = (field) => {
+                            if (!searchTokens.length) {
+                                return true;
+                            }
+                            const haystack = `${field.tag} ${(field.title || "")}`.toLowerCase();
+                            return searchTokens.every((token) => haystack.includes(token));
+                        };
                         const groupedFields = new Map();
                         this.fieldByIndex.forEach((field, index) => {
                             if (!field?.fieldId || groupedFields.has(field.fieldId)) {
@@ -5561,8 +5757,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         entries.forEach(({ field, index }) => {
                             const box = this.boxesByIndex.get(index);
                             if (!field || !box) return;
-                            const searchableText = `${field.tag} ${(field.title || "")}`.toLowerCase();
-                            if (searchQuery && !searchableText.includes(searchQuery)) return;
+                            if (!matchesPlacedFieldSearch(field)) return;
                             const segmentCount = [...this.fieldByIndex.values()]
                                 .filter((item) => this.normalizeGuidKey(item.fieldId) === this.normalizeGuidKey(field.fieldId)).length;
                             const details = `
@@ -5796,7 +5991,9 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                     nudgeActive(dx, dy) {
                         const box = this.getActiveBox();
                         const layer = box?.parentElement;
-                        if (!box || !layer || !this.canEditBox(box)) return;
+                        if (!box || !layer) return;
+                        if (!this.ensureEditModeForMutation()) return;
+                        if (!this.canEditBox(box)) return;
                         this.pushUndoState("nudge");
 
                         const nextLeftRaw = this.normalizePixel(box.style.left) + dx;
@@ -5816,7 +6013,9 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                     resizeActive(dw, dh) {
                         const box = this.getActiveBox();
                         const layer = box?.parentElement;
-                        if (!box || !layer || !this.canEditBox(box)) return;
+                        if (!box || !layer) return;
+                        if (!this.ensureEditModeForMutation()) return;
+                        if (!this.canEditBox(box)) return;
                         this.pushUndoState("resize");
 
                         const currentWidth = Math.round(box.offsetWidth);
@@ -6122,13 +6321,8 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             this.isNudgePadHidden = false;
                             this.updateNudgePadVisibility();
                             this.updateNudgePadPosition();
-                            if (nudgePadBody) {
-                                nudgePadBody.style.display = "block";
-                            }
-                            if (toggleNudgePadBodyBtn) {
-                                toggleNudgePadBodyBtn.textContent = "−";
-                            }
                             this.isNudgeBodyCollapsed = false;
+                            this.syncNudgePadBodyCollapseUi();
                         }
                     }
 
@@ -10094,7 +10288,9 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         submitAddPdfField();
                     });
 
-                    toggleNudgeTagComposerBtn?.addEventListener("click", () => {
+                    toggleNudgeTagComposerBtn?.addEventListener("click", (event) => {
+                        event.stopPropagation();
+                        event.preventDefault();
                         if (!nudgeTagComposerBody) return;
                         const collapsed = nudgeTagComposerBody.style.display === "none";
                         nudgeTagComposerBody.style.display = collapsed ? "" : "none";

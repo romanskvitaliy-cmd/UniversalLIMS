@@ -21,6 +21,10 @@
     const statusBox = document.getElementById("pdfFillStatus");
     const zoomSlider = document.getElementById("pdfFillZoomSlider");
     const zoomValue = document.getElementById("pdfFillZoomValue");
+    const toolbarUndoButton = document.getElementById("pdfFillUndoButton");
+    const toolbarRedoButton = document.getElementById("pdfFillRedoButton");
+    const toolbarUndoCount = document.getElementById("pdfFillUndoCount");
+    const toolbarRedoCount = document.getElementById("pdfFillRedoCount");
     const panelEditing = document.getElementById("pdfFillPanelEditing");
     const panelHint = document.getElementById("pdfFillPanelHint");
     const panelValue = document.getElementById("pdfFillPanelValue");
@@ -167,6 +171,14 @@
         });
     };
     const layoutDirtySegmentIds = new Set();
+    const LAYOUT_SCOPE_STORAGE_KEY = "pdfFillLayoutSaveScope";
+    const MAX_FILL_HISTORY = 40;
+    const undoStack = [];
+    const redoStack = [];
+    let isRestoringHistory = false;
+    let valueEditUndoCommitted = false;
+    let layoutUndoPending = false;
+    let layoutUndoTimer = null;
     let pdfDoc = null;
     const pageLayers = new Map();
     const pageMetrics = new Map();
@@ -220,6 +232,39 @@
     });
 
     const hasWritableFields = segments.some((segment) => canWriteSegment(segment));
+
+    const getLayoutSaveScope = () => {
+        const checked = document.querySelector('input[name="pdfFillLayoutScope"]:checked');
+        return checked?.value === "template" ? "template" : "order";
+    };
+
+    const getLayoutScopeShortLabel = (scope = getLayoutSaveScope()) =>
+        scope === "template" ? "шаблон" : "замовлення";
+
+    const initLayoutSaveScope = () => {
+        try {
+            const saved = localStorage.getItem(LAYOUT_SCOPE_STORAGE_KEY);
+            if (saved === "template") {
+                const templateInput = document.getElementById("pdfFillLayoutScopeTemplate");
+                if (templateInput) {
+                    templateInput.checked = true;
+                }
+            }
+        } catch {
+            /* ignore */
+        }
+
+        document.querySelectorAll('input[name="pdfFillLayoutScope"]').forEach((input) => {
+            input.addEventListener("change", () => {
+                try {
+                    localStorage.setItem(LAYOUT_SCOPE_STORAGE_KEY, getLayoutSaveScope());
+                } catch {
+                    /* ignore */
+                }
+                updateLayoutBadge(isLayoutDirty ? "dirty" : "saved");
+            });
+        });
+    };
 
     const clampLayoutOffset = (value) => {
         const n = Number.parseFloat(String(value));
@@ -289,7 +334,160 @@
         };
     };
 
+    const serializeLayoutOverrides = () => {
+        const serialized = {};
+        segmentLayoutOverrides.forEach((value, key) => {
+            serialized[key] = { ...value };
+        });
+        return serialized;
+    };
+
+    const captureFillState = () => ({
+        values: Object.fromEntries(captureValues()),
+        layoutOverrides: serializeLayoutOverrides(),
+        selectedSegmentId: selectedSegmentId || null
+    });
+
+    const fillStatesEqual = (left, right) => {
+        if (!left || !right) {
+            return false;
+        }
+        return JSON.stringify(left.values) === JSON.stringify(right.values)
+            && JSON.stringify(left.layoutOverrides) === JSON.stringify(right.layoutOverrides);
+    };
+
+    const updateHistoryUi = () => {
+        const undoCount = undoStack.length;
+        const redoCount = redoStack.length;
+        if (toolbarUndoButton) {
+            toolbarUndoButton.disabled = undoCount === 0;
+        }
+        if (toolbarRedoButton) {
+            toolbarRedoButton.disabled = redoCount === 0;
+        }
+        if (toolbarUndoCount) {
+            toolbarUndoCount.textContent = String(undoCount);
+        }
+        if (toolbarRedoCount) {
+            toolbarRedoCount.textContent = String(redoCount);
+        }
+    };
+
+    const pushUndoState = () => {
+        if (isRestoringHistory) {
+            return;
+        }
+        const snapshot = captureFillState();
+        const last = undoStack[undoStack.length - 1];
+        if (last && fillStatesEqual(snapshot, last)) {
+            return;
+        }
+        undoStack.push(snapshot);
+        if (undoStack.length > MAX_FILL_HISTORY) {
+            undoStack.shift();
+        }
+        redoStack.length = 0;
+        updateHistoryUi();
+    };
+
+    const scheduleLayoutUndo = () => {
+        if (isRestoringHistory) {
+            return;
+        }
+        if (!layoutUndoPending) {
+            pushUndoState();
+            layoutUndoPending = true;
+        }
+        if (layoutUndoTimer) {
+            clearTimeout(layoutUndoTimer);
+        }
+        layoutUndoTimer = window.setTimeout(() => {
+            layoutUndoPending = false;
+            layoutUndoTimer = null;
+        }, 400);
+    };
+
+    const commitValueEditUndo = () => {
+        if (isRestoringHistory || valueEditUndoCommitted) {
+            return;
+        }
+        pushUndoState();
+        valueEditUndoCommitted = true;
+    };
+
+    const restoreFillState = (state) => {
+        if (!state) {
+            return;
+        }
+        isRestoringHistory = true;
+        valueEditUndoCommitted = false;
+        layoutUndoPending = false;
+        if (layoutUndoTimer) {
+            clearTimeout(layoutUndoTimer);
+            layoutUndoTimer = null;
+        }
+
+        segmentLayoutOverrides.clear();
+        layoutDirtySegmentIds.clear();
+        Object.entries(state.layoutOverrides || {}).forEach(([key, value]) => {
+            segmentLayoutOverrides.set(key, { ...value });
+            layoutDirtySegmentIds.add(key);
+        });
+        isLayoutDirty = layoutDirtySegmentIds.size > 0;
+        updateLayoutBadge(isLayoutDirty ? "dirty" : "saved");
+
+        const valuesMap = new Map(Object.entries(state.values || {}));
+        valuesMap.forEach((text, segmentId) => {
+            const fieldEl = getFieldInputBySegmentId(segmentId);
+            if (!fieldEl) {
+                return;
+            }
+            writeFieldText(fieldEl, text);
+            fieldEl.classList.toggle("is-empty", String(text ?? "").length === 0);
+        });
+
+        const nextSelected = state.selectedSegmentId;
+        mountOverlays(valuesMap, nextSelected);
+        if (nextSelected && segmentById.has(String(nextSelected))) {
+            selectField(nextSelected, { focusPanel: false, focusPdf: false, skipHistoryReset: true });
+        } else {
+            renderFieldList(panelFieldSearch?.value || "");
+            renderLibraryBrowser();
+        }
+        markDirtyFromDom();
+        isRestoringHistory = false;
+    };
+
+    const undoLastAction = () => {
+        if (undoStack.length === 0) {
+            updateHistoryUi();
+            return;
+        }
+        redoStack.push(captureFillState());
+        if (redoStack.length > MAX_FILL_HISTORY) {
+            redoStack.shift();
+        }
+        const snapshot = undoStack.pop();
+        restoreFillState(snapshot);
+        updateHistoryUi();
+    };
+
+    const redoLastAction = () => {
+        if (redoStack.length === 0) {
+            updateHistoryUi();
+            return;
+        }
+        undoStack.push(captureFillState());
+        if (undoStack.length > MAX_FILL_HISTORY) {
+            undoStack.shift();
+        }
+        const snapshot = redoStack.pop();
+        restoreFillState(snapshot);
+        updateHistoryUi();
+    };
+
     const applyLayoutPatch = (segmentId, patch) => {
+        scheduleLayoutUndo();
         const base = segmentById.get(String(segmentId || ""));
         if (!base) {
             return;
@@ -321,19 +519,20 @@
         if (!layoutBadge) {
             return;
         }
+        const scopeLabel = getLayoutScopeShortLabel();
         layoutBadge.classList.remove(
             "pdf-fill-panel__save-badge--saved",
             "pdf-fill-panel__save-badge--dirty",
             "pdf-fill-panel__save-badge--saving"
         );
         if (state === "saving") {
-            layoutBadge.textContent = "Збереження макету…";
+            layoutBadge.textContent = `Збереження макету (${scopeLabel})…`;
             layoutBadge.classList.add("pdf-fill-panel__save-badge--saving");
         } else if (state === "dirty") {
-            layoutBadge.textContent = "Макет: є зміни";
+            layoutBadge.textContent = `Макет: є зміни (${scopeLabel})`;
             layoutBadge.classList.add("pdf-fill-panel__save-badge--dirty");
         } else {
-            layoutBadge.textContent = "Макет збережено";
+            layoutBadge.textContent = `Макет збережено (${scopeLabel})`;
             layoutBadge.classList.add("pdf-fill-panel__save-badge--saved");
         }
     };
@@ -462,6 +661,15 @@
             return { ok: false, message: "Збереження макету вже виконується." };
         }
 
+        const layoutScope = getLayoutSaveScope();
+        if (layoutScope === "order" && !currentOrderId) {
+            const message = "Спочатку збережіть значення замовлення — потім макет можна прив'язати до цього документа.";
+            if (!silent) {
+                showStatus(message, "warning");
+            }
+            return { ok: false, message };
+        }
+
         const targetIds = layoutDirtySegmentIds.size > 0
             ? [...layoutDirtySegmentIds]
             : (selectedSegmentId ? [selectedSegmentId] : []);
@@ -472,9 +680,9 @@
 
         if (fields.length === 0) {
             if (!silent) {
-                showStatus("Немає змін макету для збереження в шаблон.", "warning");
+                showStatus("Немає змін макету для збереження.", "warning");
             }
-            return { ok: true, message: "Немає змін макету для збереження в шаблон." };
+            return { ok: true, message: "Немає змін макету для збереження." };
         }
 
         isSavingLayout = true;
@@ -491,18 +699,26 @@
                     "Content-Type": "application/json",
                     RequestVerificationToken: getAntiforgeryToken()
                 },
-                body: JSON.stringify({ fields })
+                body: JSON.stringify({
+                    scope: layoutScope === "template" ? 1 : 0,
+                    orderId: currentOrderId,
+                    orderDocumentId: currentOrderDocumentId,
+                    fields
+                })
             });
             const body = await response.json().catch(() => ({}));
             if (!response.ok) {
                 throw new Error(body.message || `Помилка збереження макету (${response.status}).`);
             }
             commitLayoutOverridesToSegments();
-            const successMessage = body.message || "Макет шаблону збережено.";
+            const successMessage = body.message
+                || (layoutScope === "template"
+                    ? "Макет шаблону збережено."
+                    : "Макет збережено для цього замовлення.");
             if (!silent) {
                 showStatus(successMessage, "success");
             }
-            return { ok: true, message: successMessage };
+            return { ok: true, message: successMessage, scope: layoutScope };
         } catch (error) {
             console.error("[PdfWorkspace Fill] layout save error:", error);
             if (!silent) {
@@ -971,6 +1187,7 @@
         if (!fieldEl || fieldEl.dataset.canWrite !== "true") {
             return;
         }
+        commitValueEditUndo();
         panelSyncing = true;
         panelValue.value = text;
         panelSyncing = false;
@@ -1251,7 +1468,10 @@
     };
 
     const selectField = (segmentId, options = {}) => {
-        const { focusPanel = false, focusPdf = true, switchTab = false } = options;
+        const { focusPanel = false, focusPdf = true, switchTab = false, skipHistoryReset = false } = options;
+        if (!skipHistoryReset) {
+            valueEditUndoCommitted = false;
+        }
         const segment = segmentById.get(String(segmentId || ""));
         const fieldEl = getFieldInputBySegmentId(segmentId);
         if (!segment || !fieldEl) {
@@ -1405,6 +1625,7 @@
             if (!fieldEl || fieldEl.dataset.canWrite !== "true") {
                 return;
             }
+            commitValueEditUndo();
             writeFieldText(fieldEl, panelValue.value);
             fieldEl.classList.toggle("is-empty", panelValue.value.length === 0);
             updatePanelCharCount(panelValue.value);
@@ -1456,9 +1677,12 @@
 
         fillFontFamily?.addEventListener("change", onLayoutControlChange);
         fillFontSize?.addEventListener("change", onLayoutControlChange);
+        fillFontSize?.addEventListener("input", onLayoutControlChange);
         fillLineHeight?.addEventListener("change", onLayoutControlChange);
         fillOffsetX?.addEventListener("change", onLayoutControlChange);
+        fillOffsetX?.addEventListener("input", onLayoutControlChange);
         fillOffsetY?.addEventListener("change", onLayoutControlChange);
+        fillOffsetY?.addEventListener("input", onLayoutControlChange);
 
         fillFontSizeMinus?.addEventListener("click", () => {
             if (!fillFontSize || layoutPanelSyncing) {
@@ -1545,6 +1769,7 @@
         });
 
         saveLayoutButton?.addEventListener("click", () => saveTemplateLayout());
+        initLayoutSaveScope();
         updateLayoutBadge("saved");
         setLayoutControlsEnabled(false);
     };
@@ -1854,6 +2079,7 @@
             });
 
             fieldEl.addEventListener("input", () => {
+                commitValueEditUndo();
                 fieldEl.classList.toggle("is-empty", readFieldText(fieldEl).length === 0);
                 if (selectedSegmentId === segmentId && panelValue && !panelSyncing) {
                     panelSyncing = true;
@@ -1887,23 +2113,22 @@
     const resolveSegmentBounds = (segment, coordScale) => {
         const effective = getEffectiveSegment(segment);
         const layout = window.PdfOverlayTextLayout;
-        if (layout?.getPreviewBounds) {
-            return layout.getPreviewBounds(
+        // Anchor-рамка без offset/baseline; текст зсувається в layoutTextInTextBox (як Map + C# GetPreviewBounds).
+        if (layout?.getSegmentBoxBounds) {
+            return layout.getSegmentBoxBounds(
                 num(effective.x),
                 num(effective.y),
                 num(effective.width, 120),
                 num(effective.height, 28),
-                num(effective.textOffsetX, 0),
-                num(effective.textOffsetY, 0),
                 coordScale
             );
         }
 
         return {
-            left: num(effective.x) * coordScale + num(effective.textOffsetX, 0),
-            top: num(effective.y) * coordScale + num(effective.textOffsetY, 0) + BASELINE_OFFSET_PX,
-            width: num(segment.width, 120) * coordScale,
-            height: num(segment.height, 28) * coordScale
+            left: num(effective.x) * coordScale,
+            top: num(effective.y) * coordScale,
+            width: num(effective.width, 120) * coordScale,
+            height: num(effective.height, 28) * coordScale
         };
     };
 
@@ -2205,6 +2430,7 @@
 
             let layoutAutoSaved = false;
             let layoutAutoSaveError = "";
+            const layoutScope = getLayoutSaveScope();
             if (ok && !hasFailures && isLayoutDirty) {
                 const layoutResult = await saveTemplateLayout({ silent: true });
                 layoutAutoSaved = layoutResult.ok === true;
@@ -2217,10 +2443,12 @@
             if (!silent || !ok || hasFailures) {
                 let statusType = ok ? "success" : (saved > 0 ? "warning" : "danger");
                 if (ok && layoutAutoSaved && !hasFailures) {
-                    message += " Макет також збережено в шаблон.";
+                    message += layoutScope === "template"
+                        ? " Макет також збережено в шаблон."
+                        : " Макет збережено для цього замовлення.";
                 } else if (ok && hasUnsavedLayout && !hasFailures) {
                     statusType = "warning";
-                    message += ` Макет має незбережені зміни: ${layoutAutoSaveError || "відкрийте вкладку «Дії» та натисніть «Зберегти макет у шаблон»."}`;
+                    message += ` Макет має незбережені зміни: ${layoutAutoSaveError || "натисніть «Зберегти» або «Зберегти макет зараз»."}`;
                     activateFillTab("actions");
                 }
 
@@ -2365,6 +2593,7 @@
                 );
                 console.error("[PdfWorkspace Fill] overlay mount failed: segments=%s, boxes=%s", segments.length, mounted);
             }
+            updateHistoryUi();
         });
 
         zoomSlider?.addEventListener("input", () => {
@@ -2374,10 +2603,26 @@
 
         saveButton?.addEventListener("click", () => saveValues({ source: "toolbar" }));
 
+        toolbarUndoButton?.addEventListener("click", () => undoLastAction());
+        toolbarRedoButton?.addEventListener("click", () => redoLastAction());
+
         document.addEventListener("keydown", (event) => {
-            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
-                event.preventDefault();
-                saveValues({ source: "shortcut" });
+            if (event.ctrlKey || event.metaKey) {
+                const key = event.key.toLowerCase();
+                if (key === "s") {
+                    event.preventDefault();
+                    saveValues({ source: "shortcut" });
+                    return;
+                }
+                if (key === "z" && !event.shiftKey && toolbarUndoButton && !toolbarUndoButton.disabled) {
+                    event.preventDefault();
+                    undoLastAction();
+                    return;
+                }
+                if ((key === "y" || (key === "z" && event.shiftKey)) && toolbarRedoButton && !toolbarRedoButton.disabled) {
+                    event.preventDefault();
+                    redoLastAction();
+                }
             }
         });
 

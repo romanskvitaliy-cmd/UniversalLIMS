@@ -28,6 +28,9 @@ public class OrderDocument : BaseEntity, ISoftAnnulled
 
     public OrderDocumentStatus Status { get; set; } = OrderDocumentStatus.Pending;
 
+    /// <summary>JSON: уточнення макету сегментів (offset, шрифт) лише для цього документа.</summary>
+    public string? SegmentLayoutOverridesJson { get; set; }
+
     public DateTime? SentToLabAtUtc { get; set; }
 
     public bool IsAnnulled { get; set; }
