@@ -335,6 +335,120 @@ public sealed class OrderRegistrationServiceTests
     }
 
     [Fact]
+    public async Task AppendSamplesAsync_AddsSamplesToExistingOrder()
+    {
+        var registrarBranchId = Guid.NewGuid();
+        var waterLabId = Guid.NewGuid();
+        await using var context = CreateContext();
+        await SeedBranchesAsync(context, registrarBranchId, waterLabId);
+        var (waterTypeId, foodTypeId, _) = await SeedDefaultInvestigationTypesAsync(context);
+        var waterVersionId = await SeedActivePublishedPdfTemplateAsync(context, "F327", "Ф327 дослідження питної води");
+        var foodVersionId = await SeedActivePublishedPdfTemplateAsync(context, "F343", "Ф343 досліджень проб харчових продуктів");
+        var customer = await SeedCustomerAsync(context, "Доповнення");
+        var service = CreateService(context, registrarBranchId);
+
+        var created = await service.CreateOrderAsync(new CreateOrderRequest
+        {
+            CustomerId = customer.Id,
+            Samples =
+            [
+                new CreateOrderSampleRequest
+                {
+                    InvestigationTypeId = waterTypeId,
+                    Documents =
+                    [
+                        new CreateOrderDocumentRequest
+                        {
+                            TemplateVersionId = waterVersionId,
+                            TargetBranchId = waterLabId
+                        }
+                    ]
+                }
+            ]
+        });
+
+        var appendResult = await service.AppendSamplesAsync(new AppendOrderSamplesRequest
+        {
+            OrderId = created.OrderId,
+            Samples =
+            [
+                new CreateOrderSampleRequest
+                {
+                    InvestigationTypeId = foodTypeId,
+                    Documents =
+                    [
+                        new CreateOrderDocumentRequest
+                        {
+                            TemplateVersionId = foodVersionId,
+                            TargetBranchId = waterLabId
+                        }
+                    ]
+                }
+            ]
+        });
+
+        Assert.Single(appendResult.Samples);
+        Assert.Single(appendResult.Documents);
+        Assert.NotEqual(created.SampleNumber, appendResult.Samples[0].SampleNumber);
+
+        var detail = await service.GetOrderDetailAsync(created.OrderId);
+        Assert.NotNull(detail);
+        Assert.Equal(2, detail!.Samples.Count);
+        Assert.Equal(2, detail.Documents.Count);
+        Assert.Contains(detail.Samples, sample => sample.InvestigationTypeNameUk.Contains("харчових"));
+    }
+
+    [Fact]
+    public async Task AppendSamplesAsync_WorksWhenExistingDocumentAlreadySent()
+    {
+        var branchId = Guid.NewGuid();
+        await using var context = CreateContext();
+        await SeedBranchesAsync(context, branchId);
+        var investigationTypeId = await SeedInvestigationTypeWithPdfTemplateAsync(context);
+        var customer = await SeedCustomerAsync(context, "Часткова відправка");
+        var service = CreateService(context, branchId);
+
+        var created = await service.CreateOrderAsync(new CreateOrderRequest
+        {
+            CustomerId = customer.Id,
+            InvestigationTypeId = investigationTypeId
+        });
+
+        await service.SendDocumentsToLabAsync(new SendOrderDocumentsRequest
+        {
+            OrderId = created.OrderId,
+            OrderDocumentIds = [created.Documents[0].OrderDocumentId]
+        });
+
+        var appendResult = await service.AppendSamplesAsync(new AppendOrderSamplesRequest
+        {
+            OrderId = created.OrderId,
+            Samples =
+            [
+                new CreateOrderSampleRequest
+                {
+                    InvestigationTypeId = investigationTypeId,
+                    Documents =
+                    [
+                        new CreateOrderDocumentRequest
+                        {
+                            TemplateVersionId = created.TemplateVersionId,
+                            TargetBranchId = branchId
+                        }
+                    ]
+                }
+            ]
+        });
+
+        var detail = await service.GetOrderDetailAsync(created.OrderId);
+        Assert.NotNull(detail);
+        Assert.Equal(2, detail!.Samples.Count);
+        Assert.Equal(OrderDocumentStatus.SentToLab, detail.Documents.First(document => document.OrderDocumentId == created.Documents[0].OrderDocumentId).Status);
+        Assert.Equal(OrderDocumentStatus.Pending, detail.Documents.First(document => document.OrderDocumentId == appendResult.Documents[0].OrderDocumentId).Status);
+        Assert.True(detail.Documents.First(document => document.OrderDocumentId == appendResult.Documents[0].OrderDocumentId).CanFill);
+    }
+
+    [Fact]
     public async Task GetOrderDetailAsync_ReturnsCustomerFieldsForRegistryEditing()
     {
         var branchId = Guid.NewGuid();

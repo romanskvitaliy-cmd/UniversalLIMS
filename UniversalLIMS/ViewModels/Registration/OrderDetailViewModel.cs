@@ -12,6 +12,17 @@ public sealed class OrderDetailViewModel
     public required UpdateOrderCustomerInputModel CustomerEdit { get; init; }
 
     public OrderFieldLinkGroupsDetailDto FieldLinkGroups { get; init; } = new();
+
+    public required OrderCreateFormDto AppendForm { get; init; }
+
+    public AppendOrderSamplesInputModel AppendSamples { get; init; } = new();
+}
+
+public sealed class AppendOrderSamplesInputModel
+{
+    public Guid OrderId { get; set; }
+
+    public List<OrderCreateSampleInputModel> Samples { get; set; } = [];
 }
 
 public sealed class UpdateOrderCustomerInputModel

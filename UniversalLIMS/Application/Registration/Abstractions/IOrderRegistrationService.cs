@@ -25,4 +25,8 @@ public interface IOrderRegistrationService
     Task UpdateDocumentRoutingAsync(
         UpdateOrderDocumentRoutingRequest request,
         CancellationToken cancellationToken = default);
+
+    Task<AppendOrderSamplesResult> AppendSamplesAsync(
+        AppendOrderSamplesRequest request,
+        CancellationToken cancellationToken = default);
 }

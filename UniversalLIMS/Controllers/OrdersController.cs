@@ -258,8 +258,64 @@ public sealed class OrdersController : Controller
             Detail = detail,
             Branches = form.Branches,
             CustomerEdit = BuildCustomerEditModel(detail),
-            FieldLinkGroups = fieldLinkGroups
+            FieldLinkGroups = fieldLinkGroups,
+            AppendForm = EnrichCreateFormWithPreviewUrls(form),
+            AppendSamples = new AppendOrderSamplesInputModel { OrderId = detail.OrderId }
         });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AppendSamples(
+        [Bind(Prefix = "AppendSamples")] AppendOrderSamplesInputModel input,
+        CancellationToken cancellationToken)
+    {
+        var detail = await _orderRegistration.GetOrderDetailAsync(input.OrderId, cancellationToken);
+        if (detail is null)
+        {
+            return NotFound();
+        }
+
+        var form = await _orderRegistration.GetCreateFormAsync(cancellationToken);
+        ValidateAppendSampleSelection(input, form);
+
+        if (!ModelState.IsValid)
+        {
+            var fieldLinkGroups = await _orderFieldLinks.GetFieldLinkGroupsForOrderAsync(input.OrderId, cancellationToken);
+            TempData["OrderDetailAppendOpen"] = true;
+            return View("Details", new OrderDetailViewModel
+            {
+                Detail = detail,
+                Branches = form.Branches,
+                CustomerEdit = BuildCustomerEditModel(detail),
+                FieldLinkGroups = fieldLinkGroups,
+                AppendForm = EnrichCreateFormWithPreviewUrls(form),
+                AppendSamples = input
+            });
+        }
+
+        try
+        {
+            var result = await _orderRegistration.AppendSamplesAsync(
+                new AppendOrderSamplesRequest
+                {
+                    OrderId = input.OrderId,
+                    Samples = MapAppendSamplesToRequest(input, form)
+                },
+                cancellationToken);
+
+            var sampleNumbers = string.Join(", ", result.Samples.Select(sample => sample.SampleNumber));
+            TempData["OrderDetailSuccess"] = result.Samples.Count == 1
+                ? $"Додано пробу {sampleNumbers}, документів: {result.Documents.Count}."
+                : $"Додано проб: {result.Samples.Count} ({sampleNumbers}), документів: {result.Documents.Count}.";
+        }
+        catch (InvalidOperationException ex)
+        {
+            TempData["OrderDetailError"] = ex.Message;
+            TempData["OrderDetailAppendOpen"] = true;
+        }
+
+        return RedirectToAction(nameof(Details), new { id = input.OrderId });
     }
 
     [HttpPost]
@@ -436,7 +492,19 @@ public sealed class OrdersController : Controller
 
     private void ValidateDocumentSelection(OrderCreateInputModel input, OrderCreateFormDto form)
     {
-        var samples = GetSubmittedSamples(input);
+        ValidateSampleSelection(GetSubmittedSamples(input), form, nameof(input.Samples));
+    }
+
+    private void ValidateAppendSampleSelection(AppendOrderSamplesInputModel input, OrderCreateFormDto form)
+    {
+        ValidateSampleSelection(GetSubmittedAppendSamples(input), form, nameof(input.Samples));
+    }
+
+    private void ValidateSampleSelection(
+        List<OrderCreateSampleInputModel> samples,
+        OrderCreateFormDto form,
+        string samplesFieldName)
+    {
         if (samples.Count == 0)
         {
             ModelState.AddModelError(string.Empty, "Додайте хоча б одне дослідження.");
@@ -470,14 +538,14 @@ public sealed class OrdersController : Controller
             if (selectedTemplateVersionIds.Any(id => !allowedIds.Contains(id)))
             {
                 ModelState.AddModelError(
-                    nameof(input.Samples),
+                    samplesFieldName,
                     $"У рядку {sampleIndex + 1} обрано недоступний шаблон для цього типу дослідження.");
             }
 
             if (selectedTemplateVersionIds.Distinct().Count() != selectedTemplateVersionIds.Count)
             {
                 ModelState.AddModelError(
-                    nameof(input.Samples),
+                    samplesFieldName,
                     $"У рядку {sampleIndex + 1} кожен шаблон можна обрати лише один раз.");
             }
         }
@@ -540,7 +608,17 @@ public sealed class OrdersController : Controller
 
     private static List<OrderCreateSampleInputModel> GetSubmittedSamples(OrderCreateInputModel input)
     {
-        return input.Samples
+        return NormalizeSubmittedSamples(input.Samples);
+    }
+
+    private static List<OrderCreateSampleInputModel> GetSubmittedAppendSamples(AppendOrderSamplesInputModel input)
+    {
+        return NormalizeSubmittedSamples(input.Samples);
+    }
+
+    private static List<OrderCreateSampleInputModel> NormalizeSubmittedSamples(List<OrderCreateSampleInputModel> samples)
+    {
+        return samples
             .Where(sample => sample.InvestigationTypeId != Guid.Empty
                 || sample.TemplateVersionId.HasValue
                 || sample.SelectedTemplateVersionIds.Any(id => id != Guid.Empty))
@@ -552,6 +630,22 @@ public sealed class OrdersController : Controller
                 }
 
                 return sample;
+            })
+            .ToList();
+    }
+
+    private static IReadOnlyList<CreateOrderSampleRequest> MapAppendSamplesToRequest(
+        AppendOrderSamplesInputModel input,
+        OrderCreateFormDto form)
+    {
+        var defaultBranchId = form.DefaultBranchId ?? Guid.Empty;
+
+        return GetSubmittedAppendSamples(input)
+            .Select(sample => new CreateOrderSampleRequest
+            {
+                InvestigationTypeId = sample.InvestigationTypeId,
+                TemplateVersionId = sample.TemplateVersionId,
+                Documents = MapDocuments(sample, defaultBranchId)
             })
             .ToList();
     }

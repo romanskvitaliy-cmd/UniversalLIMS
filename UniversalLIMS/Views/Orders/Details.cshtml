@@ -1,10 +1,37 @@
 @model OrderDetailViewModel
+@using System.Text.Json
 @using UniversalLIMS.Application.Registration
 
 @{
     Layout = "_LayoutWorkspace";
     ViewData["Title"] = $"Справу {Model.Detail.ReferralNumber ?? Model.Detail.OrderId.ToString("N")[..8]}";
     var detail = Model.Detail;
+    var appendPanelOpen = TempData["OrderDetailAppendOpen"] is true || !ViewData.ModelState.IsValid;
+    var firstSampleRegisteredAt = detail.Samples.Min(sample => sample.RegisteredAt);
+    var orderCreateJsonOptions = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+    var templateOptionsJson = JsonSerializer.Serialize(Model.AppendForm.TemplateOptions, orderCreateJsonOptions);
+    var branchesJson = JsonSerializer.Serialize(Model.AppendForm.Branches, orderCreateJsonOptions);
+    var initialAppendSamplesJson = JsonSerializer.Serialize(Model.AppendSamples.Samples, orderCreateJsonOptions);
+    var defaultBranchId = Model.AppendForm.DefaultBranchId?.ToString("D") ?? "";
+    var appendSeeds = detail.Samples
+        .Select(sample =>
+        {
+            var doc = detail.Documents.FirstOrDefault(document => document.SampleId == sample.SampleId);
+            return new
+            {
+                sampleNumber = sample.SampleNumber,
+                investigationTypeNameUk = sample.InvestigationTypeNameUk,
+                investigationTypeId = doc is null
+                    ? Guid.Empty
+                    : Model.AppendForm.TemplateOptions
+                        .FirstOrDefault(option => option.TemplateVersionId == doc.TemplateVersionId)?.InvestigationTypeId ?? Guid.Empty,
+                templateVersionId = doc?.TemplateVersionId ?? Guid.Empty,
+                branchId = doc?.TargetBranchId ?? Model.AppendForm.DefaultBranchId ?? Guid.Empty
+            };
+        })
+        .Where(seed => seed.templateVersionId != Guid.Empty)
+        .ToList();
+    var appendSeedsJson = JsonSerializer.Serialize(appendSeeds, orderCreateJsonOptions);
 }
 
 <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
@@ -41,13 +68,23 @@
     </div>
 }
 
+@if (!ViewData.ModelState.IsValid)
+{
+    <div class="alert alert-danger" role="alert">
+        @foreach (var entry in ViewData.ModelState.Values.SelectMany(value => value.Errors))
+        {
+            <div>@entry.ErrorMessage</div>
+        }
+    </div>
+}
+
 <div class="card mb-3">
     <div class="card-header py-2 d-flex justify-content-between align-items-center">
         <span class="fw-semibold">Дані замовника</span>
         <span class="small text-muted">@CustomerKindDisplay.ToUk(Model.CustomerEdit.Kind)</span>
     </div>
     <div class="card-body">
-        <form asp-action="UpdateCustomer" method="post" class="row g-2" id="orderCustomerForm" novalidate>
+        <form asp-action="UpdateCustomer" method="post" class="row g-2" id="orderCustomerForm" novalidate data-lims-soft-validate>
             @Html.AntiForgeryToken()
             <input type="hidden" asp-for="CustomerEdit.OrderId" />
             <input type="hidden" asp-for="CustomerEdit.CustomerId" />
@@ -78,19 +115,37 @@
             </div>
             <div class="col-md-3">
                 <label class="form-label small text-muted" asp-for="CustomerEdit.ContactPhone">Телефон</label>
-                <input asp-for="CustomerEdit.ContactPhone" class="form-control form-control-sm" />
+                <input asp-for="CustomerEdit.ContactPhone"
+                       class="form-control form-control-sm"
+                       data-lims-soft-format="phone"
+                       maxlength="50"
+                       autocomplete="tel" />
             </div>
             <div class="col-md-3">
                 <label class="form-label small text-muted" asp-for="CustomerEdit.Email">Email</label>
-                <input asp-for="CustomerEdit.Email" class="form-control form-control-sm" />
+                <input asp-for="CustomerEdit.Email"
+                       class="form-control form-control-sm"
+                       data-lims-soft-format="email"
+                       maxlength="256"
+                       autocomplete="email" />
             </div>
             <div class="col-md-3">
                 <label class="form-label small text-muted" asp-for="CustomerEdit.Edrpou">ЄДРПОУ</label>
-                <input asp-for="CustomerEdit.Edrpou" class="form-control form-control-sm" />
+                <input asp-for="CustomerEdit.Edrpou"
+                       class="form-control form-control-sm"
+                       data-lims-soft-format="edrpou"
+                       maxlength="10"
+                       inputmode="numeric"
+                       autocomplete="off" />
             </div>
             <div class="col-md-3">
                 <label class="form-label small text-muted" asp-for="CustomerEdit.Rnokpp">РНОКПП</label>
-                <input asp-for="CustomerEdit.Rnokpp" class="form-control form-control-sm" />
+                <input asp-for="CustomerEdit.Rnokpp"
+                       class="form-control form-control-sm"
+                       data-lims-soft-format="rnokpp"
+                       maxlength="12"
+                       inputmode="numeric"
+                       autocomplete="off" />
             </div>
             <div class="col-12">
                 <label class="form-label small text-muted" asp-for="CustomerEdit.Address">Адреса</label>
@@ -108,9 +163,9 @@
 </div>
 
 <div class="card mb-3">
-    <div class="card-header py-2 d-flex justify-content-between align-items-center">
-        <span class="fw-semibold">Документи шаблонів</span>
-        <span class="small text-muted">@detail.Documents.Count шт.</span>
+    <div class="card-header py-2 d-flex justify-content-between align-items-center gap-2">
+        <span class="fw-semibold">Проби та документи</span>
+        <span class="badge text-bg-light border">@detail.Samples.Count проб · @detail.Documents.Count док.</span>
     </div>
     <div class="card-body p-0">
         @if (!detail.Documents.Any())
@@ -123,123 +178,205 @@
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="OrderId" value="@detail.OrderId" />
             </form>
-            <div class="table-responsive">
-                <table class="table table-sm table-hover align-middle lims-workspace-table mb-0">
-                    <thead>
-                        <tr>
-                            <th class="ps-3" style="width:2.5rem">
-                                <input type="checkbox" class="form-check-input" id="selectAllDocuments"
-                                       title="Обрати всі, що можна відправити" />
-                            </th>
-                            <th>Шаблон</th>
-                            <th>Філія призначення</th>
-                            <th>Статус</th>
-                            <th class="text-end pe-3">Дії</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var sample in detail.Samples)
+
+            <div class="order-detail-samples">
+                @foreach (var sample in detail.Samples)
+                {
+                    var sampleDocuments = detail.Documents
+                        .Where(document => document.SampleId == sample.SampleId)
+                        .ToList();
+                    var isAppended = sample.RegisteredAt > firstSampleRegisteredAt.AddMinutes(1);
+                    var sampleStatusSummary = OrderDocumentStatusDisplay.SummarizeWorkflow(
+                        sampleDocuments.Select(document => document.Status).ToList());
+
+                    <section class="order-detail-sample" data-sample-id="@sample.SampleId">
+                        <header class="order-detail-sample__head">
+                            <div class="order-detail-sample__title">
+                                <span class="order-detail-sample__number">@sample.SampleNumber</span>
+                                <span class="order-detail-sample__type">@sample.InvestigationTypeNameUk</span>
+                            </div>
+                            <div class="order-detail-sample__meta">
+                                @if (isAppended)
+                                {
+                                    <span class="badge order-detail-sample__added-badge border"
+                                          title="Додано пізніше до цієї справи">
+                                        + @sample.RegisteredAt.ToLocalTime().ToString("dd.MM HH:mm")
+                                    </span>
+                                }
+                                <span class="badge lims-status-badge text-bg-light border">@sampleStatusSummary</span>
+                                <span class="small text-muted">@sampleDocuments.Count док.</span>
+                                @if (sampleDocuments.FirstOrDefault()?.TemplateVersionId is Guid seedVersionId)
+                                {
+                                    var seedBranchId = sampleDocuments[0].TargetBranchId;
+                                    var seedInvestigationId = Model.AppendForm.TemplateOptions
+                                        .FirstOrDefault(option => option.TemplateVersionId == seedVersionId)?.InvestigationTypeId ?? Guid.Empty;
+                                    <button type="button"
+                                            class="btn btn-sm btn-link order-detail-sample__clone px-1"
+                                            data-investigation-type-id="@seedInvestigationId"
+                                            data-template-version-id="@seedVersionId"
+                                            data-branch-id="@seedBranchId"
+                                            title="Додати таке саме дослідження">
+                                        Як ця
+                                    </button>
+                                }
+                            </div>
+                        </header>
+
+                        @if (sampleDocuments.Count == 0)
                         {
-                            var sampleDocuments = detail.Documents
-                                .Where(document => document.SampleId == sample.SampleId)
-                                .ToList();
-                            <tr class="table-light">
-                                <td colspan="5" class="ps-3">
-                                    <div class="d-flex flex-wrap justify-content-between gap-2">
-                                        <span class="fw-semibold">Проба @sample.SampleNumber</span>
-                                        <span class="small text-muted">
-                                            @sample.InvestigationTypeNameUk · документів: @sampleDocuments.Count
-                                        </span>
-                                    </div>
-                                </td>
-                            </tr>
-                            @if (sampleDocuments.Count == 0)
-                            {
-                                <tr>
-                                    <td colspan="5" class="ps-3 text-muted small">Для цієї проби документів немає.</td>
-                                </tr>
-                            }
-                            @foreach (var document in sampleDocuments)
-                            {
-                                <tr data-document-id="@document.OrderDocumentId">
-                                    <td class="ps-3">
-                                        @if (document.CanSendToLab)
-                                        {
-                                            <input type="checkbox" class="form-check-input document-send-checkbox"
-                                                   form="orderDocumentsForm"
-                                                   name="OrderDocumentIds" value="@document.OrderDocumentId" />
-                                        }
-                                    </td>
-                                    <td>
-                                        <div class="fw-semibold">@document.TemplateNameUk</div>
-                                        <div class="small text-muted">v@(document.VersionNumber)</div>
-                                    </td>
-                                    <td>
-                                        @if (document.CanSendToLab)
-                                        {
-                                            <form asp-action="UpdateRouting" method="post" class="d-flex gap-1 align-items-center routing-form">
-                                                @Html.AntiForgeryToken()
-                                                <input type="hidden" name="OrderId" value="@detail.OrderId" />
-                                                <input type="hidden" name="OrderDocumentId" value="@document.OrderDocumentId" />
-                                                <select name="TargetBranchId" class="form-select form-select-sm" style="min-width:10rem">
-                                                    @foreach (var branch in Model.Branches)
-                                                    {
-                                                        if (branch.Id == document.TargetBranchId)
-                                                        {
-                                                            <option value="@branch.Id" selected="selected">@branch.Name</option>
-                                                        }
-                                                        else
-                                                        {
-                                                            <option value="@branch.Id">@branch.Name</option>
-                                                        }
-                                                    }
-                                                </select>
-                                                <button type="submit" class="btn btn-sm btn-outline-secondary" title="Зберегти філію">OK</button>
-                                            </form>
-                                        }
-                                        else
-                                        {
-                                            @document.TargetBranchName
-                                        }
-                                    </td>
-                                    <td>
-                                        <span class="badge lims-status-badge @OrderDocumentStatusDisplay.BadgeClass(document.Status)">
-                                            @OrderDocumentStatusDisplay.ToUk(document.Status)
-                                        </span>
-                                    </td>
-                                    <td class="text-end pe-3 text-nowrap">
-                                        @if (document.CanFill)
-                                        {
-                                            <a class="btn btn-sm btn-outline-primary"
-                                               asp-controller="PdfWorkspace"
-                                               asp-action="Fill"
-                                               asp-route-templateVersionId="@document.TemplateVersionId"
-                                               asp-route-orderId="@detail.OrderId"
-                                               asp-route-orderDocumentId="@document.OrderDocumentId">
-                                                Заповнити
-                                            </a>
-                                        }
-                                        else
-                                        {
-                                            <span class="text-muted small">—</span>
-                                        }
-                                    </td>
-                                </tr>
-                            }
+                            <p class="order-detail-sample__empty">Для цієї проби документів немає.</p>
                         }
-                    </tbody>
-                </table>
+                        else
+                        {
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover align-middle lims-workspace-table order-detail-sample__table mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th class="ps-3" style="width:2.5rem"></th>
+                                            <th>Шаблон</th>
+                                            <th>Філія</th>
+                                            <th>Статус</th>
+                                            <th class="text-end pe-3">Дії</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var document in sampleDocuments)
+                                        {
+                                            <tr data-document-id="@document.OrderDocumentId">
+                                                <td class="ps-3">
+                                                    @if (document.CanSendToLab)
+                                                    {
+                                                        <input type="checkbox" class="form-check-input document-send-checkbox"
+                                                               form="orderDocumentsForm"
+                                                               name="OrderDocumentIds" value="@document.OrderDocumentId" />
+                                                    }
+                                                </td>
+                                                <td>
+                                                    <div class="order-detail-doc__name" title="@document.TemplateNameUk">
+                                                        @document.TemplateNameUk
+                                                    </div>
+                                                    <div class="small text-muted">v@(document.VersionNumber)</div>
+                                                </td>
+                                                <td>
+                                                    @if (document.CanSendToLab)
+                                                    {
+                                                        <form asp-action="UpdateRouting" method="post" class="d-flex gap-1 align-items-center routing-form">
+                                                            @Html.AntiForgeryToken()
+                                                            <input type="hidden" name="OrderId" value="@detail.OrderId" />
+                                                            <input type="hidden" name="OrderDocumentId" value="@document.OrderDocumentId" />
+                                                            <select name="TargetBranchId" class="form-select form-select-sm" style="min-width:10rem">
+                                                                @foreach (var branch in Model.Branches)
+                                                                {
+                                                                    if (branch.Id == document.TargetBranchId)
+                                                                    {
+                                                                        <option value="@branch.Id" selected="selected">@branch.Name</option>
+                                                                    }
+                                                                    else
+                                                                    {
+                                                                        <option value="@branch.Id">@branch.Name</option>
+                                                                    }
+                                                                }
+                                                            </select>
+                                                            <button type="submit" class="btn btn-sm btn-outline-secondary" title="Зберегти філію">OK</button>
+                                                        </form>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="small">@document.TargetBranchName</span>
+                                                    }
+                                                </td>
+                                                <td>
+                                                    <span class="badge lims-status-badge @OrderDocumentStatusDisplay.BadgeClass(document.Status)">
+                                                        @OrderDocumentStatusDisplay.ToUk(document.Status)
+                                                    </span>
+                                                </td>
+                                                <td class="text-end pe-3 text-nowrap">
+                                                    @if (document.CanFill)
+                                                    {
+                                                        <a class="btn btn-sm btn-outline-primary"
+                                                           asp-controller="PdfWorkspace"
+                                                           asp-action="Fill"
+                                                           asp-route-templateVersionId="@document.TemplateVersionId"
+                                                           asp-route-orderId="@detail.OrderId"
+                                                           asp-route-orderDocumentId="@document.OrderDocumentId">
+                                                            Заповнити
+                                                        </a>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="text-muted small">—</span>
+                                                    }
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </section>
+                }
             </div>
+
             @if (detail.Documents.Any(document => document.CanSendToLab))
             {
-                <div class="p-3 border-top d-flex flex-wrap gap-2 align-items-center">
+                <div class="p-3 border-top d-flex flex-wrap gap-2 align-items-center order-detail-send-bar">
+                    <label class="d-inline-flex align-items-center gap-1 small mb-0 me-1">
+                        <input type="checkbox" class="form-check-input" id="selectAllDocuments"
+                               title="Обрати всі, що можна відправити" />
+                        Усі
+                    </label>
                     <button type="submit" form="orderDocumentsForm" class="btn btn-sm btn-primary" id="sendDocumentsButton">
                         Відправити обрані в лабораторію
                     </button>
-                    <span class="small text-muted">Після відправки статус документа зміниться на «У лабораторії».</span>
+                    <span class="small text-muted">Після відправки статус зміниться на «У лабораторії».</span>
                 </div>
             }
         }
+    </div>
+
+    <div class="order-detail-append @(appendPanelOpen ? "order-detail-append--open" : "")" id="orderDetailAppend">
+        <button type="button"
+                class="order-detail-append__toggle"
+                id="orderDetailAppendToggle"
+                aria-expanded="@(appendPanelOpen ? "true" : "false")"
+                aria-controls="orderDetailAppendBody">
+            <span class="order-detail-append__toggle-icon" aria-hidden="true">+</span>
+            <span class="order-detail-append__toggle-text">Додати дослідження до цієї справи</span>
+            <span class="order-detail-append__toggle-hint">нова проба, той самий замовник</span>
+        </button>
+
+        <div class="order-detail-append__body" id="orderDetailAppendBody" @(appendPanelOpen ? "" : "hidden")>
+            <form asp-action="AppendSamples" method="post" id="appendSamplesForm">
+                @Html.AntiForgeryToken()
+                <input type="hidden" asp-for="AppendSamples.OrderId" />
+
+                <p class="order-detail-append__lead">
+                    Замовник уже в справі — додайте лише нові проби. Кожна отримає свій номер і статус «Очікує».
+                </p>
+
+                <div id="orderAppendSamplesPanel" class="order-detail-append__panel">
+                    <div class="row g-2 px-1 pb-2 small text-muted fw-semibold d-none d-md-flex order-detail-append__headings">
+                        <div class="col-md-4">Тип / шаблон</div>
+                        <div class="col-md-4">PDF-бланк</div>
+                        <div class="col-md-3">Філія</div>
+                        <div class="col-md-1 text-end"> </div>
+                    </div>
+                    <div id="orderAppendSamplesList"></div>
+                    <p class="small text-muted mb-0 d-none" id="orderAppendSamplesPlaceholder">
+                        Натисніть «+ рядок» або «Як ця» біля існуючої проби.
+                    </p>
+                </div>
+
+                <div class="d-flex flex-wrap gap-2 align-items-center mt-2">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="btnAddAppendSample">
+                        + рядок
+                    </button>
+                    <button type="submit" class="btn btn-sm btn-primary" id="btnSubmitAppendSamples">
+                        Зберегти нові проби
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 
@@ -296,5 +433,15 @@
 </p>
 
 @section Scripts {
+    <script>
+        window.__orderAppendTemplateOptions = @Html.Raw(templateOptionsJson);
+        window.__orderAppendBranches = @Html.Raw(branchesJson);
+        window.__orderAppendInitialSamples = @Html.Raw(initialAppendSamplesJson);
+        window.__orderAppendDefaultBranchId = @Html.Raw(JsonSerializer.Serialize(defaultBranchId));
+        window.__orderAppendSeeds = @Html.Raw(appendSeedsJson);
+        window.__orderAppendPanelOpen = @Html.Raw(appendPanelOpen ? "true" : "false");
+    </script>
+    <script src="~/js/customer-format-hints.js" asp-append-version="true"></script>
     <script src="~/js/order-detail.js" asp-append-version="true"></script>
+    <script src="~/js/order-detail-append.js" asp-append-version="true"></script>
 }

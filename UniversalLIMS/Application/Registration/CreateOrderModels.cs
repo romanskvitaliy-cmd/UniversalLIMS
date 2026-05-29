@@ -84,3 +84,19 @@ public sealed class OrderCreateFormDto
 
     public Guid? DefaultBranchId { get; init; }
 }
+
+public sealed class AppendOrderSamplesRequest
+{
+    public Guid OrderId { get; init; }
+
+    public IReadOnlyList<CreateOrderSampleRequest> Samples { get; init; } = [];
+}
+
+public sealed class AppendOrderSamplesResult
+{
+    public Guid OrderId { get; init; }
+
+    public IReadOnlyList<CreatedOrderSampleDto> Samples { get; init; } = [];
+
+    public IReadOnlyList<CreatedOrderDocumentDto> Documents { get; init; } = [];
+}

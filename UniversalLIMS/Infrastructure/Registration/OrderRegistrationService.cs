@@ -220,68 +220,12 @@ public sealed class OrderRegistrationService : IOrderRegistrationService
         _context.Orders.Add(order);
         await _context.SaveChangesAsync(cancellationToken);
 
-        var createdSamples = new List<CreatedOrderSampleDto>();
-        var createdDocuments = new List<CreatedOrderDocumentDto>();
-        var versionIds = samplePlans
-            .SelectMany(plan => plan.Documents.Select(document => document.TemplateVersionId))
-            .Distinct()
-            .ToList();
-        var versionById = await _context.TemplateVersions
-            .AsNoTracking()
-            .Where(version => versionIds.Contains(version.Id))
-            .ToDictionaryAsync(version => version.Id, cancellationToken);
-
-        foreach (var samplePlan in samplePlans)
-        {
-            var sampleNumber = await _numberingService.AssignSampleNumberAsync(branchId, cancellationToken);
-            var sample = new Sample
-            {
-                OrderId = order.Id,
-                InvestigationTypeId = samplePlan.InvestigationTypeId,
-                Number = sampleNumber,
-                RegisteredAt = registeredAtUtc,
-                Status = SampleStatus.Registered
-            };
-
-            _context.Samples.Add(sample);
-
-            var sampleDocuments = new List<CreatedOrderDocumentDto>();
-            foreach (var documentPlan in samplePlan.Documents)
-            {
-                var version = versionById[documentPlan.TemplateVersionId];
-                var orderDocument = new OrderDocument
-                {
-                    OrderId = order.Id,
-                    SampleId = sample.Id,
-                    TemplateId = version.TemplateId,
-                    TemplateVersionId = version.Id,
-                    TargetBranchId = documentPlan.TargetBranchId,
-                    Status = OrderDocumentStatus.Pending
-                };
-
-                _context.OrderDocuments.Add(orderDocument);
-
-                var documentDto = new CreatedOrderDocumentDto
-                {
-                    OrderDocumentId = orderDocument.Id,
-                    SampleId = sample.Id,
-                    TemplateVersionId = version.Id,
-                    TargetBranchId = documentPlan.TargetBranchId
-                };
-                sampleDocuments.Add(documentDto);
-                createdDocuments.Add(documentDto);
-            }
-
-            createdSamples.Add(new CreatedOrderSampleDto
-            {
-                SampleId = sample.Id,
-                InvestigationTypeId = samplePlan.InvestigationTypeId,
-                SampleNumber = sample.Number,
-                Documents = sampleDocuments
-            });
-        }
-
-        await _context.SaveChangesAsync(cancellationToken);
+        var (createdSamples, createdDocuments) = await AddSamplesToOrderAsync(
+            order,
+            branchId,
+            samplePlans,
+            registeredAtUtc,
+            cancellationToken);
 
         var firstSample = createdSamples[0];
         var firstDocument = firstSample.Documents[0];
@@ -293,6 +237,34 @@ public sealed class OrderRegistrationService : IOrderRegistrationService
             TemplateVersionId = firstDocument.TemplateVersionId,
             ReferralNumber = referralNumber,
             SampleNumber = firstSample.SampleNumber,
+            Samples = createdSamples,
+            Documents = createdDocuments
+        };
+    }
+
+    public async Task<AppendOrderSamplesResult> AppendSamplesAsync(
+        AppendOrderSamplesRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var order = await LoadOrderForMutationAsync(request.OrderId, cancellationToken)
+            ?? throw new InvalidOperationException("Замовлення не знайдено.");
+
+        var samplePlans = await ResolveOrderSamplePlansAsync(
+            new CreateOrderRequest { Samples = request.Samples },
+            order.BranchId,
+            cancellationToken);
+
+        var registeredAtUtc = _dateTimeProvider.UtcNow;
+        var (createdSamples, createdDocuments) = await AddSamplesToOrderAsync(
+            order,
+            order.BranchId,
+            samplePlans,
+            registeredAtUtc,
+            cancellationToken);
+
+        return new AppendOrderSamplesResult
+        {
+            OrderId = order.Id,
             Samples = createdSamples,
             Documents = createdDocuments
         };
@@ -335,6 +307,7 @@ public sealed class OrderRegistrationService : IOrderRegistrationService
                     {
                         sample.Id,
                         sample.Number,
+                        sample.RegisteredAt,
                         InvestigationTypeNameUk = sample.InvestigationType.NameUk
                     })
                     .ToList(),
@@ -366,7 +339,8 @@ public sealed class OrderRegistrationService : IOrderRegistrationService
             {
                 SampleId = sample.Id,
                 SampleNumber = sample.Number,
-                InvestigationTypeNameUk = sample.InvestigationTypeNameUk
+                InvestigationTypeNameUk = sample.InvestigationTypeNameUk,
+                RegisteredAt = sample.RegisteredAt
             })
             .ToList();
 
@@ -489,6 +463,78 @@ public sealed class OrderRegistrationService : IOrderRegistrationService
 
         document.TargetBranchId = request.TargetBranchId;
         await _context.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task<(List<CreatedOrderSampleDto> Samples, List<CreatedOrderDocumentDto> Documents)> AddSamplesToOrderAsync(
+        Order order,
+        Guid branchId,
+        List<OrderSamplePlan> samplePlans,
+        DateTime registeredAtUtc,
+        CancellationToken cancellationToken)
+    {
+        var createdSamples = new List<CreatedOrderSampleDto>();
+        var createdDocuments = new List<CreatedOrderDocumentDto>();
+        var versionIds = samplePlans
+            .SelectMany(plan => plan.Documents.Select(document => document.TemplateVersionId))
+            .Distinct()
+            .ToList();
+        var versionById = await _context.TemplateVersions
+            .AsNoTracking()
+            .Where(version => versionIds.Contains(version.Id))
+            .ToDictionaryAsync(version => version.Id, cancellationToken);
+
+        foreach (var samplePlan in samplePlans)
+        {
+            var sampleNumber = await _numberingService.AssignSampleNumberAsync(branchId, cancellationToken);
+            var sample = new Sample
+            {
+                OrderId = order.Id,
+                InvestigationTypeId = samplePlan.InvestigationTypeId,
+                Number = sampleNumber,
+                RegisteredAt = registeredAtUtc,
+                Status = SampleStatus.Registered
+            };
+
+            _context.Samples.Add(sample);
+
+            var sampleDocuments = new List<CreatedOrderDocumentDto>();
+            foreach (var documentPlan in samplePlan.Documents)
+            {
+                var version = versionById[documentPlan.TemplateVersionId];
+                var orderDocument = new OrderDocument
+                {
+                    OrderId = order.Id,
+                    SampleId = sample.Id,
+                    TemplateId = version.TemplateId,
+                    TemplateVersionId = version.Id,
+                    TargetBranchId = documentPlan.TargetBranchId,
+                    Status = OrderDocumentStatus.Pending
+                };
+
+                _context.OrderDocuments.Add(orderDocument);
+
+                var documentDto = new CreatedOrderDocumentDto
+                {
+                    OrderDocumentId = orderDocument.Id,
+                    SampleId = sample.Id,
+                    TemplateVersionId = version.Id,
+                    TargetBranchId = documentPlan.TargetBranchId
+                };
+                sampleDocuments.Add(documentDto);
+                createdDocuments.Add(documentDto);
+            }
+
+            createdSamples.Add(new CreatedOrderSampleDto
+            {
+                SampleId = sample.Id,
+                InvestigationTypeId = samplePlan.InvestigationTypeId,
+                SampleNumber = sample.Number,
+                Documents = sampleDocuments
+            });
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+        return (createdSamples, createdDocuments);
     }
 
     private async Task<Order?> LoadOrderForMutationAsync(

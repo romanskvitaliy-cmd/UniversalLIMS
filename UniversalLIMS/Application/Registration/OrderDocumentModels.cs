@@ -90,6 +90,8 @@ public sealed class OrderDetailSampleDto
     public required string SampleNumber { get; init; }
 
     public required string InvestigationTypeNameUk { get; init; }
+
+    public DateTime RegisteredAt { get; init; }
 }
 
 public sealed class OrderDocumentItemDto
