@@ -380,7 +380,7 @@
     }
 
     .field-overlay-box {
-        transition: transform 0.12s ease, box-shadow 0.12s ease, outline-color 0.12s ease;
+        transition: transform 0.12s ease, border-color 0.12s ease, background-color 0.12s ease;
         transform-origin: center;
     }
 
@@ -1264,6 +1264,16 @@
     #overlayNudgePad .nudge-action-buttons > #nudgeDelete {
         flex: 0 0 auto;
         min-width: 2.25rem;
+    }
+
+    #overlayNudgePad .nudge-history-buttons > .btn {
+        flex: 1 1 0;
+        min-width: 0;
+    }
+
+    #overlayNudgePad #nudgeHistoryHint {
+        min-height: 1.1rem;
+        line-height: 1.25;
     }
 
     #overlayNudgePad .btn.btn-sm:focus-visible {
@@ -2352,9 +2362,11 @@ else
                         </button>
                     </div>
                     <div class="mb-2">
-                        <button id="undoOverlayAction" type="button" class="btn btn-sm btn-outline-warning w-100">
-                            Скасувати останню дію
-                        </button>
+                        <div class="d-flex gap-1 mb-1">
+                            <button id="undoOverlayAction" type="button" class="btn btn-sm btn-outline-warning flex-fill" title="Ctrl+Z">↶ Назад</button>
+                            <button id="redoOverlayAction" type="button" class="btn btn-sm btn-outline-warning flex-fill" title="Ctrl+Y" disabled>↷ Вперед</button>
+                        </div>
+                        <div id="overlayHistoryHint" class="small text-muted mb-2" aria-live="polite"></div>
                     </div>
                     <div class="mb-2">
                         <button id="arrangeAllFields" type="button" class="btn btn-sm btn-outline-primary w-100">
@@ -2681,11 +2693,15 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
             </div>
         </div>
     </div>
+    <div class="d-flex gap-1 mb-1 nudge-history-buttons">
+        <button type="button" id="nudgeUndo" class="btn btn-sm btn-outline-warning" title="Скасувати останню зміну (Ctrl+Z)">↶ Назад</button>
+        <button type="button" id="nudgeRedo" class="btn btn-sm btn-outline-warning" title="Повернути скасовану зміну (Ctrl+Y)" disabled>↷ Вперед</button>
+    </div>
+    <div id="nudgeHistoryHint" class="small text-muted mb-1" aria-live="polite"></div>
     <div class="d-flex gap-1 nudge-action-buttons">
         <button type="button" id="nudgeConfirm" class="btn btn-sm btn-success flex-fill">OK</button>
         <button type="button" id="nudgePersistToDb" class="btn btn-sm btn-primary flex-fill">💾 БД</button>
         <button type="button" id="nudgeCancel" class="btn btn-sm btn-outline-secondary flex-fill">Скасувати</button>
-        <button type="button" id="nudgeUndo" class="btn btn-sm btn-outline-warning flex-fill">↶ Дія</button>
         <button type="button" id="nudgeDelete" class="btn btn-sm btn-outline-danger">🗑</button>
     </div>
     <div class="mb-2 mt-1">
@@ -3137,6 +3153,16 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         this.nudgeStep = 1;
                         this.editSnapshot = null;
                         this.undoStack = [];
+                        this.redoStack = [];
+                        this.historyHintTimer = null;
+                        this.undoReasonLabels = {
+                            move: "переміщення",
+                            resize: "розмір",
+                            nudge: "крок",
+                            reposition: "клік по PDF",
+                            delete: "видалення",
+                            applySize: "застосування розміру"
+                        };
                         this.padDragState = null;
                         this.isNudgeBodyCollapsed = false;
                         this.isTagListCollapsed = false;
@@ -4276,6 +4302,15 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         return this.allEditable || boxIndex === this.activeIndex;
                     }
 
+                    resolveTagOverlayPalette(isActive) {
+                        const gray = { border: "#6c757d", bg: "rgba(108, 117, 125, 0.16)", label: "rgba(108, 117, 125, 0.9)" };
+                        const blue = { border: "#0d6efd", bg: "rgba(13, 110, 253, 0.16)", label: "rgba(13, 110, 253, 0.9)" };
+                        const red = { border: "#dc3545", bg: "rgba(220, 53, 69, 0.16)", label: "rgba(220, 53, 69, 0.9)" };
+                        if (this.editMode !== "edit") return gray;
+                        if (this.allEditable) return red;
+                        return isActive ? blue : gray;
+                    }
+
                     applyBoxVisualState(box, isActive, isLinked = false) {
                         const label = box.firstElementChild;
                         const isEditable = this.canEditBox(box);
@@ -4301,37 +4336,24 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             box.style.opacity = "1";
                             box.title = fullLabel;
                             return;
-                        } else if (this.editMode === "edit" && this.allEditable) {
-                            box.style.border = isActive ? "3.5px solid #fd7e14" : (isLinked ? "2.5px solid #6610f2" : "2px solid #dc3545");
-                            box.style.background = isActive ? "rgba(253, 126, 20, 0.24)" : (isLinked ? "rgba(102, 16, 242, 0.18)" : "rgba(220, 53, 69, 0.16)");
-                        } else if (isActive) {
-                            box.style.border = "3.5px solid #0d6efd";
-                            box.style.background = "rgba(13, 110, 253, 0.24)";
-                        } else if (isLinked) {
-                            box.style.border = "2.5px solid #6610f2";
-                            box.style.background = "rgba(102, 16, 242, 0.18)";
-                        } else {
-                            box.style.border = "2px solid #6c757d";
-                            box.style.background = "rgba(108, 117, 125, 0.16)";
                         }
 
-                        box.style.boxShadow = isActive
-                            ? "0 0 0 5px rgba(13, 110, 253, 0.35)"
-                            : (isLinked ? "0 0 0 3px rgba(102, 16, 242, 0.28)" : "none");
+                        const palette = this.resolveTagOverlayPalette(isActive);
+                        box.style.border = `2px solid ${palette.border}`;
+                        box.style.background = palette.bg;
+                        box.style.boxShadow = "none";
                         box.style.zIndex = isActive ? "48" : (isLinked ? "34" : "20");
-                        if (!this.calibrationMode) {
-                            box.style.cursor = isEditable ? "move" : "default";
-                            box.style.opacity = this.editMode === "locked" ? "0.68" : (isActive ? "1" : "0.82");
-                        }
+                        box.style.cursor = isEditable ? "move" : "default";
+                        box.style.opacity = this.editMode === "locked"
+                            ? "0.68"
+                            : (this.editMode === "edit" && !this.allEditable && !isActive ? "0.82" : "1");
                         box.title = fullLabel;
 
                         if (label) {
-                            label.style.background = isActive
-                                ? "#0d6efd"
-                                : (isLinked ? "rgba(102, 16, 242, 0.92)" : "rgba(108, 117, 125, 0.9)");
+                            label.style.background = palette.label;
                             label.style.color = "#fff";
-                            label.style.fontWeight = isActive ? "700" : "600";
-                            label.style.fontSize = isActive ? "0.82rem" : "0.72rem";
+                            label.style.fontWeight = "600";
+                            label.style.fontSize = "";
                             if (level === "small") {
                                 label.style.fontSize = "11px";
                                 label.textContent = this.getCompactLabel(fullLabel, 24, field?.tag || "T");
@@ -4339,6 +4361,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                                 label.style.fontSize = "9px";
                                 label.textContent = (field?.tag || fullLabel || "T").slice(0, 1).toUpperCase();
                             } else {
+                                label.style.fontSize = "0.72rem";
                                 label.textContent = fullLabel;
                             }
                         }
@@ -4688,6 +4711,9 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         document.getElementById("nudgeConfirm")?.addEventListener("click", () => this.commitActiveSnapshot());
                         document.getElementById("nudgeCancel")?.addEventListener("click", () => this.rollbackActiveSnapshot());
                         document.getElementById("nudgeUndo")?.addEventListener("click", () => this.undoLastAction());
+                        document.getElementById("nudgeRedo")?.addEventListener("click", () => this.redoLastAction());
+                        document.getElementById("undoOverlayAction")?.addEventListener("click", () => this.undoLastAction());
+                        document.getElementById("redoOverlayAction")?.addEventListener("click", () => this.redoLastAction());
                         document.getElementById("nudgeDelete")?.addEventListener("click", () => this.deleteActiveField());
                         nudgePersistToDbBtn?.addEventListener("click", async () => {
                             this.renderSaveHint("Відправляємо зміни в БД...");
@@ -4829,9 +4855,15 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                                 return;
                             }
 
-                            if (event.ctrlKey && event.key.toLowerCase() === "z") {
+                            if (event.ctrlKey && !event.altKey && event.key.toLowerCase() === "z" && !event.shiftKey) {
                                 event.preventDefault();
                                 this.undoLastAction();
+                                return;
+                            }
+
+                            if (event.ctrlKey && !event.altKey && (event.key.toLowerCase() === "y" || (event.shiftKey && event.key.toLowerCase() === "z"))) {
+                                event.preventDefault();
+                                this.redoLastAction();
                                 return;
                             }
 
@@ -4900,6 +4932,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         if (toggleNudgePadBodyBtn) toggleNudgePadBodyBtn.textContent = this.isNudgeBodyCollapsed ? "+" : "−";
                         if (nudgeTagListSection) nudgeTagListSection.style.display = this.isTagListCollapsed ? "none" : "block";
                         if (toggleNudgeTagListBtn) toggleNudgeTagListBtn.textContent = this.isTagListCollapsed ? "▸" : "▾";
+                        this.updateHistoryUi();
                     }
 
                     setActive(index) {
@@ -5620,22 +5653,122 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                     pushUndoState(reason) {
                         const snapshot = this.captureLayoutState();
                         snapshot.reason = reason;
+                        snapshot.at = Date.now();
                         this.undoStack.push(snapshot);
                         if (this.undoStack.length > 40) {
                             this.undoStack.shift();
+                        }
+                        this.redoStack = [];
+                        this.updateHistoryUi();
+                    }
+
+                    formatHistoryAge(at) {
+                        if (!at) return "";
+                        const seconds = Math.max(0, Math.floor((Date.now() - at) / 1000));
+                        if (seconds < 5) return "щойно";
+                        if (seconds < 60) return `${seconds} с тому`;
+                        const minutes = Math.floor(seconds / 60);
+                        if (minutes < 60) return `${minutes} хв тому`;
+                        const hours = Math.floor(minutes / 60);
+                        return `${hours} год тому`;
+                    }
+
+                    describeHistoryEntry(snapshot) {
+                        const reason = snapshot?.reason;
+                        return this.undoReasonLabels[reason] || "зміна";
+                    }
+
+                    updateHistoryUi() {
+                        const undoCount = this.undoStack.length;
+                        const redoCount = this.redoStack.length;
+                        const lastUndo = this.undoStack[undoCount - 1];
+                        const lastRedo = this.redoStack[redoCount - 1];
+
+                        const undoParts = [];
+                        if (undoCount > 0) {
+                            undoParts.push(`${undoCount} ${undoCount === 1 ? "крок" : undoCount < 5 ? "кроки" : "кроків"} назад`);
+                            undoParts.push(this.formatHistoryAge(lastUndo?.at));
+                            if (lastUndo?.reason) {
+                                undoParts.push(this.describeHistoryEntry(lastUndo));
+                            }
+                        }
+
+                        const redoParts = [];
+                        if (redoCount > 0) {
+                            redoParts.push(`${redoCount} вперед`);
+                            redoParts.push(this.formatHistoryAge(lastRedo?.at));
+                        }
+
+                        const hintText = undoCount === 0 && redoCount === 0
+                            ? "Історія порожня"
+                            : [undoParts.length ? `↶ ${undoParts.join(" · ")}` : null, redoParts.length ? `↷ ${redoParts.join(" · ")}` : null]
+                                .filter(Boolean)
+                                .join("  |  ");
+
+                        ["nudgeHistoryHint", "overlayHistoryHint"].forEach((id) => {
+                            const el = document.getElementById(id);
+                            if (el) el.textContent = hintText;
+                        });
+
+                        ["nudgeUndo", "undoOverlayAction"].forEach((id) => {
+                            const btn = document.getElementById(id);
+                            if (btn) btn.disabled = undoCount === 0;
+                        });
+                        ["nudgeRedo", "redoOverlayAction"].forEach((id) => {
+                            const btn = document.getElementById(id);
+                            if (btn) btn.disabled = redoCount === 0;
+                        });
+
+                        window.clearInterval(this.historyHintTimer);
+                        this.historyHintTimer = null;
+                        if (undoCount > 0 || redoCount > 0) {
+                            this.historyHintTimer = window.setInterval(() => this.updateHistoryUi(), 1000);
                         }
                     }
 
                     undoLastAction() {
                         if (this.undoStack.length === 0) {
-                            showOverlayToast("Немає дій для скасування");
+                            showOverlayToast("Немає кроків для скасування");
+                            this.updateHistoryUi();
                             return;
                         }
+                        const current = this.captureLayoutState();
+                        current.at = Date.now();
+                        current.reason = "redo-anchor";
+                        this.redoStack.push(current);
+                        if (this.redoStack.length > 40) {
+                            this.redoStack.shift();
+                        }
+
                         const snapshot = this.undoStack.pop();
                         this.restoreLayoutState(snapshot);
                         this.renderPlacedFields();
                         this.renderDebugStats();
-                        showOverlayToast("Останню дію скасовано");
+                        this.updateHistoryUi();
+                        const label = this.describeHistoryEntry(snapshot);
+                        showOverlayToast(`Скасовано: ${label}`);
+                    }
+
+                    redoLastAction() {
+                        if (this.redoStack.length === 0) {
+                            showOverlayToast("Немає кроків для повтору");
+                            this.updateHistoryUi();
+                            return;
+                        }
+                        const current = this.captureLayoutState();
+                        current.at = Date.now();
+                        current.reason = "undo-anchor";
+                        this.undoStack.push(current);
+                        if (this.undoStack.length > 40) {
+                            this.undoStack.shift();
+                        }
+
+                        const snapshot = this.redoStack.pop();
+                        this.restoreLayoutState(snapshot);
+                        this.renderPlacedFields();
+                        this.renderDebugStats();
+                        this.updateHistoryUi();
+                        showOverlayToast("Зміну повторено");
                     }
 
                     filterPlacedFields() {
@@ -5788,7 +5921,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                     applyInspectModeUi() {
                         if (!nudgePadBody) return;
                         const controls = nudgePadBody.querySelectorAll(
-                            "#overlaySmartSnapToggle, [data-nudge-step], [data-nudge-move], [data-nudge-size], #nudgeConfirm, #nudgeCancel, #nudgeUndo, #nudgeDelete, #nudgeAddSegmentLine, #nudgeModeSingle, #nudgeModeAll"
+                            "#overlaySmartSnapToggle, [data-nudge-step], [data-nudge-move], [data-nudge-size], #nudgeConfirm, #nudgeCancel, #nudgeUndo, #nudgeRedo, #nudgeDelete, #nudgeAddSegmentLine, #nudgeModeSingle, #nudgeModeAll"
                         );
                         controls.forEach((el) => {
                             if ("disabled" in el) {

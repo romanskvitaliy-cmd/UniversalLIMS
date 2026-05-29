@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UniversalLIMS — презентація для керівництва</title>
+  <style>
+    @page {
+      size: A4 landscape;
+      margin: 0;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+      color: #1a2b4a;
+      background: #eef2f7;
+    }
+
+    .slide {
+      width: 297mm;
+      min-height: 210mm;
+      page-break-after: always;
+      padding: 18mm 22mm 16mm;
+      background: linear-gradient(135deg, #ffffff 0%, #f7faff 100%);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .slide:last-child {
+      page-break-after: auto;
+    }
+
+    .slide::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 8mm;
+      background: linear-gradient(90deg, #0b4f8a 0%, #1976d2 55%, #42a5f5 100%);
+    }
+
+    .slide-number {
+      position: absolute;
+      right: 22mm;
+      bottom: 10mm;
+      font-size: 11px;
+      color: #7a8799;
+    }
+
+    .brand {
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #1976d2;
+      font-weight: 700;
+      margin-bottom: 8mm;
+    }
+
+    h1 {
+      font-size: 34px;
+      line-height: 1.15;
+      margin: 0 0 6mm;
+      color: #0b4f8a;
+    }
+
+    h2 {
+      font-size: 26px;
+      line-height: 1.2;
+      margin: 0 0 5mm;
+      color: #0b4f8a;
+    }
+
+    h3 {
+      font-size: 16px;
+      margin: 4mm 0 2mm;
+      color: #1565c0;
+    }
+
+    p, li {
+      font-size: 14px;
+      line-height: 1.45;
+      margin: 0 0 2.5mm;
+    }
+
+    ul {
+      margin: 0;
+      padding-left: 6mm;
+    }
+
+    .subtitle {
+      font-size: 18px;
+      color: #456;
+      margin-bottom: 8mm;
+    }
+
+    .note {
+      margin-top: 6mm;
+      padding: 4mm 5mm;
+      background: #eef6ff;
+      border-left: 4px solid #1976d2;
+      font-size: 13px;
+      color: #334;
+    }
+
+    .title-slide {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-height: calc(210mm - 34mm);
+    }
+
+    .title-slide h1 {
+      font-size: 42px;
+    }
+
+    .title-slide .subtitle {
+      font-size: 20px;
+      max-width: 80%;
+    }
+
+    .meta {
+      margin-top: 10mm;
+      font-size: 14px;
+      color: #556;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin-top: 3mm;
+    }
+
+    th, td {
+      border: 1px solid #d7e3f3;
+      padding: 3mm 4mm;
+      vertical-align: top;
+      text-align: left;
+    }
+
+    th {
+      background: #e8f2fc;
+      color: #0b4f8a;
+      font-weight: 700;
+    }
+
+    tr:nth-child(even) td {
+      background: #fafcff;
+    }
+
+    .flow {
+      display: flex;
+      align-items: stretch;
+      gap: 2mm;
+      margin: 6mm 0 4mm;
+      flex-wrap: wrap;
+    }
+
+    .flow-step {
+      flex: 1 1 24mm;
+      min-width: 24mm;
+      background: #e8f2fc;
+      border: 1px solid #c5daf3;
+      border-radius: 4px;
+      padding: 3mm;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: #0b4f8a;
+    }
+
+    .flow-arrow {
+      align-self: center;
+      color: #1976d2;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6mm;
+    }
+
+    .badge-ok { color: #2e7d32; font-weight: 700; }
+    .badge-warn { color: #ef6c00; font-weight: 700; }
+    .badge-todo { color: #757575; font-weight: 700; }
+
+    .summary-list {
+      list-style: none;
+      padding: 0;
+    }
+
+    .summary-list li {
+      padding-left: 8mm;
+      position: relative;
+      margin-bottom: 3mm;
+      font-size: 15px;
+    }
+
+    .summary-list li::before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      color: #2e7d32;
+      font-weight: 700;
+    }
+
+    .summary-list li.pending::before {
+      content: "↻";
+      color: #ef6c00;
+    }
+
+    .formula {
+      text-align: center;
+      font-size: 16px;
+      font-weight: 600;
+      padding: 5mm;
+      margin: 4mm 0;
+      background: #f3f8fd;
+      border-radius: 6px;
+      color: #0b4f8a;
+    }
+
+    .qa-slide td:first-child {
+      width: 38%;
+      font-weight: 600;
+    }
+
+    .appendix {
+      background: #f8fbff;
+    }
+
+    .appendix h2 {
+      font-size: 22px;
+    }
+
+    @media print {
+      body {
+        background: white;
+      }
+
+      .slide {
+        box-shadow: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<section class="slide title-slide">
+  <div class="brand">UniversalLIMS</div>
+  <h1>Лабораторна інформаційна система</h1>
+  <p class="subtitle">ДУ «Житомирський обласний ЦКПХ МОЗ України»</p>
+  <p class="subtitle"><em>Цифровізація шляху проби: від прийому до висновку</em></p>
+  <p class="meta">Презентує: [ваше ПІБ, посада]<br>Дата: [дата]</p>
+  <p class="note">Це не абстрактна ідея з ТЗ — це вже працюючий прототип, який можна показати на екрані.</p>
+  <div class="slide-number">1 / 15</div>
+</section>
+
+<section class="slide">
+  <div class="brand">Контекст</div>
+  <h2>З чого все почалося</h2>
+  <div class="two-col">
+    <div>
+      <h3>Завдання від керівництва (ТЗ)</h3>
+      <ul>
+        <li>навести лад у роботі з пробами та документами;</li>
+        <li>зменшити ручну роботу та помилки;</li>
+        <li>забезпечити простежуваність і контроль на рівні акредитації.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Проблема сьогодні (без LIMS)</h3>
+      <ul>
+        <li>дані розкидані між паперами, Word і Excel;</li>
+        <li>важко швидко знайти справу, клієнта або статус проби;</li>
+        <li>немає єдиної картини по філіях;</li>
+        <li>при перевірці складно довести, хто, коли і що змінив.</li>
+      </ul>
+    </div>
+  </div>
+  <p class="note">Ми реалізуємо те, що вже сформульовано в ТЗ — поетапно, з перевіркою результату на кожному кроці.</p>
+  <div class="slide-number">2 / 15</div>
+</section>
+
+<section class="slide">
+  <div class="brand">Основи</div>
+  <h2>Що таке LIMS</h2>
+  <p><strong>LIMS</strong> — Laboratory Information Management System<br><em>Система управління лабораторною інформацією</em></p>
+  <h3>Єдине робоче місце, де:</h3>
+  <ul>
+    <li>реєстратор приймає пробу;</li>
+    <li>лаборант вносить результати;</li>
+    <li>експерт затверджує висновок;</li>
+    <li>керівництво бачить статуси і навантаження.</li>
+  </ul>
+  <p class="note"><strong>Аналогія:</strong> як МІС веде картку пацієнта від реєстрації до виписки — LIMS веде <strong>картку проби</strong> від прийому до офіційного документа.</p>
+  <div class="slide-number">3 / 15</div>
+</section>
+
+<section class="slide">
+  <div class="brand">Процес</div>
+  <h2>Шлях проби в системі</h2>
+  <div class="flow">
+    <div class="flow-step">Клієнт<br>звертається</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">Реєстратор<br>приймає пробу</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">Заповнення<br>направлення PDF</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">Відправка<br>в лабораторію</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">Лаборант<br>вносить результати</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">Експерт<br>затверджує</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">Готовий<br>документ</div>
+  </div>
+  <p><strong>Ключова ідея:</strong> одна проба — один цифровий ланцюжок. Кожен етап видимий, кожна дія — з іменем відповідального.</p>
+  <p class="note">Керівнику не потрібно дзвонити в три кабінети — статус видно в системі.</p>
+  <div class="slide-number">4 / 15</div>
+</section>
+
+<section class="slide">
+  <div class="brand">Ролі</div>
+  <h2>Хто працює в системі</h2>
+  <table>
+    <thead>
+      <tr><th>Роль</th><th>Що робить</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>Реєстратор</strong></td><td>Створює замовлення, реєструє проби, заповнює направлення, відправляє в лабораторію</td></tr>
+      <tr><td><strong>Лаборант</strong></td><td>Бачить журнал проб філії, вносить результати у PDF-бланки</td></tr>
+      <tr><td><strong>Експерт</strong></td><td>Перевіряє готові справи, затверджує або повертає на доопрацювання</td></tr>
+      <tr><td><strong>Адміністратор</strong></td><td>Шаблони документів, огляд філій, налаштування, контроль</td></tr>
+    </tbody>
+  </table>
+  <p class="note">Один співробітник може мати кілька ролей — система дозволяє перемикатися між ними.</p>
+  <div class="slide-number">5 / 15</div>
+</section>
+
+<section class="slide">
+  <div class="brand">Стан проєкту</div>
+  <h2>Що вже зроблено — не план, а факт</h2>
+  <table>
+    <thead>
+      <tr><th>Модуль</th><th>Статус</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Фундамент: користувачі, ролі, філії, аудит</td><td class="badge-ok">✅ Готово</td></tr>
+      <tr><td>Конструктор шаблонів (PDF + накладення полів)</td><td class="badge-ok">✅ Готово</td></tr>
+      <tr><td>Реєстратура: клієнти, замовлення, проби</td><td class="badge-ok">✅ Готово</td></tr>
+      <tr><td>Multi-sample: кілька проб у одному замовленні</td><td class="badge-ok">✅ Готово</td></tr>
+      <tr><td>PDF Workspace: заповнення бланків на екрані</td><td class="badge-ok">✅ Готово</td></tr>
+      <tr><td>Лабораторний журнал + внесення результатів</td><td class="badge-ok">✅ Базовий цикл</td></tr>
+      <tr><td>Огляд лабораторій / філій</td><td class="badge-ok">✅ Готово</td></tr>
+      <tr><td>Експерт: черга та затвердження (MVP)</td><td class="badge-ok">✅ Готово</td></tr>
+      <tr><td>Автоматизовані тести критичних сценаріїв</td><td class="badge-ok">✅ Є</td></tr>
+    </tbody>
+  </table>
+  <p class="note">Наступний крок — не «почати», а <strong>відточити і впровадити</strong>.</p>
+  <div class="slide-number">6 / 15</div>
+</section>
+
+<section class="slide">
+  <div class="brand">Демо</div>
+  <h2>Живий показ системи (5 хвилин)</h2>
+  <ol>
+    <li><strong>Портал</strong> — вхід, вибір ролі «Реєстратор».</li>
+    <li><strong>Нова проба</strong> — замовлення з 1–2 дослідженнями, клієнт.</li>
+    <li><strong>PDF Workspace</strong> — заповнення направлення на екрані.</li>
+    <li><strong>Реєстр</strong> — справа з’явилась, видно статус.</li>
+    <li><strong>Лаборант</strong> — журнал проб, PDF для результатів.</li>
+    <li><strong>Експерт</strong> — черга на затвердження.</li>
+  </ol>
+  <p class="note">Підготуйте тестових користувачів і одну готову «історію» проби на випадок, якщо live-create займе час.</p>
+  <div class="slide-number">7 / 15</div>
+</section>
+
+<section class="slide">
+  <div class="brand">Цінність</div>
+  <h2>Чому це цікаво керівництву</h2>
+  <div class="two-col">
+    <div>
+      <h3>1. Контроль і прозорість</h3>
+      <ul>
+        <li>видно проби «очікує відправки», «в роботі», «на експертизі»;</li>
+        <li>порівняння навантаження між філіями.</li>
+      </ul>
+      <h3>2. Менше помилок</h3>
+      <ul>
+        <li>дані клієнта підтягуються автоматично;</li>
+        <li>автоматична нумерація без дублікатів.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>3. Підготовка до ISO/IEC 17025</h3>
+      <ul>
+        <li>журнал аудиту: хто, коли, що змінив;</li>
+        <li>анулювання з причиною замість «стирання»;</li>
+        <li>версії шаблонів документів зберігаються.</li>
+      </ul>
+      <h3>4. Масштабованість</h3>
+      <ul>
+        <li>кілька філій і типів досліджень;</li>
+        <li>новий бланк = новий шаблон, без переписування системи.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="slide-number">8 / 15</div>
+</section>
+
+<section class="slide">
+  <div class="brand">Принцип роботи</div>
+  <h2>Як це працює (без технічного жаргону)</h2>
+  <p>Офіційний PDF-бланк залишається незмінним, а дані накладаються поверх нього в потрібних місцях.</p>
+  <div class="formula">[Офіційний PDF-бланк] + [Дані з системи] = [Готовий документ]</div>
+  <ul>
+    <li>співробітники бачать <strong>звичний бланк</strong>, а не «чужу форму»;</li>
+    <li>при зміні нормативного документа достатньо оновити шаблон;</li>
+    <li>дані клієнта автоматично потрапляють у всі потрібні поля.</li>
+  </ul>
+  <p class="note">Технічна база (якщо запитають): .NET 8, веб-інтерфейс, SQL Server.</p>
+  <div class="slide-number">9 / 15</div>
+</section>
+
+<section class="slide">
+  <div class="brand">План</div>
+  <h2>Дорожня карта</h2>
+  <table>
+    <thead>
+      <tr><th>Етап</th><th>Зміст</th><th>Статус</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>0</td><td>Фундамент + конструктор шаблонів</td><td class="badge-ok">✅ Завершено</td></tr>
+      <tr><td>1</td><td>Реєстратура, клієнти, проби</td><td class="badge-ok">✅ Завершено</td></tr>
+      <tr><td>2</td><td>Лабораторний цикл</td><td class="badge-warn">🟡 Відточення</td></tr>
+      <tr><td>3</td><td>Експертиза та затвердження</td><td class="badge-warn">🟡 MVP, стабілізація</td></tr>
+      <tr><td>4</td><td>Генерація протоколів, друк, архів</td><td class="badge-todo">⬜ Наступний етап</td></tr>
+      <tr><td>5</td><td>Звіти, ISO-модулі, адміністрування</td><td class="badge-todo">⬜ Планується</td></tr>
+    </tbody>
+  </table>
+  <p><strong>Потрібно:</strong> час на зворотний зв’язок, пілот на одній філії, рішення керівництва про пріоритет проєкту.</p>
+  <div class="slide-number">10 / 15</div>
+</section>
+
+<section class="slide">
+  <div class="brand">Ефект</div>
+  <h2>До і після впровадження</h2>
+  <table>
+    <thead>
+      <tr><th>Сьогодні (без LIMS)</th><th>З UniversalLIMS</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Пошук справи — хвилини/години</td><td>Секунди через реєстр</td></tr>
+      <tr><td>«Хто правив бланк?» — невідомо</td><td>Повний аудит з іменем і датою</td></tr>
+      <tr><td>Ризик дублювання номерів</td><td>Автоматична нумерація</td></tr>
+      <tr><td>Кожен бланк окремо</td><td>Дані підтягуються автоматично</td></tr>
+      <tr><td>Немає картини по філіях</td><td>Огляд лабораторій і статусів</td></tr>
+      <tr><td>Складно готуватися до перевірки</td><td>Простежуваність за ISO 17025</td></tr>
+    </tbody>
+  </table>
+  <div class="slide-number">11 / 15</div>
+</section>
+
+<section class="slide">
+  <div class="brand">Ризики</div>
+  <h2>Якщо не продовжувати</h2>
+  <ul>
+    <li>ТЗ залишиться на папері, ручна робота зростатиме.</li>
+    <li>Відставання у швидкості обслуговування порівняно з іншими ЦКПХ.</li>
+    <li>При акредитаційній перевірці складніше показати контроль версій і audit trail.</li>
+    <li>Накопичений досвід розробки буде складніше відновити «з нуля».</li>
+  </ul>
+  <p class="note">Найскладніший етап уже пройдено — архітектура і робочий цикл готові. Зупинити зараз — означає втратити momentum.</p>
+  <div class="slide-number">12 / 15</div>
+</section>
+
+<section class="slide">
+  <div class="brand">Прохання</div>
+  <h2>Що прошу від керівництва</h2>
+  <ol>
+    <li><strong>Підтримку проєкту</strong> як пріоритету цифровізації установи.</li>
+    <li><strong>Контактну особу</strong> від кожної ролі для пілотного тестування.</li>
+    <li><strong>Пілот 2–4 тижні</strong> на одній філії або одному напрямку досліджень.</li>
+    <li><strong>Зворотний зв’язок</strong> після демо — що критично, що може почекати.</li>
+    <li><strong>Рішення про наступний етап</strong> — стабілізація + робоче середовище.</li>
+  </ol>
+  <p class="note">Не прошу зараз великих бюджетів — система на відкритих технологіях (.NET, SQL Server).</p>
+  <div class="slide-number">13 / 15</div>
+</section>
+
+<section class="slide">
+  <div class="brand">Підсумок</div>
+  <h2>UniversalLIMS — це</h2>
+  <ul class="summary-list">
+    <li>відповідь на ТЗ від керівництва;</li>
+    <li>працюючий прототип, а не презентація «на майбутнє»;</li>
+    <li>повний цикл проби: реєстрація → лабораторія → експертиза;</li>
+    <li>архітектура під ISO 17025 і кілька філій;</li>
+    <li class="pending">готовий до пілотного впровадження після рішення керівництва.</li>
+  </ul>
+  <p class="note"><strong>Наступний крок:</strong> пілот + зворотний зв’язок → відточення → робоче середовище.</p>
+  <div class="slide-number">14 / 15</div>
+</section>
+
+<section class="slide title-slide">
+  <div class="brand">UniversalLIMS</div>
+  <h1>Питання?</h1>
+  <p class="subtitle">Дякую за увагу</p>
+  <p class="meta">Контакт: [ваш email / телефон]</p>
+  <div class="slide-number">15 / 15</div>
+</section>
+
+<section class="slide appendix">
+  <div class="brand">Додаток</div>
+  <h2>Можливі пути і відповіді</h2>
+  <table class="qa-slide">
+    <tbody>
+      <tr><td>Скільки це коштує?</td><td>Основні витрати — сервер і час співробітників на тестування.</td></tr>
+      <tr><td>Коли можна використовувати?</td><td>Пілот — уже зараз; робоче впровадження — після 1–2 циклів зворотного зв’язку.</td></tr>
+      <tr><td>Чи замінить папери одразу?</td><td>Ні, впровадження поетапне: спочатку паралельно з папером.</td></tr>
+      <tr><td>Якщо зміниться бланк МОЗ?</td><td>Оновлюється шаблон; старі версії зберігаються для архіву.</td></tr>
+      <tr><td>Чи безпечні дані?</td><td>Доступ по ролях, аудит дій, дані на сервері установи.</td></tr>
+    </tbody>
+  </table>
+  <div class="slide-number">Додаток</div>
+</section>
+
+</body>
+</html>
