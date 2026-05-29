@@ -1,4 +1,5 @@
 using Syncfusion.Licensing;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using UniversalLIMS.Application.Abstractions;
@@ -54,6 +55,19 @@ namespace UniversalLIMS
 
             builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
+            if (builder.Environment.IsDevelopment())
+            {
+                // Ключі шифрування cookie за замовчуванням лише в пам'яті — після dotnet watch / F5
+                // усі сесії стають недійсними. Зберігаємо їх локально між перезапусками.
+                var dataProtectionKeysPath = Path.Combine(
+                    builder.Environment.ContentRootPath,
+                    "DataProtection-Keys");
+                Directory.CreateDirectory(dataProtectionKeysPath);
+                builder.Services.AddDataProtection()
+                    .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysPath))
+                    .SetApplicationName("UniversalLIMS");
+            }
+
             builder.Services.AddOptions<LimsPortalOptions>()
                 .Bind(builder.Configuration.GetSection(LimsPortalOptions.SectionName));
 
@@ -73,7 +87,7 @@ namespace UniversalLIMS
                 .AddRoles<IdentityRole>()
                 .AddEntityFrameworkStores<ApplicationDbContext>();
             builder.Services.AddTransient<IEmailSender, IdentityEmailSender>();
-            LimsIdentityCookieConfigurator.ConfigureLimsIdentityCookies(builder.Services);
+            LimsIdentityCookieConfigurator.ConfigureLimsIdentityCookies(builder.Services, builder.Environment);
             builder.Services.AddHttpContextAccessor();
             builder.Services.AddDistributedMemoryCache();
             builder.Services.AddSession(options =>

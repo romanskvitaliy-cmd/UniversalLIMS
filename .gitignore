@@ -1,4 +1,5 @@
 # Технічні папки Cursor та збірки
+DataProtection-Keys/
 .build-check/
 .tmp-license-check/
 .config/

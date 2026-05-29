@@ -164,4 +164,14 @@ public sealed class CreatePdfTemplateFieldViewModel
     [StringLength(200)]
     [Display(Name = "Title")]
     public string? Title { get; set; }
+
+    /// <summary>Сторінка PDF для початкового розміщення тега (разом із PositionX/PositionY).</summary>
+    [Range(1, 999)]
+    public int? PageNumber { get; set; }
+
+    [Range(0, 100000)]
+    public decimal? PositionX { get; set; }
+
+    [Range(0, 100000)]
+    public decimal? PositionY { get; set; }
 }

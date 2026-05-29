@@ -181,6 +181,9 @@ public sealed class TemplateFieldsController : Controller
                 model.TemplateVersionId,
                 model.Tag,
                 model.Title,
+                model.PageNumber,
+                model.PositionX,
+                model.PositionY,
                 cancellationToken);
             var successMessage = $"Поле '{model.Tag}' успішно додано.";
 

@@ -674,6 +674,9 @@ public sealed class TemplateFieldMappingService : ITemplateFieldMappingService
         Guid templateVersionId,
         string tag,
         string? title,
+        int? pageNumber = null,
+        decimal? positionX = null,
+        decimal? positionY = null,
         CancellationToken cancellationToken = default)
     {
         var trimmedTag = tag.Trim();
@@ -716,6 +719,15 @@ public sealed class TemplateFieldMappingService : ITemplateFieldMappingService
                     .IgnoreQueryFilters()
                     .CountAsync(f => f.TemplateVersionId == templateVersionId && !f.IsAnnulled, cancellationToken);
 
+                var useViewportPlacement = pageNumber is > 0 && positionX is >= 0 && positionY is >= 0;
+                var segmentPage = useViewportPlacement ? pageNumber!.Value : 1;
+                var segmentX = useViewportPlacement
+                    ? positionX!.Value
+                    : 24 + (existingCount % 3) * 240m;
+                var segmentY = useViewportPlacement
+                    ? positionY!.Value
+                    : 24 + (existingCount / 3) * 42m;
+
                 var field = new TemplateField
                 {
                     TemplateVersionId = templateVersionId,
@@ -734,9 +746,9 @@ public sealed class TemplateFieldMappingService : ITemplateFieldMappingService
                         new TemplateFieldSegment
                         {
                             Sequence = 1,
-                            PageNumber = 1,
-                            PositionX = 24 + (existingCount % 3) * 240m,
-                            PositionY = 24 + (existingCount / 3) * 42m,
+                            PageNumber = segmentPage,
+                            PositionX = segmentX,
+                            PositionY = segmentY,
                             Width = 220,
                             Height = 28,
                             IsPrimary = true,

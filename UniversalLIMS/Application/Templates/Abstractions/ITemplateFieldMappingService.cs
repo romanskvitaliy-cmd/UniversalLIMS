@@ -64,6 +64,9 @@ public interface ITemplateFieldMappingService
         Guid templateVersionId,
         string tag,
         string? title,
+        int? pageNumber = null,
+        decimal? positionX = null,
+        decimal? positionY = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>

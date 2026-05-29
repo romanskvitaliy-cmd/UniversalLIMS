@@ -318,6 +318,31 @@
         box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.45);
     }
 
+    body.template-map-unsaved .pdf-overlay-card {
+        box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.42);
+    }
+
+    .nudge-save-reminder-switch .form-check-label {
+        line-height: 1.3;
+    }
+
+    #unsavedDesignerModal.pdf-fill-library-modal {
+        z-index: 10080;
+    }
+
+    #unsavedDesignerModal .pdf-fill-library-modal__dialog {
+        width: min(22rem, calc(100% - 1.5rem));
+    }
+
+    #unsavedDesignerModalSummary {
+        white-space: pre-line;
+        color: #334155;
+    }
+
+    body.designer-unsaved-modal-open {
+        overflow: hidden;
+    }
+
     @@keyframes nudge-save-pulse {
         0%, 100% { filter: brightness(1); }
         50% { filter: brightness(1.08); }
@@ -2641,7 +2666,9 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                     <input id="nudgeDraftTitle" type="text" class="form-control form-control-sm nudge-tag-title-edit"
                            placeholder="Назва поля на бланку…" autocomplete="off" />
                 </div>
-                <button type="button" id="nudgeSubmitNewTag" class="btn btn-sm btn-primary w-100" disabled>Додати на шаблон</button>
+                        <button type="button" id="nudgeSubmitNewTag" class="btn btn-sm btn-primary w-100" disabled>
+                            ➕ Додати обраний тег
+                        </button>
             }
             else
             {
@@ -2722,6 +2749,15 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
     <div class="mb-2 mt-1">
         <button type="button" id="nudgeAddSegmentLine" class="btn btn-sm btn-outline-primary w-100" disabled>+ Рядок</button>
     </div>
+    @if (Model.IsEditable)
+    {
+        <div class="form-check form-switch mb-2 nudge-save-reminder-switch">
+            <input class="form-check-input" type="checkbox" id="nudgeRemindSaveBeforeLeave" checked />
+            <label class="form-check-label small" for="nudgeRemindSaveBeforeLeave">
+                Нагадувати зберегти в БД перед виходом
+            </label>
+        </div>
+    }
     <div id="nudgeSaveHint" class="small text-muted mt-1 nudge-save-hint"></div>
     </div>
     <div id="calibrationPanel" class="cal-panel" style="display: none;">
@@ -2901,6 +2937,25 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
     </div>
 </div>
 <div id="nudgeHoverCard" class="nudge-hover-card"></div>
+<div id="unsavedDesignerModal" class="pdf-fill-library-modal" hidden>
+    <div id="unsavedDesignerModalBackdrop" class="pdf-fill-library-modal__backdrop" tabindex="-1"></div>
+    <div class="pdf-fill-library-modal__dialog" role="alertdialog" aria-modal="true" aria-labelledby="unsavedDesignerModalTitle">
+        <h2 id="unsavedDesignerModalTitle" class="pdf-fill-library-modal__title h6 mb-2">Незбережені зміни</h2>
+        <p id="unsavedDesignerModalContext" class="small text-muted mb-2"></p>
+        <p id="unsavedDesignerModalSummary" class="small mb-3"></p>
+        <div class="d-flex flex-column gap-2">
+            <button type="button" id="unsavedDesignerModalSave" class="btn btn-sm btn-primary">
+                Зберегти в БД
+            </button>
+            <button type="button" id="unsavedDesignerModalDiscard" class="btn btn-sm btn-outline-warning">
+                Вийти без збереження
+            </button>
+            <button type="button" id="unsavedDesignerModalCancel" class="btn btn-sm btn-outline-secondary">
+                Скасувати
+            </button>
+        </div>
+    </div>
+</div>
 <div id="nudgeTagLibraryModal" class="pdf-fill-library-modal pdf-fill-library-modal--designer-scroll" hidden>
     <div id="nudgeTagLibraryModalBackdrop" class="pdf-fill-library-modal__backdrop" tabindex="-1"></div>
     <div class="pdf-fill-library-modal__dialog" role="dialog" aria-modal="false" aria-labelledby="nudgeTagLibraryModalTitle">
@@ -3007,6 +3062,14 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                 const fieldMapForm = document.getElementById("fieldMapForm");
                 const nudgePersistToDbBtn = document.getElementById("nudgePersistToDb");
                 const nudgeSaveHint = document.getElementById("nudgeSaveHint");
+                const nudgeRemindSaveBeforeLeaveToggle = document.getElementById("nudgeRemindSaveBeforeLeave");
+                const unsavedDesignerModal = document.getElementById("unsavedDesignerModal");
+                const unsavedDesignerModalBackdrop = document.getElementById("unsavedDesignerModalBackdrop");
+                const unsavedDesignerModalContext = document.getElementById("unsavedDesignerModalContext");
+                const unsavedDesignerModalSummary = document.getElementById("unsavedDesignerModalSummary");
+                const unsavedDesignerModalSaveBtn = document.getElementById("unsavedDesignerModalSave");
+                const unsavedDesignerModalDiscardBtn = document.getElementById("unsavedDesignerModalDiscard");
+                const unsavedDesignerModalCancelBtn = document.getElementById("unsavedDesignerModalCancel");
                 const nudgeAddSegmentLineButton = document.getElementById("nudgeAddSegmentLine");
                 const segmentFontSizeInput = document.getElementById("segmentFontSize");
                 const calibrationPanel = document.getElementById("calibrationPanel");
@@ -3214,6 +3277,11 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         this.calibrationPanelSyncing = false;
                         this.calibrationDirty = false;
                         this.calibrationActiveTab = "text";
+                        this.newTagPlacementPage = null;
+                        this.newTagPlacementStagger = 0;
+                        this.remindSaveBeforeLeaveKey = "universal-lims.template-map.remind-save-before-leave";
+                        this.remindSaveBeforeLeave = true;
+                        this.unsavedModalResolver = null;
                     }
 
                     debugLog(...args) {
@@ -3231,6 +3299,132 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
 
                     getOutputScale() {
                         return Math.min(window.devicePixelRatio || 1, 3);
+                    }
+
+                    syncNewTagPlacementStaggerPage(page) {
+                        if (this.newTagPlacementPage !== page) {
+                            this.newTagPlacementPage = page;
+                            this.newTagPlacementStagger = 0;
+                        }
+                    }
+
+                    countFieldsNearPlacement(page, anchorX, anchorY, radiusX = 96, radiusY = 132) {
+                        let count = 0;
+                        this.fieldByIndex.forEach((field, overlayIndex) => {
+                            const box = this.boxesByIndex.get(overlayIndex);
+                            if (!box) {
+                                return;
+                            }
+
+                            const fieldPage = Number.parseInt(box.dataset.page || "1", 10);
+                            if (fieldPage !== page) {
+                                return;
+                            }
+
+                            const preview = this.getFieldInPreviewSpace(box, fieldPage);
+                            if (Math.abs(preview.x - anchorX) <= radiusX && Math.abs(preview.y - anchorY) <= radiusY) {
+                                count += 1;
+                            }
+                        });
+                        return count;
+                    }
+
+                    resolveNewTagPlacementStagger(page, anchorX, anchorY) {
+                        this.syncNewTagPlacementStaggerPage(page);
+                        const nearbyCount = this.countFieldsNearPlacement(page, anchorX, anchorY);
+                        return Math.max(this.newTagPlacementStagger, nearbyCount);
+                    }
+
+                    advanceNewTagPlacementStagger(page, usedIndex) {
+                        this.syncNewTagPlacementStaggerPage(page);
+                        this.newTagPlacementStagger = Math.max(this.newTagPlacementStagger, usedIndex + 1);
+                    }
+
+                    /** Позиція для нового тега: центр видимої області PDF (поточна прокрутка). */
+                    getVisibleDocumentAnchor(defaultWidth = 220, defaultHeight = 28) {
+                        const scrollRoot = document.getElementById("pdfOverlayDesignerRoot");
+                        if (!scrollRoot || this.pageLayers.size === 0) {
+                            return null;
+                        }
+
+                        const viewRect = scrollRoot.getBoundingClientRect();
+                        const centerClientX = viewRect.left + viewRect.width / 2;
+                        const centerClientY = viewRect.top + viewRect.height / 2;
+                        const coordScale = this.getCoordinateScale();
+
+                        let bestPage = null;
+                        let bestLayer = null;
+                        let bestScore = -1;
+
+                        for (const [pageNumber, layer] of this.pageLayers) {
+                            const layerRect = layer.getBoundingClientRect();
+                            const intersectLeft = Math.max(viewRect.left, layerRect.left);
+                            const intersectTop = Math.max(viewRect.top, layerRect.top);
+                            const intersectRight = Math.min(viewRect.right, layerRect.right);
+                            const intersectBottom = Math.min(viewRect.bottom, layerRect.bottom);
+                            const intersectW = Math.max(0, intersectRight - intersectLeft);
+                            const intersectH = Math.max(0, intersectBottom - intersectTop);
+                            const score = intersectW * intersectH;
+
+                            const containsCenter =
+                                centerClientX >= layerRect.left &&
+                                centerClientX <= layerRect.right &&
+                                centerClientY >= layerRect.top &&
+                                centerClientY <= layerRect.bottom;
+
+                            if (containsCenter) {
+                                bestPage = pageNumber;
+                                bestLayer = layer;
+                                break;
+                            }
+
+                            if (score > bestScore) {
+                                bestScore = score;
+                                bestPage = pageNumber;
+                                bestLayer = layer;
+                            }
+                        }
+
+                        if (!bestLayer || bestPage === null) {
+                            return null;
+                        }
+
+                        const layerRect = bestLayer.getBoundingClientRect();
+                        let left = centerClientX - layerRect.left - defaultWidth / 2;
+                        let top = centerClientY - layerRect.top - defaultHeight / 2;
+                        left = Math.max(0, Math.min(left, bestLayer.clientWidth - defaultWidth));
+                        top = Math.max(0, Math.min(top, bestLayer.clientHeight - defaultHeight));
+
+                        const baseX = Math.round(left / coordScale);
+                        const baseY = Math.round(top / coordScale);
+                        const maxX = Math.max(0, Math.round(bestLayer.clientWidth / coordScale) - defaultWidth);
+                        const maxY = Math.max(0, Math.round(bestLayer.clientHeight / coordScale) - defaultHeight);
+
+                        const staggerCols = 3;
+                        const staggerStepX = 28;
+                        const staggerStepY = 36;
+                        const stagger = this.resolveNewTagPlacementStagger(bestPage, baseX, baseY);
+                        const col = stagger % staggerCols;
+                        const row = Math.floor(stagger / staggerCols);
+
+                        let x = baseX + col * staggerStepX;
+                        let y = baseY + row * staggerStepY;
+
+                        if (x > maxX) {
+                            const wrapRow = row + 1;
+                            x = baseX + (stagger % staggerCols) * staggerStepX;
+                            y = baseY + wrapRow * staggerStepY;
+                        }
+
+                        x = Math.min(Math.max(0, x), maxX);
+                        y = Math.min(Math.max(0, y), maxY);
+
+                        return {
+                            page: bestPage,
+                            x,
+                            y,
+                            staggerIndex: stagger
+                        };
                     }
 
                     exportFieldsToBaseCoordinates() {
@@ -4723,6 +4917,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         });
                         this.bindSegmentTextSettingsEvents();
                         this.bindCalibrationEvents();
+                        this.bindLeaveGuards();
                         document.getElementById("nudgeConfirm")?.addEventListener("click", () => this.commitActiveSnapshot());
                         document.getElementById("nudgeCancel")?.addEventListener("click", () => this.rollbackActiveSnapshot());
                         document.getElementById("nudgeUndo")?.addEventListener("click", () => this.undoLastAction());
@@ -4732,9 +4927,12 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         document.getElementById("nudgeDelete")?.addEventListener("click", () => this.deleteActiveField());
                         nudgePersistToDbBtn?.addEventListener("click", async () => {
                             this.renderSaveHint("Відправляємо зміни в БД...");
-                            const saved = await this.persistSegmentsToApi();
-                            if (!saved) return;
-                            this.hasPendingDbSave = false;
+                            const saved = await this.persistAllPendingChanges();
+                            if (!saved) {
+                                return;
+                            }
+
+                            showOverlayToast("Зміни збережено в БД.");
                         });
                         fieldMapForm?.addEventListener("submit", async (event) => {
                             event.preventDefault();
@@ -4747,10 +4945,11 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                                         item.textOffsetY);
                                 });
                             }
-                            if (this.hasPendingDbSave) {
-                                const saved = await this.persistSegmentsToApi();
-                                if (!saved) return;
-                                this.hasPendingDbSave = false;
+                            if (this.hasUnsavedDesignerChanges()) {
+                                const saved = await this.persistAllPendingChanges({ silent: true });
+                                if (!saved) {
+                                    return;
+                                }
                             }
                             await this.persistFieldMapFormAsync();
                         });
@@ -6079,7 +6278,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                                 box.style.height = `${Math.max(12, this.normalizePixel(item.height, 12))}px`;
                                 this.syncBoxToInputs(box);
                             });
-                            this.hasPendingDbSave = false;
+                            this.hasPendingDbSave = true;
                             this.renderSaveHint();
                         } catch {
                             // ignore invalid persisted state
@@ -6097,21 +6296,312 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             this.updateSaveDbButtonHighlight();
                             return;
                         }
-                        if (this.hasPendingDbSave) {
+                        if (this.hasUnsavedDesignerChanges()) {
                             nudgeSaveHint.classList.remove("text-muted");
                             nudgeSaveHint.classList.add("text-warning");
-                            nudgeSaveHint.textContent = "Є локальні зміни. Для персисту в БД натисніть «💾 БД» або «Зберегти поля».";
+                            nudgeSaveHint.textContent = this.isSaveReminderEnabled()
+                                ? "Є незбережені зміни. Натисніть «💾 БД» або «Зберегти поля». Перед виходом з’явиться вікно з вибором."
+                                : "Є незбережені зміни. Натисніть «💾 БД» або «Зберегти поля». Нагадування перед виходом вимкнено (увімкніть перемикач нижче).";
                             this.updateSaveDbButtonHighlight();
+                            this.updateUnsavedIndicator();
                             return;
                         }
                         nudgeSaveHint.classList.remove("text-warning");
                         nudgeSaveHint.classList.add("text-muted");
-                        nudgeSaveHint.textContent = "Локальний draft синхронізовано.";
+                        nudgeSaveHint.textContent = "Зміни синхронізовано з БД.";
                         this.updateSaveDbButtonHighlight();
+                        this.updateUnsavedIndicator();
                     }
 
                     updateSaveDbButtonHighlight() {
-                        nudgePersistToDbBtn?.classList.toggle("nudge-save-pending", this.hasPendingDbSave === true);
+                        nudgePersistToDbBtn?.classList.toggle("nudge-save-pending", this.hasUnsavedDesignerChanges());
+                    }
+
+                    hasLayoutDraftInStorage() {
+                        try {
+                            const raw = window.localStorage.getItem(this.layoutStorageKey);
+                            if (!raw) {
+                                return false;
+                            }
+
+                            const state = JSON.parse(raw);
+                            return Array.isArray(state?.boxes) && state.boxes.length > 0;
+                        } catch {
+                            return false;
+                        }
+                    }
+
+                    hasUnsavedDesignerChanges() {
+                        return this.hasPendingDbSave
+                            || this.calibrationDirty
+                            || this.collectDeletedFieldIds().length > 0
+                            || this.hasLayoutDraftInStorage();
+                    }
+
+                    getUnsavedChangesSummary() {
+                        const parts = [];
+                        if (this.hasPendingDbSave || this.hasLayoutDraftInStorage()) {
+                            parts.push("позиції та розміри тегів на PDF");
+                        }
+
+                        if (this.collectDeletedFieldIds().length > 0) {
+                            parts.push("видалені теги");
+                        }
+
+                        if (this.calibrationDirty) {
+                            parts.push("калібрування тексту/шрифтів");
+                        }
+
+                        if (!parts.length) {
+                            return "Є незбережені зміни макету.";
+                        }
+
+                        return `Є незбережені зміни:\n• ${parts.join("\n• ")}`;
+                    }
+
+                    clearUnsavedDesignerState() {
+                        this.hasPendingDbSave = false;
+                        this.calibrationDirty = false;
+                        try {
+                            window.localStorage.removeItem(this.layoutStorageKey);
+                        } catch {
+                            // ignore storage issues
+                        }
+
+                        this.renderSaveHint();
+                        this.updateUnsavedIndicator();
+                    }
+
+                    updateUnsavedIndicator() {
+                        document.body.classList.toggle(
+                            "template-map-unsaved",
+                            this.hasUnsavedDesignerChanges());
+                    }
+
+                    async persistAllPendingChanges(options = {}) {
+                        const silent = options.silent === true;
+                        let saved = true;
+
+                        if (this.calibrationMode && this.calibrationDirty) {
+                            const calibrationSaved = await this.persistCalibrationToApi({ silent });
+                            saved = calibrationSaved && saved;
+                        }
+
+                        const hasSegmentWork = this.hasPendingDbSave
+                            || this.collectDeletedFieldIds().length > 0
+                            || this.hasLayoutDraftInStorage();
+
+                        if (hasSegmentWork) {
+                            const segmentsSaved = await this.persistSegmentsToApi({ silent });
+                            saved = segmentsSaved && saved;
+                        }
+
+                        if (saved) {
+                            this.clearUnsavedDesignerState();
+                        }
+
+                        return saved;
+                    }
+
+                    isSaveReminderEnabled() {
+                        if (nudgeRemindSaveBeforeLeaveToggle) {
+                            return nudgeRemindSaveBeforeLeaveToggle.checked;
+                        }
+
+                        return this.remindSaveBeforeLeave === true;
+                    }
+
+                    loadSaveReminderPreference() {
+                        try {
+                            const raw = window.localStorage.getItem(this.remindSaveBeforeLeaveKey);
+                            if (raw === null) {
+                                this.remindSaveBeforeLeave = true;
+                            } else {
+                                this.remindSaveBeforeLeave = raw === "1";
+                            }
+                        } catch {
+                            this.remindSaveBeforeLeave = true;
+                        }
+
+                        if (nudgeRemindSaveBeforeLeaveToggle) {
+                            nudgeRemindSaveBeforeLeaveToggle.checked = this.remindSaveBeforeLeave;
+                        }
+                    }
+
+                    saveSaveReminderPreference(enabled) {
+                        this.remindSaveBeforeLeave = enabled === true;
+                        try {
+                            window.localStorage.setItem(
+                                this.remindSaveBeforeLeaveKey,
+                                this.remindSaveBeforeLeave ? "1" : "0");
+                        } catch {
+                            // ignore storage issues
+                        }
+
+                        if (this.hasUnsavedDesignerChanges()) {
+                            this.renderSaveHint();
+                        }
+                    }
+
+                    closeUnsavedDesignerModal(choice) {
+                        if (unsavedDesignerModal) {
+                            unsavedDesignerModal.hidden = true;
+                        }
+
+                        document.body.classList.remove("designer-unsaved-modal-open");
+                        const resolver = this.unsavedModalResolver;
+                        this.unsavedModalResolver = null;
+                        if (typeof resolver === "function") {
+                            resolver(choice);
+                        }
+                    }
+
+                    promptUnsavedDesignerModal(actionLabel) {
+                        if (!unsavedDesignerModal) {
+                            const wantSave = window.confirm(
+                                `${this.getUnsavedChangesSummary()}\n\nПеред ${actionLabel} зберегти в БД?`);
+                            return Promise.resolve(wantSave ? "save" : "discard");
+                        }
+
+                        return new Promise((resolve) => {
+                            if (this.unsavedModalResolver) {
+                                this.closeUnsavedDesignerModal("cancel");
+                            }
+
+                            this.unsavedModalResolver = resolve;
+                            if (unsavedDesignerModalContext) {
+                                unsavedDesignerModalContext.textContent =
+                                    `Перед ${actionLabel} оберіть, що зробити з незбереженими змінами.`;
+                            }
+
+                            if (unsavedDesignerModalSummary) {
+                                unsavedDesignerModalSummary.textContent = this.getUnsavedChangesSummary();
+                            }
+
+                            unsavedDesignerModal.hidden = false;
+                            document.body.classList.add("designer-unsaved-modal-open");
+                            window.setTimeout(() => unsavedDesignerModalSaveBtn?.focus(), 0);
+                        });
+                    }
+
+                    async applyUnsavedDesignerChoice(choice, actionLabel) {
+                        if (choice === "cancel") {
+                            return false;
+                        }
+
+                        if (choice === "save") {
+                            this.renderSaveHint("Зберігаємо перед переходом…");
+                            const saved = await this.persistAllPendingChanges();
+                            if (!saved) {
+                                showOverlayToast(
+                                    "Не вдалося зберегти. Спробуйте «💾 БД» або «Зберегти поля».",
+                                    true);
+                                return false;
+                            }
+
+                            showOverlayToast("Зміни збережено в БД.");
+                            return true;
+                        }
+
+                        const hadSegmentWork = this.hasPendingDbSave
+                            || this.collectDeletedFieldIds().length > 0
+                            || this.hasLayoutDraftInStorage();
+                        this.clearUnsavedDesignerState();
+                        this.clearDeletedFieldIds();
+                        if (hadSegmentWork) {
+                            await this.reloadFromServer();
+                        }
+
+                        return true;
+                    }
+
+                    async guardUnsavedChanges(actionLabel) {
+                        if (!this.hasUnsavedDesignerChanges()) {
+                            return true;
+                        }
+
+                        if (!this.isSaveReminderEnabled()) {
+                            return true;
+                        }
+
+                        const choice = await this.promptUnsavedDesignerModal(actionLabel);
+                        return this.applyUnsavedDesignerChoice(choice, actionLabel);
+                    }
+
+                    bindUnsavedDesignerModal() {
+                        const onChoice = (choice) => () => this.closeUnsavedDesignerModal(choice);
+
+                        unsavedDesignerModalSaveBtn?.addEventListener("click", onChoice("save"));
+                        unsavedDesignerModalDiscardBtn?.addEventListener("click", onChoice("discard"));
+                        unsavedDesignerModalCancelBtn?.addEventListener("click", onChoice("cancel"));
+                        unsavedDesignerModalBackdrop?.addEventListener("click", onChoice("cancel"));
+
+                        document.addEventListener("keydown", (event) => {
+                            if (event.key !== "Escape" || unsavedDesignerModal?.hidden !== false) {
+                                return;
+                            }
+
+                            this.closeUnsavedDesignerModal("cancel");
+                        });
+                    }
+
+                    bindLeaveGuards() {
+                        this.loadSaveReminderPreference();
+
+                        nudgeRemindSaveBeforeLeaveToggle?.addEventListener("change", () => {
+                            this.saveSaveReminderPreference(nudgeRemindSaveBeforeLeaveToggle.checked);
+                        });
+
+                        this.bindUnsavedDesignerModal();
+
+                        window.addEventListener("beforeunload", (event) => {
+                            if (!this.hasUnsavedDesignerChanges() || !this.isSaveReminderEnabled()) {
+                                return;
+                            }
+
+                            event.preventDefault();
+                            event.returnValue = "";
+                        });
+
+                        document.addEventListener("click", (event) => {
+                            const link = event.target?.closest?.("a[href]");
+                            if (!link || link.target === "_blank" || link.hasAttribute("download")) {
+                                return;
+                            }
+
+                            const href = link.getAttribute("href");
+                            if (!href || href.startsWith("#") || href.startsWith("javascript:")) {
+                                return;
+                            }
+
+                            let targetUrl;
+                            try {
+                                targetUrl = new URL(link.href, window.location.href);
+                            } catch {
+                                return;
+                            }
+
+                            if (targetUrl.origin !== window.location.origin) {
+                                return;
+                            }
+
+                            if (targetUrl.pathname === window.location.pathname
+                                && targetUrl.search === window.location.search) {
+                                return;
+                            }
+
+                            if (!this.hasUnsavedDesignerChanges() || !this.isSaveReminderEnabled()) {
+                                return;
+                            }
+
+                            event.preventDefault();
+                            event.stopPropagation();
+                            void (async () => {
+                                if (await this.guardUnsavedChanges("переходом на іншу сторінку")) {
+                                    window.location.href = link.href;
+                                }
+                            })();
+                        }, true);
                     }
 
                     getActiveDataFieldSelect() {
@@ -7198,12 +7688,21 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         }
                     }
 
-                    toggleCalibrationMode() {
+                    async toggleCalibrationMode() {
                         if (this.calibrationMode) {
+                            if (!(await this.guardUnsavedChanges("виходом з калібрування"))) {
+                                return;
+                            }
+
                             this.disableCalibrationMode();
-                        } else {
-                            this.enableCalibrationMode();
+                            return;
                         }
+
+                        if (!(await this.guardUnsavedChanges("переходом у калібрування"))) {
+                            return;
+                        }
+
+                        this.enableCalibrationMode();
                     }
 
                     enableCalibrationMode() {
@@ -9077,7 +9576,9 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
 
                     bindCalibrationEvents() {
                         calibrationToggleButtons.forEach((buttonEl) => {
-                            buttonEl.addEventListener("click", () => this.toggleCalibrationMode());
+                            buttonEl.addEventListener("click", () => {
+                                void this.toggleCalibrationMode();
+                            });
                         });
 
                         calibrationPanel?.querySelectorAll("[data-cal-tab]").forEach((buttonEl) => {
@@ -9164,7 +9665,9 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             });
                         });
 
-                        const exitCalibration = () => this.disableCalibrationMode();
+                        const exitCalibration = () => {
+                            void this.toggleCalibrationMode();
+                        };
                         calExitCalibrationBtn?.addEventListener("click", exitCalibration);
                         calExitCalibrationFullBtn?.addEventListener("click", exitCalibration);
 
@@ -9635,6 +10138,14 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                         formData.set("Tag", tagKey);
                         formData.set("Title", title);
 
+                        const placementEngine = window.__fieldEngine;
+                        const placementAnchor = placementEngine?.getVisibleDocumentAnchor?.() ?? null;
+                        if (placementAnchor) {
+                            formData.set("PageNumber", String(placementAnchor.page));
+                            formData.set("PositionX", String(placementAnchor.x));
+                            formData.set("PositionY", String(placementAnchor.y));
+                        }
+
                         const prevPadLabel = nudgeSubmitNewTag?.textContent ?? ADD_PAD_TAG_LABEL;
                         const setBusy = (busy) => {
                             if (nudgeSubmitNewTag) {
@@ -9672,9 +10183,14 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                             const createdFieldId = data?.fieldId ?? data?.FieldId ?? null;
                             showOverlayToast(data?.message ?? "Поле додано.");
 
-                            const engine = window.__fieldEngine;
+                            const engine = placementEngine ?? window.__fieldEngine;
                             if (engine) {
                                 await engine.reloadFromServer();
+                                if (placementAnchor && typeof engine.advanceNewTagPlacementStagger === "function") {
+                                    engine.advanceNewTagPlacementStagger(
+                                        placementAnchor.page,
+                                        placementAnchor.staggerIndex ?? 0);
+                                }
                                 if (createdFieldId) {
                                     engine.editMode = "edit";
                                     engine.allEditable = false;
@@ -9684,7 +10200,7 @@ else if (Model.DocumentFormat == TemplateDocumentFormat.Pdf)
                                         engine.setActive(overlayIndex);
                                         engine.boxesByIndex.get(overlayIndex)?.scrollIntoView({
                                             behavior: "smooth",
-                                            block: "center"
+                                            block: "nearest"
                                         });
                                     }
                                 }
