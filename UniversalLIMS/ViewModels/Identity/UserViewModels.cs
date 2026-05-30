@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using UniversalLIMS.Application.Identity;
 using UniversalLIMS.Application.Registration;
+using UniversalLIMS.Domain.Organization;
 
 namespace UniversalLIMS.ViewModels.Identity;
 
@@ -20,6 +21,9 @@ public sealed class UserListFiltersViewModel
 
     [Display(Name = "Філія")]
     public Guid? BranchId { get; set; }
+
+    [Display(Name = "Тип філії")]
+    public BranchKind? BranchKind { get; set; }
 
     [Display(Name = "Роль")]
     public string? Role { get; set; }

@@ -86,7 +86,8 @@ public sealed class LaboratoryBranchContext : ILaboratoryBranchContext
             {
                 Id = branch.Id,
                 Code = branch.Code,
-                Name = branch.Name
+                Name = branch.Name,
+                Kind = branch.Kind
             })
             .ToListAsync(cancellationToken);
     }

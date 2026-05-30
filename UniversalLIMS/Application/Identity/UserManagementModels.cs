@@ -1,5 +1,7 @@
 namespace UniversalLIMS.Application.Identity;
 
+using UniversalLIMS.Domain.Organization;
+
 public sealed class UserListItemDto
 {
     public required string Id { get; init; }
@@ -15,6 +17,8 @@ public sealed class UserListItemDto
     public string? BranchCode { get; init; }
 
     public string? BranchName { get; init; }
+
+    public BranchKind? BranchKind { get; init; }
 
     public bool IsActive { get; init; }
 
@@ -103,6 +107,8 @@ public sealed class UserListQuery
     public string? Search { get; init; }
 
     public Guid? BranchId { get; init; }
+
+    public BranchKind? BranchKind { get; init; }
 
     public string? Role { get; init; }
 

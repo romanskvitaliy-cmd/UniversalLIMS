@@ -24,7 +24,7 @@
 3. **Направлення (цифрове)** — реєстратура **формує на бланку**, який адмін завантажив (`REF-*`). Це один із документів замовлення поруч із протоколами — **не окремий модуль**.
 4. **Мапінг полів** — вже реалізовано (`OrderFieldLinkGroup`, `MapOrderFields`). Якщо один замовник + направлення + 4 протоколи — **один крок мапінгу** на всі документи: об’єднати «ПІБ», «дата відбору» тощо між REF і протоколами, заповнити один раз. Принесене паперове — скан + перенос у той самий цифровий REF-бланк.
 5. **Лабораторія** — UX має повторити ланцюжок реєстратури: **сторінка проби** з таблицею документів і статусів; «Відправити експерту» — **не** в toolbar PDF (тимчасово там, перенести на сторінку проби).
-6. **Пріоритет розробки (актуальний):** ~~B1–B2, T1, C2, R1, D1, D6a, D2, D3~~ ✅ → **G5/G6**.
+6. **Пріоритет розробки (актуальний):** ~~B1–B2, T1, C2, R1, D1, D6a, D2, D3, G5/G6~~ ✅ → **C1 smoke**.
 7. **Терміни UI:** `Order.ReferralNumber` = **«Номер справи»**; слово **«Направлення»** — лише PDF-бланк REF-* (див. `glossary-registration-uk.md`).
 8. **REF на пілоті:** основний режим **Per Sample** (1 REF на пробу); Per Order — backlog (§7.0).
 
@@ -602,7 +602,7 @@ UniversalLIMS — пілот ЦКПХ (Житомир).
 Терміни: docs/glossary-registration-uk.md.
 
 Поточна фаза: 1.
-Наступні задачі (порядок): G5/G6 → C1 smoke.
+Наступні задачі (порядок): C1 smoke → D-контент-1.
 
 Ключові рішення (не перепитувати):
 - Протокол = PDF-шаблон (OrderDocument), Fill у PDF Workspace; не ResultEntry UI.
@@ -675,8 +675,9 @@ UniversalLIMS — пілот ЦКПХ (Житомир).
 | 5 | D1 | ✅ `TemplatePurpose` enum + migration + UI `/Templates` | Template |
 | 6 | D6a | ✅ REF select у рядку проби Create → 2 OrderDocument на Sample | Create VM, `OrderRegistrationService`, `order-create.js` |
 | 7 | D2–D3 | ✅ Друк REF / протоколів окремо (`purposeFilter`, Orders/Details) | `ReferralPdfGenerator`, `OrdersController` |
-| 8 | G5/G6 | Адмін hub lab+expert | `/Laboratories`, `/Users` |
-| 9 | D-контент-1 | Перший REF-бланк у Templates | admin + docs |
+| 8 | G5/G6 | ✅ Адмін hub lab+expert | `/Laboratories`, `/Users` |
+| 9 | C1 | End-to-end smoke QA (2 експерти + rework) | manual |
+| 10 | D-контент-1 | Перший REF-бланк у Templates | admin + docs |
 
 ### Технічні нотатки
 

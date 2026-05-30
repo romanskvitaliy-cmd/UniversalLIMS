@@ -40,6 +40,18 @@ public sealed class UserManagementService : IUserManagementService
             usersQuery = usersQuery.Where(user => user.BranchId == query.BranchId.Value);
         }
 
+        if (query.BranchKind.HasValue)
+        {
+            var branchKind = query.BranchKind.Value;
+            var branchIdsForKind = await _context.Branches
+                .AsNoTracking()
+                .Where(branch => branch.IsActive && !branch.IsAnnulled && branch.Kind == branchKind)
+                .Select(branch => branch.Id)
+                .ToListAsync(cancellationToken);
+
+            usersQuery = usersQuery.Where(user => user.BranchId.HasValue && branchIdsForKind.Contains(user.BranchId.Value));
+        }
+
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
             var search = query.Search.Trim();
@@ -65,7 +77,7 @@ public sealed class UserManagementService : IUserManagementService
 
         var branchLookup = await _context.Branches
             .AsNoTracking()
-            .Select(branch => new { branch.Id, branch.Code, branch.Name })
+            .Select(branch => new { branch.Id, branch.Code, branch.Name, branch.Kind })
             .ToDictionaryAsync(branch => branch.Id, cancellationToken);
 
         var roleLookup = await BuildUserRolesLookupAsync(cancellationToken);
@@ -87,6 +99,9 @@ public sealed class UserManagementService : IUserManagementService
                         : null,
                     BranchName = user.BranchId.HasValue && branchLookup.TryGetValue(user.BranchId.Value, out var branchInfo)
                         ? branchInfo.Name
+                        : null,
+                    BranchKind = user.BranchId.HasValue && branchLookup.TryGetValue(user.BranchId.Value, out var branchKindInfo)
+                        ? branchKindInfo.Kind
                         : null,
                     IsActive = user.IsActive,
                     Roles = roles,

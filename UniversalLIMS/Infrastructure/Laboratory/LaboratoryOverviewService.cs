@@ -32,7 +32,8 @@ public sealed class LaboratoryOverviewService : ILaboratoryOverviewService
                 branch.Id,
                 branch.Code,
                 branch.Name,
-                branch.City
+                branch.City,
+                branch.Kind
             })
             .ToListAsync(cancellationToken);
 
@@ -98,6 +99,7 @@ public sealed class LaboratoryOverviewService : ILaboratoryOverviewService
                     Code = branch.Code,
                     Name = branch.Name,
                     City = branch.City,
+                    Kind = branch.Kind,
                     ActiveSampleCount = branchSamples.Count,
                     InProgressSampleCount = branchSamples.Count(sample => sample.Status == SampleStatus.InProgress),
                     ResultsEnteredSampleCount = branchSamples.Count(sample => sample.Status == SampleStatus.ResultsEntered),

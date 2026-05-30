@@ -190,7 +190,8 @@ public sealed class OrderRegistrationService : IOrderRegistrationService
             {
                 Id = branch.Id,
                 Code = branch.Code,
-                Name = branch.Name
+                Name = branch.Name,
+                Kind = branch.Kind
             })
             .ToListAsync(cancellationToken);
 

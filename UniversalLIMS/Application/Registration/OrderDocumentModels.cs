@@ -1,3 +1,4 @@
+using UniversalLIMS.Domain.Organization;
 using UniversalLIMS.Domain.Registration;
 using UniversalLIMS.Domain.Templates;
 
@@ -39,6 +40,8 @@ public sealed class BranchOptionDto
     public required string Code { get; init; }
 
     public required string Name { get; init; }
+
+    public BranchKind Kind { get; init; }
 }
 
 public sealed class OrderDetailDto

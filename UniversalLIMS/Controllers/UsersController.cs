@@ -44,6 +44,7 @@ public sealed class UsersController : Controller
             {
                 Search = filters.Search,
                 BranchId = filters.BranchId,
+                BranchKind = filters.BranchKind,
                 Role = filters.Role,
                 IncludeInactive = filters.IncludeInactive
             },
@@ -229,7 +230,8 @@ public sealed class UsersController : Controller
             {
                 Id = branch.Id,
                 Code = branch.Code,
-                Name = branch.Name
+                Name = branch.Name,
+                Kind = branch.Kind
             })
             .ToListAsync(cancellationToken);
 

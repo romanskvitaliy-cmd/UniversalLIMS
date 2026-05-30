@@ -149,6 +149,7 @@ namespace UniversalLIMS
             builder.Services.AddScoped<IFieldTextLibraryService, FieldTextLibraryService>();
             builder.Services.AddScoped<ITemplateFieldPermissionService, TemplateFieldPermissionService>();
             builder.Services.AddScoped<IExpertReviewQueueService, ExpertReviewQueueService>();
+            builder.Services.AddScoped<IExpertOverviewService, ExpertOverviewService>();
             builder.Services.AddScoped<IExpertPdfFillService, ExpertPdfFillService>();
             builder.Services.AddScoped<IExpertConclusionService, ExpertConclusionService>();
             builder.Services.AddScoped<ISampleDeliveryService, SampleDeliveryService>();

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using UniversalLIMS.Application.Expert.Abstractions;
 using UniversalLIMS.Application.Laboratory.Abstractions;
 using UniversalLIMS.Application.Security;
 using UniversalLIMS.Infrastructure.Filters;
@@ -12,15 +13,18 @@ namespace UniversalLIMS.Controllers;
 public sealed class LaboratoriesController : Controller
 {
     private readonly ILaboratoryOverviewService _overview;
+    private readonly IExpertOverviewService _expertOverview;
     private readonly ILaboratoryBranchContext _laboratoryBranchContext;
     private readonly IActiveLimsRoleService _activeLimsRole;
 
     public LaboratoriesController(
         ILaboratoryOverviewService overview,
+        IExpertOverviewService expertOverview,
         ILaboratoryBranchContext laboratoryBranchContext,
         IActiveLimsRoleService activeLimsRole)
     {
         _overview = overview;
+        _expertOverview = expertOverview;
         _laboratoryBranchContext = laboratoryBranchContext;
         _activeLimsRole = activeLimsRole;
     }
@@ -35,10 +39,12 @@ public sealed class LaboratoriesController : Controller
         }
 
         var overview = await _overview.GetOverviewAsync(cancellationToken);
+        var expertOverview = await _expertOverview.GetOverviewAsync(cancellationToken);
 
         return View(new LaboratoryOverviewViewModel
         {
-            Overview = overview
+            Overview = overview,
+            ExpertOverview = expertOverview
         });
     }
 

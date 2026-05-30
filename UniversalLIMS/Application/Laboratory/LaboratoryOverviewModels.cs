@@ -1,3 +1,5 @@
+using UniversalLIMS.Domain.Organization;
+
 namespace UniversalLIMS.Application.Laboratory;
 
 /// <summary>Зведення по одній лабораторії для адміністратора.</summary>
@@ -10,6 +12,8 @@ public sealed class LaboratoryBranchOverviewDto
     public required string Name { get; init; }
 
     public required string City { get; init; }
+
+    public BranchKind Kind { get; init; }
 
     public int ActiveSampleCount { get; init; }
 

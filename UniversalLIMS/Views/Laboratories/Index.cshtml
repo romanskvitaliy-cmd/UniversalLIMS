@@ -1,8 +1,10 @@
 @model LaboratoryOverviewViewModel
+@using UniversalLIMS.Application.Organization
 @{
     Layout = "_LayoutWorkspace";
     ViewData["Title"] = "Лабораторії";
     var overview = Model.Overview;
+    var expertOverview = Model.ExpertOverview;
 }
 
 <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
@@ -77,6 +79,83 @@ else
     </div>
 </div>
 
+<h2 class="h5 mb-3">Експертиза</h2>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card h-100 border-warning-subtle">
+            <div class="card-body">
+                <div class="text-muted small mb-1">Черга експерта (усі філії)</div>
+                <div class="display-6 fw-semibold mb-2">@expertOverview.TotalQueueSampleCount</div>
+                <p class="small text-muted mb-3">
+                    проб готові до розгляду
+                    <span class="d-block mt-1">Усі відправлені документи мають «Результати внесено»; без затвердження та rework.</span>
+                </p>
+                <div class="d-flex flex-wrap gap-2 small mb-3">
+                    <span class="badge text-bg-light border">В роботі: @expertOverview.TotalInProgressSampleCount</span>
+                </div>
+                <a class="btn btn-outline-warning btn-sm w-100" asp-controller="Expert" asp-action="Index">
+                    Відкрити чергу експерта
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-8">
+        @if (!expertOverview.Branches.Any())
+        {
+            <div class="alert alert-secondary mb-0 h-100 d-flex align-items-center">
+                Немає активних експертних філій (тип «Експертиза» або «Lab + Expert»). Додайте у «Філії».
+            </div>
+        }
+        else
+        {
+            <div class="row g-3">
+                @foreach (var branch in expertOverview.Branches)
+                {
+                    <div class="col-md-6">
+                        <div class="card h-100">
+                            <div class="card-body d-flex flex-column">
+                                <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                                    <div>
+                                        <div class="fw-semibold">@branch.Name</div>
+                                        <div class="small text-muted">@branch.Code · @branch.City</div>
+                                    </div>
+                                    <span class="lims-branch-kind @BranchKindCatalog.GetBadgeClass(branch.Kind)">
+                                        @BranchKindCatalog.GetDisplayNameUk(branch.Kind)
+                                    </span>
+                                </div>
+                                <div class="row g-2 small mb-3">
+                                    <div class="col-6">
+                                        <div class="text-muted">У черзі</div>
+                                        <div class="fw-semibold fs-5">@branch.QueueSampleCount</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="text-muted">В роботі</div>
+                                        <div class="fw-semibold fs-5">@branch.InProgressSampleCount</div>
+                                    </div>
+                                </div>
+                                <div class="d-flex flex-wrap gap-2 mt-auto">
+                                    <a class="btn btn-outline-warning btn-sm"
+                                       asp-controller="Expert"
+                                       asp-action="Index">
+                                        Черга
+                                    </a>
+                                    <a class="btn btn-outline-secondary btn-sm"
+                                       asp-controller="Users"
+                                       asp-action="Index"
+                                       asp-route-branchId="@branch.BranchId">
+                                        Користувачі
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
 <h2 class="h5 mb-3">Філії (@overview.Branches.Count)</h2>
 
 @if (!overview.Branches.Any())
@@ -97,10 +176,15 @@ else
                                 <div class="fw-semibold">@branch.Name</div>
                                 <div class="small text-muted">@branch.Code · @branch.City</div>
                             </div>
-                            @if (isActive)
-                            {
-                                <span class="badge text-bg-primary">Поточний контекст</span>
-                            }
+                            <div class="d-flex flex-column align-items-end gap-1">
+                                @if (isActive)
+                                {
+                                    <span class="badge text-bg-primary">Поточний контекст</span>
+                                }
+                                <span class="lims-branch-kind @BranchKindCatalog.GetBadgeClass(branch.Kind)">
+                                    @BranchKindCatalog.GetDisplayNameUk(branch.Kind)
+                                </span>
+                            </div>
                         </div>
 
                         <div class="row g-2 small mb-3">
@@ -126,13 +210,19 @@ else
                             }
                         </div>
 
-                        <form asp-action="EnterJournal" method="post" class="mt-auto">
+                        <form asp-action="EnterJournal" method="post" class="mt-auto mb-2">
                             @Html.AntiForgeryToken()
                             <input type="hidden" name="branchId" value="@branch.BranchId" />
                             <button type="submit" class="btn btn-outline-primary btn-sm w-100">
                                 Відкрити журнал цієї лабораторії
                             </button>
                         </form>
+                        <a class="btn btn-outline-secondary btn-sm w-100"
+                           asp-controller="Users"
+                           asp-action="Index"
+                           asp-route-branchId="@branch.BranchId">
+                            Користувачі філії
+                        </a>
                     </div>
                 </div>
             </div>
