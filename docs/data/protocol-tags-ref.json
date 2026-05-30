@@ -1,0 +1,47 @@
+{
+  "protocolCode": "REF-MOZ-001",
+  "protocolNameUk": "Направлення на лабораторне дослідження (пілот МОЗ)",
+  "tagPrefix": "REF_",
+  "groups": [
+    {
+      "name": "SSOT — автозаповнення зі справи (не дублювати в MapOrderFields)",
+      "tags": [
+        { "key": "Order.ReferralNumber", "titleUk": "Номер справи (REF-…)" },
+        { "key": "Customer.FullName", "titleUk": "ПІБ / найменування замовника" },
+        { "key": "Customer.Address", "titleUk": "Адреса замовника" },
+        { "key": "Customer.ContactPhone", "titleUk": "Телефон замовника" },
+        { "key": "Customer.OrganizationName", "titleUk": "Організація замовника" },
+        { "key": "Sample.Number", "titleUk": "Номер проби (LIMS)" },
+        { "key": "Sample.RegisteredAt", "titleUk": "Дата реєстрації проби" },
+        { "key": "Branch.Name", "titleUk": "Назва філії / лабораторії" },
+        { "key": "Branch.Code", "titleUk": "Код філії" }
+      ]
+    },
+    {
+      "name": "Направлення — поля для мапінгу з протоколами",
+      "tags": [
+        { "key": "REF_IssueDate", "titleUk": "Дата оформлення направлення" },
+        { "key": "REF_SampleName", "titleUk": "Найменування зразка / матеріалу" },
+        { "key": "REF_SamplingLocation", "titleUk": "Місце відбору" },
+        { "key": "REF_SamplingDate", "titleUk": "Дата відбору" },
+        { "key": "REF_SamplingTime", "titleUk": "Час відбору" },
+        { "key": "REF_InvestigationPurpose", "titleUk": "Мета дослідження" },
+        { "key": "REF_Indicators", "titleUk": "Показники для дослідження" },
+        { "key": "REF_LaboratoryDestination", "titleUk": "Лабораторія (підрозділ)" },
+        { "key": "REF_Notes", "titleUk": "Примітки" },
+        { "key": "REF_CustomerSignature", "titleUk": "Підпис замовника" },
+        { "key": "REF_RegistrarSignature", "titleUk": "Підпис реєстратора" }
+      ]
+    },
+    {
+      "name": "Типові зв’язки з протоколами (MapOrderFields)",
+      "notes": "Об’єднувати вручну на MapOrderFields, не auto-match",
+      "links": [
+        { "ref": "REF_SamplingDate", "protocol": "f327_SamplingDate" },
+        { "ref": "REF_SamplingLocation", "protocol": "f327_SamplingPoint" },
+        { "ref": "REF_SampleName", "protocol": "Food_SampleName" },
+        { "ref": "REF_InvestigationPurpose", "protocol": "Food_Purpose" }
+      ]
+    }
+  ]
+}

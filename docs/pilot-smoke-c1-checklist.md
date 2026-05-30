@@ -12,7 +12,7 @@
   - реєстратор REG-ZHY
   - лаборант MIX-BER / MIX-KOR
   - експерт `expertLIMS@gmail.com` (BER) + другий експерт KOR
-- REF-шаблон опубліковано (або тимчасово без REF — лише протокол)
+- REF-шаблон: **`REF-MOZ-001`** — PDF у `docs/assets/templates/`; admin: `docs/ref-moz-001-admin-setup.md`
 - Дзвіночок у navbar увімкнено (toast/голос)
 
 ## Сценарій A — два експерти, різні філії
@@ -46,11 +46,12 @@
 | 2 | `/Laboratories` | Картки MIX-BER/KOR + «Користувачі філії» |
 | 3 | `/Users` | Badge типу філії; чіпи фільтра; фільтр по філії з картки |
 
-## Сценарій D — REF (якщо шаблон готовий)
+## Сценарій D — REF (REF-MOZ-001)
 
 | # | Крок | Очікування |
 |---|------|------------|
-| 1 | Create: REF + протокол у рядку проби | 2 документи на пробу |
+| 0 | Admin: Upload `REF-MOZ-001.pdf` → Map → Permissions → Publish | Шаблон Active, Purpose=Referral |
+| 1 | Create: REF-MOZ-001 + протокол у рядку проби | 2 документи на пробу |
 | 2 | MapOrderFields | REF проби 1 + протокол проби 1 (не з пробою 2) |
 | 3 | «Друк направлення» на Details | Лише REF PDF |
 

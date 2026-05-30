@@ -24,7 +24,7 @@
 3. **Направлення (цифрове)** — реєстратура **формує на бланку**, який адмін завантажив (`REF-*`). Це один із документів замовлення поруч із протоколами — **не окремий модуль**.
 4. **Мапінг полів** — вже реалізовано (`OrderFieldLinkGroup`, `MapOrderFields`). Якщо один замовник + направлення + 4 протоколи — **один крок мапінгу** на всі документи: об’єднати «ПІБ», «дата відбору» тощо між REF і протоколами, заповнити один раз. Принесене паперове — скан + перенос у той самий цифровий REF-бланк.
 5. **Лабораторія** — UX має повторити ланцюжок реєстратури: **сторінка проби** з таблицею документів і статусів; «Відправити експерту» — **не** в toolbar PDF (тимчасово там, перенести на сторінку проби).
-6. **Пріоритет розробки (актуальний):** ~~B1–B2, T1, C2, R1, D1, D6a, D2, D3, G5/G6, C1 (auto)~~ ✅ → **D-контент-1** + ручний UI smoke C1.
+6. **Пріоритет розробки (актуальний):** ~~B1–B2, T1, C2, R1, D1, D6a, D2, D3, G5/G6, C1 (auto)~~ ✅ → **D-контент-1** (контент у repo ✅; Upload/Publish на стенді) + ручний UI smoke C1.
 7. **Терміни UI:** `Order.ReferralNumber` = **«Номер справи»**; слово **«Направлення»** — лише PDF-бланк REF-* (див. `glossary-registration-uk.md`).
 8. **REF на пілоті:** основний режим **Per Sample** (1 REF на пробу); Per Order — backlog (§7.0).
 
@@ -415,9 +415,9 @@ REF **не** відправляється в lab як протокол (стат
 
 ### 7.8 Задачі контенту (паралельно коду)
 
-- [ ] **D-контент-1.** 1–2 бланки REF у Word → upload → map тегів.
-- [ ] **D-контент-2.** `docs/data/protocol-tags-ref.json` + seed / optgroup у Map.
-- [ ] **D-контент-3.** Інструкція реєстратору: Create → REF + протоколи → Map → Fill (1 стор.).
+- [x] **D-контент-1.** 1–2 бланки REF у Word → upload → map тегів. *(2026-05-31: PDF `docs/assets/templates/REF-MOZ-001.pdf`, теги `protocol-tags-ref.json`, інструкції admin/registrar; Upload+Map+Publish — на стенді.)*
+- [x] **D-контент-2.** `docs/data/protocol-tags-ref.json` + seed / optgroup у Map. *(seed RefMoz у ProtocolTagCatalog; optgroup REF + SSOT у Map.cshtml.)*
+- [x] **D-контент-3.** Інструкція реєстратору: Create → REF + протоколи → Map → Fill (1 стор.). *(docs/ref-registrar-quickstart-uk.md)*
 - [ ] **D-контент-4.** Тестовий кейс QA: 1 клієнт + REF + 4 протоколи + мапінг 3 спільних полів.
 
 ---
@@ -677,7 +677,7 @@ UniversalLIMS — пілот ЦКПХ (Житомир).
 | 7 | D2–D3 | ✅ Друк REF / протоколів окремо (`purposeFilter`, Orders/Details) | `ReferralPdfGenerator`, `OrdersController` |
 | 8 | G5/G6 | ✅ Адмін hub lab+expert | `/Laboratories`, `/Users` |
 | 9 | C1 | 🟡 Auto smoke ✅ (`PilotSmokeFlowTests`); UI poll — чеклист | `docs/pilot-smoke-c1-checklist.md` |
-| 10 | D-контент-1 | Перший REF-бланк у Templates | admin + docs |
+| 10 | D-контент-1 | 🟡 Контент REF-MOZ-001 у repo; **Upload/Map/Publish на стенді** | `docs/ref-moz-001-admin-setup.md` |
 
 ### Технічні нотатки
 

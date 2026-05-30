@@ -1,0 +1,32 @@
+{
+  "templateCode": "REF-MOZ-001",
+  "templateNameUk": "Направлення на лабораторне дослідження (пілот МОЗ)",
+  "templatePurpose": "Referral",
+  "sourcePdf": "docs/assets/templates/REF-MOZ-001.pdf",
+  "pageSize": "A4",
+  "notes": "Координати орієнтовні (PDF points, origin top-left). Після Upload у Map підкоригуйте позиції під фактичний рендер.",
+  "fields": [
+    { "tag": "Order.ReferralNumber", "titleUk": "№ справи", "page": 1, "x": 130, "y": 124, "width": 220, "height": 14, "registrarWrite": true },
+    { "tag": "REF_IssueDate", "titleUk": "від (дата)", "page": 1, "x": 270, "y": 124, "width": 120, "height": 14, "registrarWrite": true },
+    { "tag": "Customer.FullName", "titleUk": "Замовник", "page": 1, "x": 220, "y": 160, "width": 335, "height": 14, "registrarWrite": true },
+    { "tag": "Customer.Address", "titleUk": "Адреса", "page": 1, "x": 110, "y": 184, "width": 445, "height": 14, "registrarWrite": true },
+    { "tag": "Customer.ContactPhone", "titleUk": "Телефон", "page": 1, "x": 110, "y": 208, "width": 180, "height": 14, "registrarWrite": true },
+    { "tag": "REF_SampleName", "titleUk": "Найменування зразка", "page": 1, "x": 250, "y": 244, "width": 305, "height": 14, "registrarWrite": true, "mapWith": ["Food_SampleName", "f327_WaterSource"] },
+    { "tag": "REF_SamplingLocation", "titleUk": "Місце відбору", "page": 1, "x": 130, "y": 268, "width": 425, "height": 14, "registrarWrite": true, "mapWith": ["f327_SamplingPoint", "Food_SamplingPoint"] },
+    { "tag": "REF_SamplingDate", "titleUk": "Дата відбору", "page": 1, "x": 110, "y": 292, "width": 110, "height": 14, "registrarWrite": true, "mapWith": ["f327_SamplingDate", "Food_SamplingDate"] },
+    { "tag": "REF_SamplingTime", "titleUk": "Час відбору", "page": 1, "x": 280, "y": 292, "width": 80, "height": 14, "registrarWrite": true },
+    { "tag": "REF_InvestigationPurpose", "titleUk": "Мета дослідження", "page": 1, "x": 48, "y": 348, "width": 507, "height": 56, "registrarWrite": true, "multiline": true, "mapWith": ["Food_Purpose"] },
+    { "tag": "REF_Indicators", "titleUk": "Показники", "page": 1, "x": 48, "y": 448, "width": 507, "height": 56, "registrarWrite": true, "multiline": true },
+    { "tag": "Sample.Number", "titleUk": "№ проби", "page": 1, "x": 130, "y": 528, "width": 180, "height": 14, "registrarWrite": false },
+    { "tag": "Branch.Name", "titleUk": "Лабораторія", "page": 1, "x": 170, "y": 552, "width": 385, "height": 14, "registrarWrite": false },
+    { "tag": "REF_Notes", "titleUk": "Примітки", "page": 1, "x": 90, "y": 576, "width": 465, "height": 14, "registrarWrite": true },
+    { "tag": "REF_CustomerSignature", "titleUk": "Підпис замовника", "page": 1, "x": 40, "y": 712, "width": 150, "height": 14, "registrarWrite": true },
+    { "tag": "REF_RegistrarSignature", "titleUk": "Підпис реєстратора", "page": 1, "x": 280, "y": 712, "width": 150, "height": 14, "registrarWrite": true }
+  ],
+  "permissionsDefault": {
+    "Registrar": "Write",
+    "LaboratoryTechnician": "None",
+    "Specialist": "None",
+    "Administrator": "Write"
+  }
+}

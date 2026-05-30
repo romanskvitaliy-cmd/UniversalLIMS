@@ -204,6 +204,22 @@ public static class ProtocolTagCatalog
         new("f205s_ExecutorSignature", "Підпис виконавця", DataFieldScope.Conclusion),
     ];
 
+    /// <summary>Направлення REF-MOZ-001 (пілот). Джерело: docs/data/protocol-tags-ref.json</summary>
+    public static IReadOnlyList<TagDefinition> RefMoz { get; } =
+    [
+        new("REF_IssueDate", "Дата оформлення направлення", DataFieldScope.Registration, DataFieldType.Date),
+        new("REF_SampleName", "Найменування зразка / матеріалу", DataFieldScope.Sample),
+        new("REF_SamplingLocation", "Місце відбору", DataFieldScope.Sample),
+        new("REF_SamplingDate", "Дата відбору", DataFieldScope.Sample, DataFieldType.Date),
+        new("REF_SamplingTime", "Час відбору", DataFieldScope.Sample),
+        new("REF_InvestigationPurpose", "Мета дослідження", DataFieldScope.Registration),
+        new("REF_Indicators", "Показники для дослідження", DataFieldScope.Registration),
+        new("REF_LaboratoryDestination", "Лабораторія (підрозділ)", DataFieldScope.Registration),
+        new("REF_Notes", "Примітки", DataFieldScope.Registration),
+        new("REF_CustomerSignature", "Підпис замовника", DataFieldScope.Registration),
+        new("REF_RegistrarSignature", "Підпис реєстратора", DataFieldScope.Registration),
+    ];
+
     public static IReadOnlyList<TagDefinition> F325 { get; } =
     [
         new("f325_WaterTemperature", "Температура води у градусах C", DataFieldScope.Result, DataFieldType.Number),
@@ -260,5 +276,5 @@ public static class ProtocolTagCatalog
 
     /// <summary>Усі теги каталогу (після протокольних списків).</summary>
     public static IReadOnlyList<TagDefinition> All { get; } =
-        [.. F327, .. Food, .. F205, .. F205S, .. F345, .. F343, .. F332, .. F413, .. F329, .. F325];
+        [.. RefMoz, .. F327, .. Food, .. F205, .. F205S, .. F345, .. F343, .. F332, .. F413, .. F329, .. F325];
 }
