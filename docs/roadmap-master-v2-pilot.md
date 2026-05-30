@@ -24,7 +24,7 @@
 3. **Направлення (цифрове)** — реєстратура **формує на бланку**, який адмін завантажив (`REF-*`). Це один із документів замовлення поруч із протоколами — **не окремий модуль**.
 4. **Мапінг полів** — вже реалізовано (`OrderFieldLinkGroup`, `MapOrderFields`). Якщо один замовник + направлення + 4 протоколи — **один крок мапінгу** на всі документи: об’єднати «ПІБ», «дата відбору» тощо між REF і протоколами, заповнити один раз. Принесене паперове — скан + перенос у той самий цифровий REF-бланк.
 5. **Лабораторія** — UX має повторити ланцюжок реєстратури: **сторінка проби** з таблицею документів і статусів; «Відправити експерту» — **не** в toolbar PDF (тимчасово там, перенести на сторінку проби).
-6. **Пріоритет розробки (актуальний):** B1–B2 (expert filter) → **T1** (terminology UI) → C2 (rework notify) → **R1** (`SampleResultValue`) → D1+D6 Per Sample (REF) → E1 MappingProfile.
+6. **Пріоритет розробки (актуальний):** ~~B1–B2, T1~~ ✅ → **C2** (rework notify) → **R1** (`SampleResultValue`) → **D1+D6a** (REF Per Sample) → E1 MappingProfile.
 7. **Терміни UI:** `Order.ReferralNumber` = **«Номер справи»**; слово **«Направлення»** — лише PDF-бланк REF-* (див. `glossary-registration-uk.md`).
 8. **REF на пілоті:** основний режим **Per Sample** (1 REF на пробу); Per Order — backlog (§7.0).
 
@@ -532,7 +532,7 @@ flowchart TD
 | A1 | BranchKind + міграція | A | ✅ |
 | A2–A3 | UI філій + обов’язковий BranchId у Users | A | ❌ |
 | **B1–B2** | **Фільтр черги і сповіщень експерта** | B | ✅ |
-| **T1** | **UI: «Номер справи»** | UX | ❌ **#1 пріоритет** |
+| **T1** | **UI: «Номер справи»** | UX | ✅ |
 | A4 | ExpertBranchId для LAB→EXP (якщо не лише Mixed) | A | ❌ |
 | C2, C1 | Rework + end-to-end сповіщення (після B1–B2) | C | 🟡 C6 ✅ |
 | G1–G3 | SampleDetails + «Відправити експерту» | G | ✅ |
@@ -589,7 +589,7 @@ flowchart TD
 - [ ] Fill → значення на PDF; lab Fill → **R1:** результати в `SampleResultValue`.
 - [ ] «Друк направлення» — лише REF (D2).
 - [ ] REF не в lab-журналі; протоколи відправлені в lab.
-- [ ] UI: колонка «Номер справи», не «Направлення» (T1).
+- [x] UI: колонка «Номер справи», не «Направлення» (T1).
 
 ---
 
@@ -602,7 +602,7 @@ UniversalLIMS — пілот ЦКПХ (Житомир).
 Терміни: docs/glossary-registration-uk.md.
 
 Поточна фаза: 1.
-Наступні задачі (порядок): B1–B2 → T1 → C2 → R1 → D1+D6a.
+Наступні задачі (порядок): C2 → R1 → D1+D6a.
 
 Ключові рішення (не перепитувати):
 - Протокол = PDF-шаблон (OrderDocument), Fill у PDF Workspace; не ResultEntry UI.
@@ -645,7 +645,7 @@ UniversalLIMS — пілот ЦКПХ (Житомир).
 | 2026-05-30 | REF + N протоколів — один MapOrderFields (існуючий мапінг, без нового движка) |
 | 2026-05-30 | Пріоритет: філії + expert filter → сповіщення + lab UX → REF-шаблони |
 | 2026-05-30 | Lab UX: SampleDetails як Orders/Details; «Експерту» не в PDF toolbar; баг lastSeenUtc у poll |
-| 2026-05-30 | B1–B2: expert queue/notifications filter by BranchId; Branch.ExpertBranchId (LAB→EXP) |
+| 2026-05-30 | T1: UI «Номер справи» замість «Направлення» для Order.ReferralNumber |
 | 2026-05-30 | Реєстратура UX: «справа / проба / бланк PDF»; glossary; Details групує документи по пробах |
 
 ---
@@ -662,13 +662,14 @@ UniversalLIMS — пілот ЦКПХ (Житомир).
 - Poll сповіщення (C6 ✅)
 - `BranchKind` (A1 ✅)
 - Expert queue + toast фільтр по філії (B1–B2 ✅)
+- UI «Номер справи» для `Order.ReferralNumber` (T1 ✅)
 
 ### Наступні задачі (строго по порядку)
 
 | # | ID | Що зробити | Файли / зона |
 |---|-----|------------|--------------|
 | 1 | B1–B2 | ✅ Фільтр expert queue + notifications по BranchId | `ExpertReviewQueueService.cs` |
-| 2 | T1 | Labels: «Номер справи» в Index/Lab/Issuance | Views |
+| 2 | T1 | ✅ «Номер справи» в Index/Lab/Issuance/Expert | Views |
 | 3 | C2 | Rework toast лаборанта end-to-end | lab notifications API + JS |
 | 4 | R1 | `DataFieldScope.Result` → `SampleResultValue` у PDF Save | Fill service + tests |
 | 5 | D1 | `TemplatePurpose` enum + migration | `Template`, Create filters |

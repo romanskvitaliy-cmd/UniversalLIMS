@@ -39,7 +39,7 @@
     <div>
         <h1 class="h3 mb-1">Справу замовлення</h1>
         <p class="text-muted mb-0">
-            @(detail.ReferralNumber ?? "—") · @detail.CustomerFullName
+            <span class="text-muted">Номер справи:</span> @(detail.ReferralNumber ?? "—") · @detail.CustomerFullName
         </p>
         <p class="small text-muted mb-0">
             Проб: @detail.Samples.Count · документів: @detail.Documents.Count ·

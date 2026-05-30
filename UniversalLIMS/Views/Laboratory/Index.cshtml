@@ -183,11 +183,11 @@ else
         @if (!isFlatView)
         {
             <div>
-                <label class="form-label small text-muted mb-1" for="groupSearchInput">Пошук по замовнику/направленню</label>
+                <label class="form-label small text-muted mb-1" for="groupSearchInput">Пошук по замовнику або номеру справи</label>
                 <input id="groupSearchInput"
                        type="text"
                        class="form-control form-control-sm"
-                       placeholder="Введіть ПІБ або номер направлення" />
+                       placeholder="ПІБ або номер справи (REF-…)" />
             </div>
         }
         @if (isFlatView)
@@ -213,7 +213,7 @@ else
                 <thead>
                     <tr>
                         <th>Номер проби</th>
-                        <th>Направлення</th>
+                        <th>Номер справи</th>
                         <th>Замовник</th>
                         <th>Тип дослідження</th>
                         <th>Лабораторія</th>
@@ -267,7 +267,7 @@ else
                                     <div>
                                         <span class="fw-semibold">@group.CustomerFullName</span>
                                         <span class="text-muted ms-2">
-                                            Направлення: @(string.IsNullOrWhiteSpace(group.ReferralNumber) ? "—" : group.ReferralNumber)
+                                            Справа: @(string.IsNullOrWhiteSpace(group.ReferralNumber) ? "—" : group.ReferralNumber)
                                         </span>
                                         <span class="badge text-bg-secondary ms-2">Проб: @group.Samples.Count</span>
                                     </div>

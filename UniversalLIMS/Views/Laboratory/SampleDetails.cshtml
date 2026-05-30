@@ -19,7 +19,7 @@
             <span class="fw-semibold">@detail.SampleNumber</span> · @detail.InvestigationTypeName
         </p>
         <p class="small text-muted mb-0">
-            @(detail.ReferralNumber ?? "—") · @detail.CustomerFullName ·
+            <span class="text-muted">Справа</span> @(detail.ReferralNumber ?? "—") · @detail.CustomerFullName ·
             <span class="badge lims-status-badge @SampleStatusDisplay.BadgeClass(detail.SampleStatus)">
                 @SampleStatusDisplay.ToUk(detail.SampleStatus)
             </span>
