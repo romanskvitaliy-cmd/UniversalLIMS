@@ -19,6 +19,17 @@ public sealed class BranchListItemDto
     public int PendingDocumentCount { get; init; }
 
     public int AssignedUserCount { get; init; }
+
+    public BranchPortalAccountSummaryDto? PortalAccount { get; init; }
+}
+
+public sealed class BranchPortalAccountSummaryDto
+{
+    public required string UserId { get; init; }
+
+    public required string Email { get; init; }
+
+    public bool IsActive { get; init; }
 }
 
 public sealed class BranchEditDto

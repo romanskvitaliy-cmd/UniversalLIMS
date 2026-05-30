@@ -200,6 +200,44 @@ public sealed class ExpertReviewQueueServiceTests
         Assert.DoesNotContain(result.Items, item => item.SampleId == sampleId);
     }
 
+    [Fact]
+    public async Task GetIncomingSinceAsync_ReturnsSamplesReadyForExpertAfterTimestamp()
+    {
+        var sampleId = Guid.NewGuid();
+        var readyAt = new DateTime(2026, 5, 30, 10, 0, 0, DateTimeKind.Utc);
+        await using var context = await CreateSeededContextAsync(sampleId, OrderDocumentStatus.ResultsEntered);
+        var sample = await context.Samples.SingleAsync(item => item.Id == sampleId);
+        sample.Status = SampleStatus.ResultsEntered;
+        sample.ResultsEnteredAtUtc = readyAt;
+        await context.SaveChangesAsync();
+
+        var service = new ExpertReviewQueueService(context);
+        var since = readyAt.AddMinutes(-5);
+        var result = await service.GetIncomingSinceAsync(since);
+
+        Assert.Single(result);
+        Assert.Equal(sampleId, result[0].SampleId);
+    }
+
+    [Fact]
+    public async Task GetIncomingSinceAsync_ExcludesSample_WhenNotAllDocumentsReady()
+    {
+        var sampleId = Guid.NewGuid();
+        await using var context = await CreateSeededContextAsync(
+            sampleId,
+            OrderDocumentStatus.ResultsEntered,
+            OrderDocumentStatus.InProgress);
+        var sample = await context.Samples.SingleAsync(item => item.Id == sampleId);
+        sample.Status = SampleStatus.InProgress;
+        sample.ResultsEnteredAtUtc = DateTime.UtcNow;
+        await context.SaveChangesAsync();
+
+        var service = new ExpertReviewQueueService(context);
+        var result = await service.GetIncomingSinceAsync(DateTime.UtcNow.AddHours(-1));
+
+        Assert.Empty(result);
+    }
+
     private static async Task<ApplicationDbContext> CreateSeededContextAsync(
         Guid sampleId,
         OrderDocumentStatus primaryDocumentStatus,

@@ -40,6 +40,15 @@
                 Повернути в чергу
             </button>
         </form>
+        <button type="button"
+                class="btn btn-sm btn-outline-danger expert-rework-open"
+                data-bs-toggle="modal"
+                data-bs-target="#expertReworkModal"
+                data-sample-id="@Model.SampleId"
+                data-sample-number="@Model.SampleNumber"
+                title="Повернути в лабораторію на доопрацювання">
+            У лабораторію
+        </button>
     }
     <a class="btn btn-sm btn-outline-primary"
        asp-action="Review"

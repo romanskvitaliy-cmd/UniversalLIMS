@@ -199,8 +199,23 @@ public sealed class ExpertController : Controller
             return RedirectToAction(nameof(Index));
         }
 
-        TempData["ExpertSuccess"] = "Висновок по пробі затверджено.";
+        TempData["ExpertSuccess"] = "Висновок по пробі затверджено. Проба з’явиться в реєстрі «Готово до видачі».";
         return RedirectToAction(nameof(Index), new ExpertReviewQueueFilter { ReviewStatus = Domain.Laboratory.ExpertConclusionStatus.Approved });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ReturnForRework(
+        Guid sampleId,
+        string reworkReasonUk,
+        CancellationToken cancellationToken)
+    {
+        var returned = await _conclusion.ReturnForReworkAsync(sampleId, reworkReasonUk, cancellationToken);
+        TempData[returned ? "ExpertSuccess" : "ExpertWarning"] = returned
+            ? "Пробу повернуто в лабораторію на доопрацювання."
+            : "Не вдалося повернути пробу (вкажіть причину або проба вже видана клієнту).";
+
+        return RedirectToAction(nameof(Index));
     }
 
     private static string? NormalizeExpertNotes(string? notesUk)

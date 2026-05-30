@@ -25,7 +25,23 @@ public sealed class SampleConfiguration : IEntityTypeConfiguration<Sample>
             .HasMaxLength(50)
             .IsRequired();
 
+        builder.Property(sample => sample.DeliveryStatus)
+            .HasConversion<int>()
+            .IsRequired();
+
+        builder.Property(sample => sample.ReadyForPickupAtUtc)
+            .HasColumnType("datetime2");
+
+        builder.Property(sample => sample.IssuedAtUtc)
+            .HasColumnType("datetime2");
+
+        builder.Property(sample => sample.IssuedByUserId)
+            .HasMaxLength(450);
+
         builder.Property(sample => sample.RoutedAtUtc)
+            .HasColumnType("datetime2");
+
+        builder.Property(sample => sample.ResultsEnteredAtUtc)
             .HasColumnType("datetime2");
 
         builder.Property(sample => sample.Notes)

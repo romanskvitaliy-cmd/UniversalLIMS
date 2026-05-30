@@ -51,8 +51,15 @@ public sealed class WorkspaceNavigationCatalogTests
         Assert.Contains(navItems, item =>
             item.Controller == "Branches" && item.Action == "Index");
 
+        Assert.Contains(navItems, item =>
+            item.Controller == "Users" && item.Action == "Index");
+
         var branchesLink = Assert.Single(quickLinks, link => link.Title == "Філії");
         Assert.True(branchesLink.IsAvailable);
         Assert.Equal("/Branches", branchesLink.Url);
+
+        var usersLink = Assert.Single(quickLinks, link => link.Title == "Користувачі");
+        Assert.True(usersLink.IsAvailable);
+        Assert.Equal("/Users", usersLink.Url);
     }
 }

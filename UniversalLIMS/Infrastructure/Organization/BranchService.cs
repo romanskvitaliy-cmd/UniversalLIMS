@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using UniversalLIMS.Application.Abstractions;
+using UniversalLIMS.Application.Identity;
 using UniversalLIMS.Application.Organization;
 using UniversalLIMS.Application.Organization.Abstractions;
 using UniversalLIMS.Domain.Organization;
@@ -61,6 +62,29 @@ public sealed class BranchService : IBranchService
             .Select(group => new { BranchId = group.Key, Count = group.Count() })
             .ToDictionaryAsync(item => item.BranchId, item => item.Count, cancellationToken);
 
+        var portalEmails = branches
+            .Select(branch => BranchPortalAccountConventions.BuildEmail(branch.Code))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var portalAccounts = await _context.Users
+            .AsNoTracking()
+            .Where(user => portalEmails.Contains(user.Email!))
+            .Select(user => new
+            {
+                user.Id,
+                user.Email,
+                user.BranchId,
+                user.IsActive
+            })
+            .ToListAsync(cancellationToken);
+
+        var portalByBranch = portalAccounts
+            .Where(user => user.BranchId.HasValue)
+            .GroupBy(user => user.BranchId!.Value)
+            .ToDictionary(
+                group => group.Key,
+                group => group.OrderBy(user => user.Email, StringComparer.OrdinalIgnoreCase).First());
+
         return branches
             .Select(branch => new BranchListItemDto
             {
@@ -72,7 +96,15 @@ public sealed class BranchService : IBranchService
                 IsActive = branch.IsActive,
                 WorkflowDocumentCount = workflowCounts.GetValueOrDefault(branch.Id),
                 PendingDocumentCount = pendingCounts.GetValueOrDefault(branch.Id),
-                AssignedUserCount = userCounts.GetValueOrDefault(branch.Id)
+                AssignedUserCount = userCounts.GetValueOrDefault(branch.Id),
+                PortalAccount = portalByBranch.TryGetValue(branch.Id, out var portal)
+                    ? new BranchPortalAccountSummaryDto
+                    {
+                        UserId = portal.Id,
+                        Email = portal.Email ?? string.Empty,
+                        IsActive = portal.IsActive
+                    }
+                    : null
             })
             .ToList();
     }

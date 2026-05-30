@@ -1,0 +1,31 @@
+@model UserFormViewModel
+@{
+    Layout = "_LayoutWorkspace";
+    ViewData["Title"] = "Редагування користувача";
+}
+
+<section class="lims-page lims-users-page">
+    <header class="lims-page-header">
+        <div class="lims-page-header__text">
+            <h1 class="lims-page-header__title">Редагування користувача</h1>
+            <p class="lims-page-header__subtitle">
+                @Model.FullName
+                @if (Model.IsBranchPortalAccount)
+                {
+                    <span class="lims-users-tag lims-users-tag--portal ms-1">Обліковий запис філії</span>
+                }
+            </p>
+        </div>
+    </header>
+
+    @if (TempData["SuccessMessage"] is string successMessage)
+    {
+        <div class="alert alert-success py-2">@successMessage</div>
+    }
+
+    <partial name="_UserForm" model="Model" />
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

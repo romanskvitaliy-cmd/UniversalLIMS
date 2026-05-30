@@ -3,6 +3,7 @@ using UniversalLIMS.Application.Abstractions;
 using UniversalLIMS.Application.Common;
 using UniversalLIMS.Application.Laboratory;
 using UniversalLIMS.Application.Laboratory.Abstractions;
+using UniversalLIMS.Domain.Laboratory;
 using UniversalLIMS.Domain.Registration;
 using UniversalLIMS.Infrastructure.Persistence;
 
@@ -115,5 +116,112 @@ public sealed class LaboratoryJournalService : ILaboratoryJournalService
             Page = page,
             PageSize = pageSize
         };
+    }
+
+    public async Task<IReadOnlyList<IncomingSampleNotificationDto>> GetIncomingSinceAsync(
+        DateTime sinceUtc,
+        CancellationToken cancellationToken = default)
+    {
+        var branchContext = await _laboratoryBranchContext.GetStateAsync(cancellationToken);
+        var targetBranchFilter = branchContext.ActiveBranchId;
+
+        var rows = await _context.Samples
+            .AsNoTracking()
+            .Where(sample =>
+                !sample.IsAnnulled
+                && !sample.Order.IsAnnulled
+                && !sample.Order.Customer.IsAnnulled
+                && sample.RoutedAtUtc.HasValue
+                && sample.RoutedAtUtc.Value > sinceUtc
+                && sample.OrderDocuments.Any(document =>
+                    !document.IsAnnulled
+                    && document.Status != OrderDocumentStatus.Pending
+                    && (!targetBranchFilter.HasValue || document.TargetBranchId == targetBranchFilter.Value)))
+            .OrderBy(sample => sample.RoutedAtUtc)
+            .Take(20)
+            .Select(sample => new
+            {
+                SampleId = sample.Id,
+                SampleNumber = sample.Number,
+                CustomerFullName = sample.Order.Customer.FullName,
+                InvestigationTypeName = sample.InvestigationType.NameUk,
+                RoutedAtUtc = sample.RoutedAtUtc!.Value,
+                TargetBranchNames = sample.OrderDocuments
+                    .Where(document =>
+                        !document.IsAnnulled
+                        && document.Status != OrderDocumentStatus.Pending
+                        && (!targetBranchFilter.HasValue || document.TargetBranchId == targetBranchFilter.Value))
+                    .Select(document => document.TargetBranch.Name)
+                    .Distinct()
+                    .ToList()
+            })
+            .ToListAsync(cancellationToken);
+
+        return rows
+            .Select(row => new IncomingSampleNotificationDto
+            {
+                SampleId = row.SampleId,
+                SampleNumber = row.SampleNumber,
+                CustomerFullName = row.CustomerFullName,
+                InvestigationTypeName = row.InvestigationTypeName,
+                TargetBranchName = string.Join(", ", row.TargetBranchNames),
+                RoutedAtUtc = row.RoutedAtUtc
+            })
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<IncomingReworkSampleNotificationDto>> GetReworkSinceAsync(
+        DateTime sinceUtc,
+        CancellationToken cancellationToken = default)
+    {
+        var branchContext = await _laboratoryBranchContext.GetStateAsync(cancellationToken);
+        var targetBranchFilter = branchContext.ActiveBranchId;
+
+        var rows = await _context.ExpertConclusionReviews
+            .AsNoTracking()
+            .Where(review =>
+                review.Status == ExpertConclusionStatus.ReturnedForRework
+                && review.ReturnedForReworkAtUtc.HasValue
+                && review.ReturnedForReworkAtUtc.Value > sinceUtc
+                && !review.Sample.IsAnnulled
+                && !review.Sample.Order.IsAnnulled)
+            .Where(review =>
+                review.Sample.OrderDocuments.Any(document =>
+                    !document.IsAnnulled
+                    && document.Status != OrderDocumentStatus.Pending
+                    && (!targetBranchFilter.HasValue || document.TargetBranchId == targetBranchFilter.Value)))
+            .OrderBy(review => review.ReturnedForReworkAtUtc)
+            .Take(20)
+            .Select(review => new
+            {
+                SampleId = review.SampleId,
+                SampleNumber = review.Sample.Number,
+                CustomerFullName = review.Sample.Order.Customer.FullName,
+                InvestigationTypeName = review.Sample.InvestigationType.NameUk,
+                ReturnedForReworkAtUtc = review.ReturnedForReworkAtUtc!.Value,
+                ReworkReasonUk = review.ReworkReasonUk ?? string.Empty,
+                TargetBranchNames = review.Sample.OrderDocuments
+                    .Where(document =>
+                        !document.IsAnnulled
+                        && document.Status != OrderDocumentStatus.Pending
+                        && (!targetBranchFilter.HasValue || document.TargetBranchId == targetBranchFilter.Value))
+                    .Select(document => document.TargetBranch.Name)
+                    .Distinct()
+                    .ToList()
+            })
+            .ToListAsync(cancellationToken);
+
+        return rows
+            .Select(row => new IncomingReworkSampleNotificationDto
+            {
+                SampleId = row.SampleId,
+                SampleNumber = row.SampleNumber,
+                CustomerFullName = row.CustomerFullName,
+                InvestigationTypeName = row.InvestigationTypeName,
+                TargetBranchName = string.Join(", ", row.TargetBranchNames),
+                ReworkReasonUk = row.ReworkReasonUk,
+                ReturnedForReworkAtUtc = row.ReturnedForReworkAtUtc
+            })
+            .ToList();
     }
 }

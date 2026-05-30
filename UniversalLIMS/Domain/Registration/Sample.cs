@@ -19,7 +19,17 @@ public class Sample : BaseEntity, ISoftAnnulled
 
     public SampleStatus Status { get; set; } = SampleStatus.Registered;
 
+    public SampleDeliveryStatus DeliveryStatus { get; set; } = SampleDeliveryStatus.None;
+
+    public DateTime? ReadyForPickupAtUtc { get; set; }
+
+    public DateTime? IssuedAtUtc { get; set; }
+
+    public string? IssuedByUserId { get; set; }
+
     public DateTime? RoutedAtUtc { get; set; }
+
+    public DateTime? ResultsEnteredAtUtc { get; set; }
 
     public string? Notes { get; set; }
 

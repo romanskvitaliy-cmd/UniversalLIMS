@@ -437,8 +437,19 @@ namespace UniversalLIMS.Data.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
 
+                    b.Property<DateTime?>("ReturnedForReworkAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ReturnedForReworkByUserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
                     b.Property<DateTime?>("ReviewStartedAtUtc")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("ReworkReasonUk")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
 
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
@@ -1000,6 +1011,9 @@ namespace UniversalLIMS.Data.Migrations
                     b.Property<Guid>("OrderId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTime?>("ResultsEnteredAtUtc")
+                        .HasColumnType("datetime2");
+
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
                         .IsRequired()
@@ -1209,11 +1223,21 @@ namespace UniversalLIMS.Data.Migrations
                     b.Property<string>("CreatedByUserId")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int>("DeliveryStatus")
+                        .HasColumnType("int");
+
                     b.Property<Guid>("InvestigationTypeId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<bool>("IsAnnulled")
                         .HasColumnType("bit");
+
+                    b.Property<DateTime?>("IssuedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("IssuedByUserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<string>("Notes")
                         .HasMaxLength(2000)
@@ -1227,7 +1251,13 @@ namespace UniversalLIMS.Data.Migrations
                     b.Property<Guid>("OrderId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTime?>("ReadyForPickupAtUtc")
+                        .HasColumnType("datetime2");
+
                     b.Property<DateTime>("RegisteredAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("ResultsEnteredAtUtc")
                         .HasColumnType("datetime2");
 
                     b.Property<DateTime?>("RoutedAtUtc")

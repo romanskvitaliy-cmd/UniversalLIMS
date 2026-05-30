@@ -20,6 +20,9 @@ public sealed class OrderDocumentConfiguration : IEntityTypeConfiguration<OrderD
         builder.Property(document => document.SentToLabAtUtc)
             .HasColumnType("datetime2");
 
+        builder.Property(document => document.ResultsEnteredAtUtc)
+            .HasColumnType("datetime2");
+
         builder.Property(document => document.CreatedAtUtc)
             .HasColumnType("datetime2");
 

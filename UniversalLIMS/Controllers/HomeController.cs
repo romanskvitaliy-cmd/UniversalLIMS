@@ -230,6 +230,23 @@ public class HomeController : Controller
 
         var pendingDocuments = await documents.CountAsync(cancellationToken);
 
+        var readyForPickupQuery = _context.Samples
+            .AsNoTracking()
+            .Where(sample =>
+                !sample.IsAnnulled
+                && !sample.Order.IsAnnulled
+                && sample.DeliveryStatus == Domain.Registration.SampleDeliveryStatus.ReadyForPickup
+                && _context.ExpertConclusionReviews.Any(review =>
+                    review.SampleId == sample.Id
+                    && review.Status == Domain.Laboratory.ExpertConclusionStatus.Approved));
+
+        if (_currentUser.BranchId is Guid pickupBranchId)
+        {
+            readyForPickupQuery = readyForPickupQuery.Where(sample => sample.Order.BranchId == pickupBranchId);
+        }
+
+        var readyForPickup = await readyForPickupQuery.CountAsync(cancellationToken);
+
         var ordersInWorkflow = await orders.CountAsync(
             order => order.OrderDocuments.Any(document =>
                 !document.IsAnnulled && document.Status != OrderDocumentStatus.ResultsEntered),
@@ -250,6 +267,13 @@ public class HomeController : Controller
                 Value = pendingDocuments.ToString("N0"),
                 Description = "PDF-направлень",
                 IconClass = "bi-hourglass-split"
+            },
+            new WorkspaceMetricVm
+            {
+                Label = "Готово до видачі",
+                Value = readyForPickup.ToString("N0"),
+                Description = "затверджених проб",
+                IconClass = "bi-box-arrow-up-right"
             },
             new WorkspaceMetricVm
             {

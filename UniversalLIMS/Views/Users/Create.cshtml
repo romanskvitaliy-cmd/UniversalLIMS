@@ -1,0 +1,23 @@
+@model UserFormViewModel
+@{
+    Layout = "_LayoutWorkspace";
+    ViewData["Title"] = "Новий користувач";
+}
+
+<section class="lims-page lims-users-page">
+    <header class="lims-page-header">
+        <div class="lims-page-header__text">
+            <h1 class="lims-page-header__title">Новий користувач</h1>
+            <p class="lims-page-header__subtitle">
+                Email використовується як логін. Для облікового запису філії рекомендується формат
+                <code class="lims-code">код@@filia.lims</code> (наприклад, <code class="lims-code">zhy@@filia.lims</code>).
+            </p>
+        </div>
+    </header>
+
+    <partial name="_UserForm" model="Model" />
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

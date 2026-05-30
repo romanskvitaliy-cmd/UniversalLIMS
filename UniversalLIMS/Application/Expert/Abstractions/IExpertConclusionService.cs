@@ -14,4 +14,9 @@ public interface IExpertConclusionService
         Guid sampleId,
         string? notesUk,
         CancellationToken cancellationToken = default);
+
+    Task<bool> ReturnForReworkAsync(
+        Guid sampleId,
+        string reworkReasonUk,
+        CancellationToken cancellationToken = default);
 }

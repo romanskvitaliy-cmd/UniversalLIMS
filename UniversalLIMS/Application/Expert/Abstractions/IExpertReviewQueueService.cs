@@ -7,4 +7,8 @@ public interface IExpertReviewQueueService
     Task<PagedResult<ExpertReviewQueueItemDto>> GetQueueAsync(
         ExpertReviewQueueFilter filter,
         CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<IncomingExpertSampleNotificationDto>> GetIncomingSinceAsync(
+        DateTime sinceUtc,
+        CancellationToken cancellationToken = default);
 }

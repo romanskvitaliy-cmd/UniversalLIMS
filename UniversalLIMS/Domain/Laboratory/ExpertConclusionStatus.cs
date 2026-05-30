@@ -5,5 +5,8 @@ public enum ExpertConclusionStatus
 {
     PendingReview = 0,
     InProgress = 1,
-    Approved = 2
+    Approved = 2,
+
+    /// <summary>Повернено в лабораторію на доопрацювання після експертизи.</summary>
+    ReturnedForRework = 3
 }

@@ -28,6 +28,15 @@ public sealed class ExpertConclusionReviewConfiguration : IEntityTypeConfigurati
         builder.Property(review => review.NotesUk)
             .HasMaxLength(2000);
 
+        builder.Property(review => review.ReturnedForReworkAtUtc)
+            .HasColumnType("datetime2");
+
+        builder.Property(review => review.ReturnedForReworkByUserId)
+            .HasMaxLength(450);
+
+        builder.Property(review => review.ReworkReasonUk)
+            .HasMaxLength(2000);
+
         builder.Property(review => review.CreatedAtUtc)
             .HasColumnType("datetime2");
 

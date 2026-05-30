@@ -7,6 +7,7 @@ using UniversalLIMS.Application.Registration;
 using UniversalLIMS.Application.Registration.Abstractions;
 using UniversalLIMS.Application.Security;
 using UniversalLIMS.Application.Templates.Abstractions;
+using UniversalLIMS.Domain.Registration;
 using UniversalLIMS.Domain.Templates;
 using UniversalLIMS.Infrastructure.Security;
 using UniversalLIMS.Infrastructure.Filters;
@@ -549,6 +550,20 @@ public sealed class PdfWorkspaceController : Controller
         var activeRole = _activeRole.ResolveActiveRole(User);
         var roleDisplay = RolePortalCatalog.FindByRoleCode(activeRole)?.DisplayName ?? activeRole;
 
+        OrderDocumentStatus? documentStatus = null;
+        if (orderDocumentId.HasValue)
+        {
+            documentStatus = await _context.OrderDocuments
+                .AsNoTracking()
+                .Where(document => document.Id == orderDocumentId.Value && !document.IsAnnulled)
+                .Select(document => (OrderDocumentStatus?)document.Status)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
+        var canSendToExpert = activeRole == LimsRoles.LaboratoryTechnician
+            && orderDocumentId.HasValue
+            && documentStatus is OrderDocumentStatus.SentToLab or OrderDocumentStatus.InProgress;
+
         return new PdfWorkspaceFillViewModel
         {
             TemplateVersionId = version.Id,
@@ -573,7 +588,12 @@ public sealed class PdfWorkspaceController : Controller
             ExpertQueueUrl = Url.Action("Index", "Expert"),
             ExpertDetailsUrl = resolvedSampleId.HasValue
                 ? Url.Action("Details", "Expert", new { sampleId = resolvedSampleId.Value })
-                : null
+                : null,
+            SendToExpertUrl = orderDocumentId.HasValue
+                ? Url.Content($"~/api/laboratory/documents/{orderDocumentId.Value}/send-to-expert")
+                : null,
+            DocumentStatus = documentStatus?.ToString(),
+            CanSendToExpert = canSendToExpert
         };
     }
 

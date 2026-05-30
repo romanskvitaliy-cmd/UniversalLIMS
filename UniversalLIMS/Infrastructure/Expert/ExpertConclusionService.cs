@@ -55,6 +55,16 @@ public sealed class ExpertConclusionService : IExpertConclusionService
             };
             _context.ExpertConclusionReviews.Add(review);
         }
+        else if (review.Status == ExpertConclusionStatus.ReturnedForRework)
+        {
+            review.Status = ExpertConclusionStatus.InProgress;
+            review.ReturnedForReworkAtUtc = null;
+            review.ReturnedForReworkByUserId = null;
+            review.ReworkReasonUk = null;
+            review.ReviewStartedAtUtc = now;
+            review.UpdatedAtUtc = now;
+            review.UpdatedByUserId = _currentUser.UserId;
+        }
         else if (review.Status == ExpertConclusionStatus.PendingReview)
         {
             review.Status = ExpertConclusionStatus.InProgress;
@@ -135,6 +145,91 @@ public sealed class ExpertConclusionService : IExpertConclusionService
             review.UpdatedByUserId = userId;
         }
 
+        var sample = await _context.Samples
+            .FirstOrDefaultAsync(entity => entity.Id == sampleId && !entity.IsAnnulled, cancellationToken);
+
+        if (sample is not null)
+        {
+            sample.DeliveryStatus = SampleDeliveryStatus.ReadyForPickup;
+            sample.ReadyForPickupAtUtc = now;
+            sample.IssuedAtUtc = null;
+            sample.IssuedByUserId = null;
+            sample.UpdatedAtUtc = now;
+            sample.UpdatedByUserId = userId;
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
+    public async Task<bool> ReturnForReworkAsync(
+        Guid sampleId,
+        string reworkReasonUk,
+        CancellationToken cancellationToken = default)
+    {
+        var reason = NormalizeReworkReason(reworkReasonUk);
+        if (reason is null)
+        {
+            return false;
+        }
+
+        var sample = await _context.Samples
+            .Include(entity => entity.OrderDocuments)
+            .FirstOrDefaultAsync(entity => entity.Id == sampleId && !entity.IsAnnulled, cancellationToken);
+
+        if (sample is null || sample.DeliveryStatus == SampleDeliveryStatus.Issued)
+        {
+            return false;
+        }
+
+        if (!await IsSampleReadyForExpertAsync(sampleId, cancellationToken))
+        {
+            return false;
+        }
+
+        var review = await _context.ExpertConclusionReviews
+            .FirstOrDefaultAsync(item => item.SampleId == sampleId, cancellationToken);
+
+        if (review is null
+            || review.Status == ExpertConclusionStatus.ReturnedForRework
+            || review.Status == ExpertConclusionStatus.PendingReview)
+        {
+            return false;
+        }
+
+        var now = _dateTimeProvider.UtcNow;
+        var userId = _currentUser.UserId;
+
+        review.Status = ExpertConclusionStatus.ReturnedForRework;
+        review.ReturnedForReworkAtUtc = now;
+        review.ReturnedForReworkByUserId = userId;
+        review.ReworkReasonUk = reason;
+        review.ApprovedAtUtc = null;
+        review.ApprovedByUserId = null;
+        review.UpdatedAtUtc = now;
+        review.UpdatedByUserId = userId;
+
+        sample.DeliveryStatus = SampleDeliveryStatus.None;
+        sample.ReadyForPickupAtUtc = null;
+        sample.IssuedAtUtc = null;
+        sample.IssuedByUserId = null;
+        sample.Status = SampleStatus.InProgress;
+        sample.UpdatedAtUtc = now;
+        sample.UpdatedByUserId = userId;
+
+        foreach (var document in sample.OrderDocuments.Where(document => !document.IsAnnulled))
+        {
+            if (document.Status is OrderDocumentStatus.ResultsEntered or OrderDocumentStatus.InProgress)
+            {
+                document.Status = OrderDocumentStatus.InProgress;
+                document.ResultsEnteredAtUtc = null;
+                document.UpdatedAtUtc = now;
+                document.UpdatedByUserId = userId;
+            }
+        }
+
+        sample.ResultsEnteredAtUtc = null;
+
         await _context.SaveChangesAsync(cancellationToken);
         return true;
     }
@@ -163,6 +258,19 @@ public sealed class ExpertConclusionService : IExpertConclusionService
         }
 
         var trimmed = notesUk.Trim();
+        return trimmed.Length <= ExpertNotesMaxLength
+            ? trimmed
+            : trimmed[..ExpertNotesMaxLength];
+    }
+
+    private static string? NormalizeReworkReason(string? reworkReasonUk)
+    {
+        if (string.IsNullOrWhiteSpace(reworkReasonUk))
+        {
+            return null;
+        }
+
+        var trimmed = reworkReasonUk.Trim();
         return trimmed.Length <= ExpertNotesMaxLength
             ? trimmed
             : trimmed[..ExpertNotesMaxLength];

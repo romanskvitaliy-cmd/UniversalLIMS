@@ -22,6 +22,12 @@ public sealed class ExpertConclusionReview : BaseEntity, ISoftAnnulled
 
     public string? NotesUk { get; set; }
 
+    public DateTime? ReturnedForReworkAtUtc { get; set; }
+
+    public string? ReturnedForReworkByUserId { get; set; }
+
+    public string? ReworkReasonUk { get; set; }
+
     public bool IsAnnulled { get; set; }
 
     public DateTime? AnnulledAtUtc { get; set; }

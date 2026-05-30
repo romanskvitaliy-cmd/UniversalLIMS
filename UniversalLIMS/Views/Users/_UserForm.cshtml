@@ -1,0 +1,187 @@
+@model UserFormViewModel
+
+<div class="lims-users-form-layout">
+    <div class="lims-panel lims-users-form-panel">
+        <form asp-action="@(Model.IsEdit ? "Edit" : "Create")"
+              asp-route-id="@Model.Id"
+              method="post"
+              class="lims-form">
+            @if (Model.IsEdit)
+            {
+                <input asp-for="Id" type="hidden" />
+            }
+            <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label asp-for="Email" class="form-label"></label>
+                    <input asp-for="Email" class="form-control" autocomplete="off" />
+                    <span asp-validation-for="Email" class="text-danger"></span>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="FullName" class="form-label"></label>
+                    <input asp-for="FullName" class="form-control" />
+                    <span asp-validation-for="FullName" class="text-danger"></span>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="Position" class="form-label"></label>
+                    <input asp-for="Position" class="form-control" />
+                    <span asp-validation-for="Position" class="text-danger"></span>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="BranchId" class="form-label"></label>
+                    <select asp-for="BranchId" class="form-select">
+                        <option value="">— без філії (лише адміністратор) —</option>
+                        @foreach (var branch in Model.Branches)
+                        {
+                            <option value="@branch.Id">@branch.Code — @branch.Name</option>
+                        }
+                    </select>
+                    <span asp-validation-for="BranchId" class="text-danger"></span>
+                </div>
+                @if (Model.IsEdit)
+                {
+                    <div class="col-md-6">
+                        <label class="form-label">@Html.DisplayNameFor(m => m.CurrentPassword)</label>
+                        @if (Model.CanRevealCurrentPassword && !string.IsNullOrWhiteSpace(Model.CurrentPassword))
+                        {
+                            <div class="lims-password-field">
+                                <input type="password"
+                                       class="form-control lims-password-field__input"
+                                       value="@Model.CurrentPassword"
+                                       readonly
+                                       autocomplete="off" />
+                                <button type="button"
+                                        class="lims-password-field__toggle"
+                                        aria-label="Показати пароль"
+                                        title="Показати пароль">
+                                    <i class="bi bi-eye" aria-hidden="true"></i>
+                                </button>
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(Model.CurrentPasswordStatusMessage))
+                            {
+                                <div class="form-text">@Model.CurrentPasswordStatusMessage</div>
+                            }
+                        }
+                        else
+                        {
+                            <div class="lims-password-field lims-password-field--locked">
+                                <input type="text"
+                                       class="form-control lims-password-field__input"
+                                       value="••••••••••••"
+                                       readonly
+                                       disabled />
+                            </div>
+                            <div class="form-text text-muted">
+                                @(Model.CurrentPasswordStatusMessage ?? "Пароль змінено — перегляд недоступний.")
+                            </div>
+                        }
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="NewPassword" class="form-label"></label>
+                        <div class="lims-password-field">
+                            <input asp-for="NewPassword" class="form-control lims-password-field__input" autocomplete="new-password" />
+                            <button type="button"
+                                    class="lims-password-field__toggle"
+                                    aria-label="Показати пароль"
+                                    title="Показати пароль">
+                                <i class="bi bi-eye" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                        <div class="form-text">Залиште порожнім, щоб не змінювати пароль.</div>
+                        <span asp-validation-for="NewPassword" class="text-danger"></span>
+                    </div>
+                }
+                else
+                {
+                    <div class="col-md-6">
+                        <label asp-for="Password" class="form-label"></label>
+                        <div class="lims-password-field">
+                            <input asp-for="Password" class="form-control lims-password-field__input" autocomplete="new-password" />
+                            <button type="button"
+                                    class="lims-password-field__toggle"
+                                    aria-label="Показати пароль"
+                                    title="Показати пароль">
+                                <i class="bi bi-eye" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                        <span asp-validation-for="Password" class="text-danger"></span>
+                    </div>
+                }
+                <div class="col-md-6 d-flex align-items-end">
+                    <div class="form-check mb-2">
+                        <input asp-for="IsActive" class="form-check-input" />
+                        <label asp-for="IsActive" class="form-check-label"></label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lims-users-role-picker mt-4">
+                <h2 class="h6 mb-2">Ролі та права</h2>
+                <p class="small text-muted mb-3">
+                    Оберіть одну або кілька ролей. Для реєстратора, лаборанта та експерта потрібна філія.
+                </p>
+                <div class="lims-users-role-picker__grid">
+                    @for (var i = 0; i < Model.RoleSelections.Count; i++)
+                    {
+                        var role = Model.RoleSelections[i];
+                        var capability = LimsRoleCapabilitiesCatalog.FindByRoleCode(role.RoleCode);
+                        <label class="lims-users-role-option @(role.IsSelected ? "is-selected" : "")"
+                               style="--role-accent: @role.AccentColor">
+                            <input type="hidden" asp-for="RoleSelections[i].RoleCode" />
+                            <input type="hidden" asp-for="RoleSelections[i].DisplayName" />
+                            <input type="hidden" asp-for="RoleSelections[i].AccentColor" />
+                            <input type="hidden" asp-for="RoleSelections[i].IconClass" />
+                            <input type="hidden" asp-for="RoleSelections[i].Summary" />
+                            <input asp-for="RoleSelections[i].IsSelected" class="lims-users-role-option__check" />
+                            <span class="lims-users-role-option__icon" aria-hidden="true">
+                                <i class="bi @role.IconClass"></i>
+                            </span>
+                            <span class="lims-users-role-option__body">
+                                <span class="lims-users-role-option__title">@role.DisplayName</span>
+                                <span class="lims-users-role-option__summary">@role.Summary</span>
+                                @if (capability is not null)
+                                {
+                                    <span class="lims-users-role-option__meta">
+                                        @string.Join(" · ", capability.ModuleLabels.Take(3))
+                                    </span>
+                                }
+                            </span>
+                        </label>
+                    }
+                </div>
+            </div>
+
+            <div class="d-flex flex-wrap gap-2 mt-4">
+                <button type="submit" class="lims-btn lims-btn--primary">
+                    @(Model.IsEdit ? "Зберегти" : "Створити")
+                </button>
+                <a class="lims-btn lims-btn--outline" asp-action="Index">До списку</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    (function () {
+        document.querySelectorAll('.lims-password-field__toggle').forEach(function (button) {
+            button.addEventListener('click', function () {
+                var field = button.closest('.lims-password-field');
+                var input = field && field.querySelector('.lims-password-field__input');
+                var icon = button.querySelector('i');
+                if (!input || !icon) {
+                    return;
+                }
+
+                var reveal = input.type === 'password';
+                input.type = reveal ? 'text' : 'password';
+                icon.classList.toggle('bi-eye', !reveal);
+                icon.classList.toggle('bi-eye-slash', reveal);
+                button.setAttribute('aria-label', reveal ? 'Приховати пароль' : 'Показати пароль');
+                button.title = reveal ? 'Приховати пароль' : 'Показати пароль';
+            });
+        });
+    })();
+</script>
+
+@using UniversalLIMS.Application.Security

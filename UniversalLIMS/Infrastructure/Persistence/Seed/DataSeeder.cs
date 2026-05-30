@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using UniversalLIMS.Application.Abstractions;
+using UniversalLIMS.Application.Identity;
 using UniversalLIMS.Application.Security;
 using UniversalLIMS.Domain.Identity;
 using UniversalLIMS.Domain.Organization;
@@ -48,6 +49,7 @@ public sealed class DataSeeder
         await _context.SaveChangesAsync(cancellationToken);
 
         await EnsureRoleTestUsersAsync(cancellationToken);
+        await EnsureBranchPortalAccountsAsync(cancellationToken);
         await AssignDefaultBranchesToUsersAsync(cancellationToken);
     }
 
@@ -326,6 +328,78 @@ public sealed class DataSeeder
         await _context.SaveChangesAsync(cancellationToken);
     }
 
+    private async Task EnsureBranchPortalAccountsAsync(CancellationToken cancellationToken)
+    {
+        var branches = await _context.Branches
+            .AsNoTracking()
+            .Where(branch => !branch.IsAnnulled)
+            .Select(branch => new { branch.Id, branch.Code, branch.City })
+            .ToListAsync(cancellationToken);
+
+        foreach (var branch in branches)
+        {
+            var email = BranchPortalAccountConventions.BuildEmail(branch.Code);
+            var password = BranchPortalAccountConventions.BuildDefaultPassword(branch.Code);
+            var user = await _userManager.FindByEmailAsync(email);
+
+            if (user is null)
+            {
+                user = new ApplicationUser
+                {
+                    Email = email,
+                    UserName = email,
+                    FullName = BranchPortalAccountConventions.BuildFullName(branch.City),
+                    BranchId = branch.Id,
+                    EmailConfirmed = true,
+                    IsActive = true
+                };
+
+                var createResult = await _userManager.CreateAsync(user, password);
+                if (!createResult.Succeeded)
+                {
+                    var errors = string.Join("; ", createResult.Errors.Select(error => error.Description));
+                    throw new InvalidOperationException($"Failed to create branch portal user '{email}': {errors}");
+                }
+            }
+            else
+            {
+                var needsProfileSync =
+                    user.BranchId != branch.Id
+                    || !string.Equals(user.FullName, BranchPortalAccountConventions.BuildFullName(branch.City), StringComparison.Ordinal)
+                    || !user.EmailConfirmed
+                    || !user.IsActive;
+
+                if (needsProfileSync)
+                {
+                    user.BranchId = branch.Id;
+                    user.FullName = BranchPortalAccountConventions.BuildFullName(branch.City);
+                    user.EmailConfirmed = true;
+                    user.IsActive = true;
+
+                    var updateResult = await _userManager.UpdateAsync(user);
+                    if (!updateResult.Succeeded)
+                    {
+                        var errors = string.Join("; ", updateResult.Errors.Select(error => error.Description));
+                        throw new InvalidOperationException($"Failed to update branch portal user '{email}': {errors}");
+                    }
+                }
+
+                if (!await _userManager.CheckPasswordAsync(user, password))
+                {
+                    await EnsureExistingTestUserAsync(user, email, password);
+                }
+            }
+
+            await EnsureTestUserRoleAsync(user, LimsRoles.Registrar);
+
+            Console.WriteLine($"[BRANCH-USER] {email} | {password} | Реєстратор | {branch.Code}");
+            _logger.LogInformation(
+                "Ensured branch portal user {Email} for branch {BranchCode}",
+                email,
+                branch.Code);
+        }
+    }
+
     private async Task AssignDefaultBranchesToUsersAsync(CancellationToken cancellationToken)
     {
         var defaultBranchId = await _context.Branches
@@ -351,6 +425,7 @@ public sealed class DataSeeder
 
         var usersWithoutBranch = await _context.Users
             .Where(user => user.BranchId == null)
+            .Where(user => !user.Email!.EndsWith(BranchPortalAccountConventions.EmailDomain))
             .ToListAsync(cancellationToken);
 
         if (usersWithoutBranch.Count == 0)

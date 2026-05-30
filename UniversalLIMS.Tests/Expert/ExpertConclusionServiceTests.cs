@@ -31,6 +31,10 @@ public sealed class ExpertConclusionServiceTests
         Assert.Equal(ExpertConclusionStatus.Approved, review.Status);
         Assert.Equal(utc, review.ApprovedAtUtc);
         Assert.Equal("Відповідає нормам", review.NotesUk);
+
+        var sample = await context.Samples.SingleAsync(item => item.Id == sampleId);
+        Assert.Equal(SampleDeliveryStatus.ReadyForPickup, sample.DeliveryStatus);
+        Assert.Equal(utc, sample.ReadyForPickupAtUtc);
     }
 
     [Fact]
@@ -126,6 +130,42 @@ public sealed class ExpertConclusionServiceTests
         Assert.False(moved);
         var review = await context.ExpertConclusionReviews.SingleAsync(item => item.SampleId == sampleId);
         Assert.Equal(ExpertConclusionStatus.Approved, review.Status);
+    }
+
+    [Fact]
+    public async Task ReturnForReworkAsync_ResetsLabWorkflow_WhenReviewInProgress()
+    {
+        var sampleId = Guid.NewGuid();
+        await using var context = await CreateReadySampleContextAsync(sampleId);
+        context.ExpertConclusionReviews.Add(new ExpertConclusionReview
+        {
+            SampleId = sampleId,
+            Status = ExpertConclusionStatus.InProgress,
+            ReviewStartedAtUtc = DateTime.UtcNow,
+            CreatedAtUtc = DateTime.UtcNow,
+            CreatedByUserId = "expert-user"
+        });
+        await context.SaveChangesAsync();
+
+        var service = new ExpertConclusionService(
+            context,
+            new TestCurrentUserService(),
+            new TestDateTimeProvider(DateTime.UtcNow));
+
+        var returned = await service.ReturnForReworkAsync(sampleId, "Виправити формулювання");
+
+        Assert.True(returned);
+
+        var review = await context.ExpertConclusionReviews.SingleAsync(item => item.SampleId == sampleId);
+        Assert.Equal(ExpertConclusionStatus.ReturnedForRework, review.Status);
+        Assert.Equal("Виправити формулювання", review.ReworkReasonUk);
+
+        var sample = await context.Samples.SingleAsync(item => item.Id == sampleId);
+        Assert.Equal(SampleStatus.InProgress, sample.Status);
+        Assert.Equal(SampleDeliveryStatus.None, sample.DeliveryStatus);
+
+        var document = await context.OrderDocuments.SingleAsync(item => item.SampleId == sampleId);
+        Assert.Equal(OrderDocumentStatus.InProgress, document.Status);
     }
 
     [Fact]

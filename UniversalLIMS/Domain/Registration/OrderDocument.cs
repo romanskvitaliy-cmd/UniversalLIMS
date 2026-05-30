@@ -33,6 +33,8 @@ public class OrderDocument : BaseEntity, ISoftAnnulled
 
     public DateTime? SentToLabAtUtc { get; set; }
 
+    public DateTime? ResultsEnteredAtUtc { get; set; }
+
     public bool IsAnnulled { get; set; }
 
     public DateTime? AnnulledAtUtc { get; set; }

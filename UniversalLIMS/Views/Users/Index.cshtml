@@ -1,0 +1,190 @@
+@model UserIndexViewModel
+@using UniversalLIMS.Application.Home
+@using UniversalLIMS.Application.Security
+@{
+    Layout = "_LayoutWorkspace";
+    ViewData["Title"] = "Користувачі";
+}
+
+<section class="lims-page lims-users-page">
+    <header class="lims-page-header">
+        <div class="lims-page-header__text">
+            <h1 class="lims-page-header__title">Користувачі та ролі</h1>
+            <p class="lims-page-header__subtitle">
+                Облікові записи для входу, прив’язка до філії та призначення робочих ролей.
+                Адміністратор може перемикатися на будь-яку роль; інші користувачі — лише на свої.
+            </p>
+        </div>
+        <a class="lims-btn lims-btn--primary" asp-action="Create">
+            <i class="bi bi-person-plus-fill" aria-hidden="true"></i>
+            Новий користувач
+        </a>
+    </header>
+
+    @if (TempData["SuccessMessage"] is string successMessage)
+    {
+        <div class="alert alert-success py-2">@successMessage</div>
+    }
+
+    <div class="lims-users-layout">
+        <div class="lims-users-layout__main">
+            <div class="lims-panel lims-users-filters">
+                <form method="get" class="lims-users-filters__form">
+                    <div class="lims-users-filters__field">
+                        <label asp-for="Filters.Search" class="form-label"></label>
+                        <input asp-for="Filters.Search" class="form-control form-control-sm" placeholder="Email, ПІБ…" />
+                    </div>
+                    <div class="lims-users-filters__field">
+                        <label asp-for="Filters.BranchId" class="form-label"></label>
+                        <select asp-for="Filters.BranchId" class="form-select form-select-sm">
+                            <option value="">Усі філії</option>
+                            @foreach (var branch in Model.Branches)
+                            {
+                                <option value="@branch.Id">@branch.Code — @branch.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="lims-users-filters__field">
+                        <label asp-for="Filters.Role" class="form-label"></label>
+                        <select asp-for="Filters.Role" class="form-select form-select-sm">
+                            <option value="">Усі ролі</option>
+                            @foreach (var role in LimsRoles.All)
+                            {
+                                var roleDef = RolePortalCatalog.FindByRoleCode(role);
+                                <option value="@role">@(roleDef?.DisplayName ?? role)</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="lims-users-filters__field lims-users-filters__field--check">
+                        <label class="form-check-label">
+                            <input asp-for="Filters.IncludeInactive" class="form-check-input" />
+                            @Html.DisplayNameFor(m => m.Filters.IncludeInactive)
+                        </label>
+                    </div>
+                    <div class="lims-users-filters__actions">
+                        <button type="submit" class="lims-btn lims-btn--outline lims-btn--sm">Фільтр</button>
+                        <a class="lims-btn lims-btn--outline lims-btn--sm" asp-action="Index">Скинути</a>
+                    </div>
+                </form>
+            </div>
+
+            <div class="lims-panel">
+                <div class="lims-data-table-wrap">
+                    <table class="lims-data-table">
+                        <thead>
+                            <tr>
+                                <th>Користувач</th>
+                                <th>Філія</th>
+                                <th>Ролі</th>
+                                <th>Статус</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model.Users.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted py-4">
+                                        Користувачів не знайдено. <a asp-action="Create">Створити обліковий запис</a>
+                                    </td>
+                                </tr>
+                            }
+                            @foreach (var user in Model.Users)
+                            {
+                                var portalDef = user.Roles
+                                    .Select(RolePortalCatalog.FindByRoleCode)
+                                    .FirstOrDefault(item => item is not null);
+                                <tr>
+                                    <td>
+                                        <div class="lims-data-table__name">@user.FullName</div>
+                                        <div class="small text-muted">@user.Email</div>
+                                        @if (user.IsBranchPortalAccount)
+                                        {
+                                            <span class="lims-users-tag lims-users-tag--portal">Філія</span>
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(user.Position))
+                                        {
+                                            <div class="small lims-data-table__muted">@user.Position</div>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (!string.IsNullOrWhiteSpace(user.BranchCode))
+                                        {
+                                            <code class="lims-code">@user.BranchCode</code>
+                                            <div class="small text-muted">@user.BranchName</div>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">—</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <div class="lims-users-role-badges">
+                                            @foreach (var role in user.Roles)
+                                            {
+                                                var def = RolePortalCatalog.FindByRoleCode(role);
+                                                <span class="lims-users-role-badge"
+                                                      style="--role-accent: @(def?.AccentColor ?? "#64748b")">
+                                                    @(def?.DisplayName ?? role)
+                                                </span>
+                                            }
+                                        </div>
+                                    </td>
+                                    <td>
+                                        @if (user.IsActive)
+                                        {
+                                            <span class="badge text-bg-success">Активний</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="lims-badge lims-badge--draft">Неактивний</span>
+                                        }
+                                    </td>
+                                    <td class="text-end text-nowrap">
+                                        <a class="lims-btn lims-btn--outline lims-btn--sm" asp-action="Edit" asp-route-id="@user.Id">
+                                            Редагувати
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <aside class="lims-users-layout__aside" aria-label="Довідник прав ролей">
+            <div class="lims-panel lims-users-roles-ref">
+                <div class="lims-users-roles-ref__header">
+                    <h2 class="lims-users-roles-ref__title">Права ролей</h2>
+                    <p class="lims-users-roles-ref__subtitle small text-muted mb-0">
+                        Системні можливості кожної робочої ролі. Детальні права полів PDF — у шаблонах.
+                    </p>
+                </div>
+                <div class="lims-users-roles-ref__list">
+                    @foreach (var role in LimsRoleCapabilitiesCatalog.All)
+                    {
+                        <article class="lims-users-role-card" style="--role-accent: @role.AccentColor">
+                            <header class="lims-users-role-card__head">
+                                <span class="lims-users-role-card__icon" aria-hidden="true">
+                                    <i class="bi @role.IconClass"></i>
+                                </span>
+                                <div>
+                                    <h3 class="lims-users-role-card__name">@role.DisplayName</h3>
+                                    <p class="lims-users-role-card__scope small mb-0">@role.BranchScopeLabel</p>
+                                </div>
+                            </header>
+                            <p class="lims-users-role-card__summary small">@role.Summary</p>
+                            <div class="lims-users-role-card__tags">
+                                @foreach (var policy in role.PolicyLabels)
+                                {
+                                    <span class="lims-users-tag">@policy</span>
+                                }
+                            </div>
+                        </article>
+                    }
+                </div>
+            </div>
+        </aside>
+    </div>
+</section>

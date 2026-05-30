@@ -25,6 +25,21 @@
     var routeAction = ViewContext.RouteData.Values["action"]?.ToString();
     var logoPortalUrl = Url.Action("Index", "Home") ?? "/";
     var logoTitle = "UniversalLIMS — портал ролі";
+    var showRouteNotify = activeRole is LimsRoles.LaboratoryTechnician
+        or LimsRoles.SystemAdministrator
+        or LimsRoles.Specialist
+        or LimsRoles.Registrar;
+    var routeNotifyPollHint = activeRole switch
+    {
+        LimsRoles.LaboratoryTechnician or LimsRoles.SystemAdministrator =>
+            "Лабораторія: нові проби від реєстратури та повернення з експертизи на доопрацювання.",
+        LimsRoles.Specialist =>
+            "Експерт: сповіщення після «Відправити експерту» в PDF (усі шаблони проби).",
+        LimsRoles.Registrar =>
+            "Реєстратура: сповіщення, коли експерт затвердив — проба готова до видачі.",
+        _ => null
+    };
+    var flashSuccess = TempData["OrderDetailSuccess"] as string;
 }
 <!DOCTYPE html>
 <html lang="uk">
@@ -87,6 +102,11 @@
                         </ul>
                     }
                     <div class="d-flex align-items-center flex-wrap gap-2 ms-md-auto">
+                        @if (showRouteNotify)
+                        {
+                            ViewData["RouteNotifyPollHint"] = routeNotifyPollHint;
+                            <partial name="_WorkspaceRouteNotify" />
+                        }
                         <partial name="_WorkspaceThemePicker" model="themeOptions" />
                         <partial name="_WorkspaceChrome" />
                         <partial name="_LoginPartialWorkspace" />
@@ -96,7 +116,10 @@
         </nav>
     </header>
 
-    <div class="container-fluid px-3 px-md-4 lims-workspace-main">
+    <div class="container-fluid px-3 px-md-4 lims-workspace-main"
+         @(showRouteNotify ? "data-lims-route-notify=\"1\"" : null)
+         @(showRouteNotify ? $"data-lims-active-role=\"{activeRole}\"" : null)
+         @(!string.IsNullOrWhiteSpace(flashSuccess) ? $"data-lims-flash-success=\"{flashSuccess}\"" : null)>
         <main role="main">
             @RenderBody()
         </main>
@@ -111,6 +134,10 @@
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+    @if (showRouteNotify)
+    {
+        <script src="~/js/lims-route-notify.js" asp-append-version="true"></script>
+    }
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

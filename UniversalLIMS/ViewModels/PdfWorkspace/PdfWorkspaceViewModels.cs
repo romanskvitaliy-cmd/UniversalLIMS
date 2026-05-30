@@ -66,6 +66,12 @@ public sealed class PdfWorkspaceFillViewModel
     public string? ExpertQueueUrl { get; set; }
 
     public string? ExpertDetailsUrl { get; set; }
+
+    public string? SendToExpertUrl { get; set; }
+
+    public string? DocumentStatus { get; set; }
+
+    public bool CanSendToExpert { get; set; }
 }
 
 public sealed class PdfWorkspaceFillSegmentViewModel

@@ -11,6 +11,8 @@
             <p class="lims-page-header__subtitle">
                 Керування назвами та адресами лабораторних філій. Код філії не змінюється після створення
                 (від нього залежить нумерація проб). Деактивація приховує філію в нових замовленнях.
+                Облікові записи для входу — у колонці «Логін філії» або в розділі
+                <a asp-controller="Users" asp-action="Index">Користувачі</a>.
             </p>
         </div>
         <a class="lims-btn lims-btn--primary" asp-action="Create">
@@ -36,6 +38,7 @@
                         <th class="text-center">У workflow</th>
                         <th class="text-center">Очікує</th>
                         <th class="text-center">Користувачі</th>
+                        <th>Логін філії</th>
                         <th></th>
                     </tr>
                 </thead>
@@ -65,6 +68,34 @@
                             <td class="text-center">@branch.WorkflowDocumentCount</td>
                             <td class="text-center">@branch.PendingDocumentCount</td>
                             <td class="text-center">@branch.AssignedUserCount</td>
+                            <td>
+                                @if (branch.PortalAccount is { } portal)
+                                {
+                                    <div class="lims-branch-login">
+                                        <code class="lims-code lims-branch-login__email" title="@portal.Email">@portal.Email</code>
+                                        @if (!portal.IsActive)
+                                        {
+                                            <span class="lims-badge lims-badge--draft ms-1">Неактивний</span>
+                                        }
+                                        <a class="lims-btn lims-btn--outline lims-btn--sm lims-branch-login__edit"
+                                           asp-controller="Users"
+                                           asp-action="Edit"
+                                           asp-route-id="@portal.UserId">
+                                            Пароль
+                                        </a>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <a class="lims-btn lims-btn--outline lims-btn--sm"
+                                       asp-controller="Users"
+                                       asp-action="Create"
+                                       asp-route-branchId="@branch.Id">
+                                        <i class="bi bi-person-plus" aria-hidden="true"></i>
+                                        Створити
+                                    </a>
+                                }
+                            </td>
                             <td class="text-end text-nowrap">
                                 <a class="lims-btn lims-btn--outline lims-btn--sm" asp-action="Edit" asp-route-id="@branch.Id">
                                     Редагувати

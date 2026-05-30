@@ -78,7 +78,8 @@ public sealed class ExpertReviewQueueService : IExpertReviewQueueService
             samplesQuery = samplesQuery.Where(sample =>
                 !_context.ExpertConclusionReviews.Any(review =>
                     review.SampleId == sample.Id
-                    && review.Status == ExpertConclusionStatus.Approved));
+                    && (review.Status == ExpertConclusionStatus.Approved
+                        || review.Status == ExpertConclusionStatus.ReturnedForRework)));
 
             if (filter.ReviewStatus.HasValue)
             {
@@ -181,5 +182,57 @@ public sealed class ExpertReviewQueueService : IExpertReviewQueueService
             Page = page,
             PageSize = pageSize
         };
+    }
+
+    public async Task<IReadOnlyList<IncomingExpertSampleNotificationDto>> GetIncomingSinceAsync(
+        DateTime sinceUtc,
+        CancellationToken cancellationToken = default)
+    {
+        var rows = await _context.Samples
+            .AsNoTracking()
+            .Where(sample =>
+                !sample.IsAnnulled
+                && !sample.Order.IsAnnulled
+                && !sample.Order.Customer.IsAnnulled
+                && sample.Status == SampleStatus.ResultsEntered
+                && sample.ResultsEnteredAtUtc.HasValue
+                && sample.ResultsEnteredAtUtc.Value > sinceUtc
+                && sample.OrderDocuments.Any(document =>
+                    !document.IsAnnulled
+                    && document.Status != OrderDocumentStatus.Pending)
+                && !sample.OrderDocuments.Any(document =>
+                    !document.IsAnnulled
+                    && document.Status != OrderDocumentStatus.Pending
+                    && document.Status != OrderDocumentStatus.ResultsEntered))
+            .OrderBy(sample => sample.ResultsEnteredAtUtc)
+            .Take(20)
+            .Select(sample => new
+            {
+                SampleId = sample.Id,
+                SampleNumber = sample.Number,
+                CustomerFullName = sample.Order.Customer.FullName,
+                InvestigationTypeName = sample.InvestigationType.NameUk,
+                ResultsEnteredAtUtc = sample.ResultsEnteredAtUtc!.Value,
+                TargetBranchNames = sample.OrderDocuments
+                    .Where(document =>
+                        !document.IsAnnulled
+                        && document.Status != OrderDocumentStatus.Pending)
+                    .Select(document => document.TargetBranch.Name)
+                    .Distinct()
+                    .ToList()
+            })
+            .ToListAsync(cancellationToken);
+
+        return rows
+            .Select(row => new IncomingExpertSampleNotificationDto
+            {
+                SampleId = row.SampleId,
+                SampleNumber = row.SampleNumber,
+                CustomerFullName = row.CustomerFullName,
+                InvestigationTypeName = row.InvestigationTypeName,
+                TargetBranchName = string.Join(", ", row.TargetBranchNames),
+                ResultsEnteredAtUtc = row.ResultsEnteredAtUtc
+            })
+            .ToList();
     }
 }

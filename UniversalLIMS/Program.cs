@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using UniversalLIMS.Application.Abstractions;
 using UniversalLIMS.Application.Expert.Abstractions;
 using UniversalLIMS.Application.Laboratory.Abstractions;
+using UniversalLIMS.Application.Identity.Abstractions;
 using UniversalLIMS.Application.Organization.Abstractions;
 using UniversalLIMS.Application.Registration.Abstractions;
 using UniversalLIMS.Application.Security;
@@ -132,6 +133,7 @@ namespace UniversalLIMS
             builder.Services.AddScoped<ITemplateFieldMappingService, TemplateFieldMappingService>();
             builder.Services.AddSingleton<ITemplateOriginalOpenTokenIssuer, TemplateOriginalOpenTokenIssuer>();
             builder.Services.AddScoped<IBranchService, BranchService>();
+            builder.Services.AddScoped<IUserManagementService, UserManagementService>();
             builder.Services.AddScoped<ICustomerService, CustomerService>();
             builder.Services.AddScoped<IOrderRegistrationService, OrderRegistrationService>();
             builder.Services.AddScoped<IOrderFieldLinkService, OrderFieldLinkService>();
@@ -139,6 +141,7 @@ namespace UniversalLIMS
             builder.Services.AddScoped<ILaboratoryOverviewService, LaboratoryOverviewService>();
             builder.Services.AddScoped<ILaboratoryJournalService, LaboratoryJournalService>();
             builder.Services.AddScoped<ILaboratoryPdfFillService, LaboratoryPdfFillService>();
+            builder.Services.AddScoped<ILaboratoryDocumentSubmissionService, LaboratoryDocumentSubmissionService>();
             builder.Services.AddScoped<IOrderFieldValueService, OrderFieldValueService>();
             builder.Services.AddScoped<INumberingService, NumberingService>();
             builder.Services.AddScoped<IReferralPdfGenerator, ReferralPdfGenerator>();
@@ -148,6 +151,8 @@ namespace UniversalLIMS
             builder.Services.AddScoped<IExpertReviewQueueService, ExpertReviewQueueService>();
             builder.Services.AddScoped<IExpertPdfFillService, ExpertPdfFillService>();
             builder.Services.AddScoped<IExpertConclusionService, ExpertConclusionService>();
+            builder.Services.AddScoped<ISampleDeliveryService, SampleDeliveryService>();
+            builder.Services.AddScoped<IRegistrationNotificationService, RegistrationNotificationService>();
             builder.Services.AddAuthorization(options =>
             {
                 options.AddPolicy(LimsPolicies.ManageSystem, policy =>

@@ -393,6 +393,36 @@ else
     </p>
 }
 
+<div class="modal fade" id="expertReworkModal" tabindex="-1" aria-labelledby="expertReworkModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form asp-action="ReturnForRework" method="post">
+                @Html.AntiForgeryToken()
+                <div class="modal-header">
+                    <h2 class="modal-title fs-6" id="expertReworkModalTitle">Повернення в лабораторію</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрити"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="expertReworkSampleId" name="sampleId" value="" />
+                    <p class="mb-2">Проба: <strong id="expertReworkSampleNumber">—</strong></p>
+                    <label class="form-label small text-muted" for="expertReworkReasonUk">Причина доопрацювання</label>
+                    <textarea id="expertReworkReasonUk"
+                              name="reworkReasonUk"
+                              class="form-control"
+                              rows="4"
+                              maxlength="2000"
+                              required
+                              placeholder="Що потрібно виправити лаборанту..."></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Скасувати</button>
+                    <button type="submit" class="btn btn-danger">Повернути в лабораторію</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="expertApproveModal" tabindex="-1" aria-labelledby="expertApproveModalTitle" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -443,6 +473,25 @@ else
                     }
                     if (notesEl) {
                         notesEl.value = "";
+                    }
+                });
+            });
+
+            const reworkSampleIdInput = document.getElementById("expertReworkSampleId");
+            const reworkSampleNumberEl = document.getElementById("expertReworkSampleNumber");
+            const reworkReasonEl = document.getElementById("expertReworkReasonUk");
+            document.querySelectorAll(".expert-rework-open").forEach((button) => {
+                button.addEventListener("click", () => {
+                    const sampleId = button.getAttribute("data-sample-id") || "";
+                    const sampleNumber = button.getAttribute("data-sample-number") || "—";
+                    if (reworkSampleIdInput) {
+                        reworkSampleIdInput.value = sampleId;
+                    }
+                    if (reworkSampleNumberEl) {
+                        reworkSampleNumberEl.textContent = sampleNumber;
+                    }
+                    if (reworkReasonEl) {
+                        reworkReasonEl.value = "";
                     }
                 });
             });

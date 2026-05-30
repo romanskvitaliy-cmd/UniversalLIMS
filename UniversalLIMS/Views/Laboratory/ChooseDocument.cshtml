@@ -1,4 +1,7 @@
 @model LaboratoryChooseDocumentViewModel
+@using UniversalLIMS.Application.Laboratory
+@using UniversalLIMS.Application.Registration
+@using UniversalLIMS.Domain.Registration
 
 @{
     Layout = "_LayoutWorkspace";
@@ -11,7 +14,9 @@
         <p class="text-muted mb-0">
             Проба <strong>@Model.SampleNumber</strong> · @Model.InvestigationTypeName
         </p>
-        <p class="small text-muted mb-0">Оберіть документ для заповнення на бланку (поля згідно з правами вашої ролі).</p>
+        <p class="small text-muted mb-0">
+            Після заповнення натисніть <strong>«Відправити експерту»</strong> у PDF або тут — інакше проба не потрапить у чергу експерта.
+        </p>
     </div>
     <div class="d-flex flex-wrap gap-2 align-items-start">
         <partial name="_WorkspaceCabinetLink" />
@@ -19,21 +24,93 @@
     </div>
 </div>
 
-<div class="list-group">
+<div class="list-group" id="labChooseDocumentList">
     @foreach (var target in Model.Targets)
     {
-        <a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
-           asp-controller="PdfWorkspace"
-           asp-action="Fill"
-           asp-route-templateVersionId="@target.TemplateVersionId"
-           asp-route-orderId="@target.OrderId"
-           asp-route-orderDocumentId="@target.OrderDocumentId"
-           asp-route-sampleId="@target.SampleId">
-            <span>
-                <span class="fw-semibold">@target.TemplateNameUk</span>
-                <span class="text-muted small"> · v@(target.VersionNumber)</span>
-            </span>
-            <span class="btn btn-sm btn-primary">Відкрити</span>
-        </a>
+        var canSend = target.DocumentStatus is OrderDocumentStatus.SentToLab or OrderDocumentStatus.InProgress;
+        var statusUk = target.DocumentStatus.HasValue
+            ? OrderDocumentStatusDisplay.ToUk(target.DocumentStatus.Value)
+            : "—";
+        <div class="list-group-item">
+            <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap">
+                <div>
+                    <span class="fw-semibold">@target.TemplateNameUk</span>
+                    <span class="text-muted small"> · v@(target.VersionNumber)</span>
+                    <span class="badge lims-status-badge lims-status-badge--progress ms-1">@statusUk</span>
+                </div>
+                <div class="d-flex gap-2 flex-wrap">
+                    <a class="btn btn-sm btn-primary"
+                       asp-controller="PdfWorkspace"
+                       asp-action="Fill"
+                       asp-route-templateVersionId="@target.TemplateVersionId"
+                       asp-route-orderId="@target.OrderId"
+                       asp-route-orderDocumentId="@target.OrderDocumentId"
+                       asp-route-sampleId="@target.SampleId">
+                        Відкрити PDF
+                    </a>
+                    @if (canSend && target.OrderDocumentId.HasValue)
+                    {
+                        <button type="button"
+                                class="btn btn-sm btn-success lab-send-to-expert"
+                                data-order-document-id="@target.OrderDocumentId.Value"
+                                data-template-name="@target.TemplateNameUk">
+                            Відправити експерту
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
     }
 </div>
+
+@section Scripts
+{
+    <script>
+        (() => {
+            const getToken = () =>
+                document.querySelector('input[name="__RequestVerificationToken"]')?.value
+                || document.querySelector('meta[name="csrf-token"]')?.getAttribute("content")
+                || "";
+
+            document.querySelectorAll(".lab-send-to-expert").forEach((button) => {
+                button.addEventListener("click", async () => {
+                    const documentId = button.getAttribute("data-order-document-id");
+                    const templateName = button.getAttribute("data-template-name") || "шаблон";
+                    if (!documentId || button.disabled) {
+                        return;
+                    }
+
+                    if (!window.confirm(`Відправити «${templateName}» експерту? Переконайтесь, що PDF збережено.`)) {
+                        return;
+                    }
+
+                    button.disabled = true;
+                    try {
+                        const response = await fetch(`/api/laboratory/documents/${documentId}/send-to-expert`, {
+                            method: "POST",
+                            credentials: "same-origin",
+                            headers: {
+                                Accept: "application/json",
+                                RequestVerificationToken: getToken()
+                            }
+                        });
+                        const body = await response.json().catch(() => ({}));
+                        if (!response.ok) {
+                            throw new Error(body.message || "Не вдалося відправити.");
+                        }
+                        button.replaceWith(Object.assign(document.createElement("span"), {
+                            className: "badge lims-status-badge lims-status-badge--done align-self-center",
+                            textContent: "Відправлено експерту"
+                        }));
+                        if (body.message) {
+                            window.alert(body.message);
+                        }
+                    } catch (error) {
+                        window.alert(error.message || "Помилка відправки.");
+                        button.disabled = false;
+                    }
+                });
+            });
+        })();
+    </script>
+}

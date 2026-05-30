@@ -212,6 +212,18 @@ else
             <button id="pdfFillSaveButton" type="button" class="btn btn-primary btn-sm pdf-fill-toolbar__btn"
                     title="Зберегти значення для замовлення"
                     @(Model.Segments.Any(segment => segment.CanWrite) ? "" : "disabled")>Зберегти</button>
+            @if (Model.CanSendToExpert)
+            {
+                <button id="pdfFillSendToExpertButton" type="button" class="btn btn-success btn-sm pdf-fill-toolbar__btn"
+                        title="Відправити заповнений шаблон експерту для розгляду">
+                    Експерту
+                </button>
+            }
+            else if (Model.DocumentStatus == nameof(UniversalLIMS.Domain.Registration.OrderDocumentStatus.ResultsEntered)
+                     && string.Equals(Model.ActiveRoleCode, UniversalLIMS.Application.Security.LimsRoles.LaboratoryTechnician, StringComparison.Ordinal))
+            {
+                <span class="badge lims-status-badge lims-status-badge--done pdf-fill-toolbar__sent-badge">Відправлено експерту</span>
+            }
             <a id="pdfFillPreviewFinalButton"
                class="btn btn-success btn-sm pdf-fill-toolbar__btn @(Model.OrderId.HasValue ? "" : "d-none")"
                href="@(Model.OrderId.HasValue ? Url.Action("FinalPdf", "PdfWorkspace", new { templateVersionId = Model.TemplateVersionId, orderId = Model.OrderId }) : "#")"
@@ -507,6 +519,9 @@ else
                     activeRoleCode = Model.ActiveRoleCode,
                     expertQueueUrl = Model.ExpertQueueUrl,
                     expertDetailsUrl = Model.ExpertDetailsUrl,
+                    sendToExpertUrl = Model.SendToExpertUrl,
+                    canSendToExpert = Model.CanSendToExpert,
+                    documentStatus = Model.DocumentStatus,
                     saveUrl = $"/PdfWorkspace/Fill/{Model.TemplateVersionId}/values",
                     layoutSaveUrl = $"/PdfWorkspace/Fill/{Model.TemplateVersionId}/layout",
                     libraryUrl = $"/PdfWorkspace/Fill/{Model.TemplateVersionId}/library",

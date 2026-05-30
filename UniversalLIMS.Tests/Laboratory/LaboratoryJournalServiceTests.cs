@@ -256,6 +256,83 @@ public sealed class LaboratoryJournalServiceTests
         Assert.Equal(SampleStatus.InProgress, byStatus.Items[0].Status);
     }
 
+    [Fact]
+    public async Task GetIncomingSinceAsync_ReturnsSamplesRoutedAfterTimestamp()
+    {
+        var branchId = Guid.NewGuid();
+        await using var context = CreateContext();
+        await SeedBranchesAsync(context, branchId);
+        var investigationTypeId = await SeedInvestigationTypeAsync(context);
+        var customer = await SeedCustomerAsync(context, "Нова Проба");
+        var orderId = await SeedOrderWithSampleAsync(
+            context,
+            customer.Id,
+            branchId,
+            investigationTypeId,
+            "REF-NEW",
+            "SMP-NEW-001",
+            SampleStatus.Routed);
+
+        var sample = await context.Samples.SingleAsync(sample => sample.OrderId == orderId);
+        sample.RoutedAtUtc = new DateTime(2026, 5, 30, 12, 0, 0, DateTimeKind.Utc);
+        await context.SaveChangesAsync();
+
+        var service = CreateService(context, branchId);
+        var since = new DateTime(2026, 5, 30, 11, 0, 0, DateTimeKind.Utc);
+
+        var result = await service.GetIncomingSinceAsync(since);
+
+        Assert.Single(result);
+        Assert.Equal("SMP-NEW-001", result[0].SampleNumber);
+        Assert.Equal("Нова Проба", result[0].CustomerFullName);
+    }
+
+    [Fact]
+    public async Task GetIncomingSinceAsync_RespectsLaboratoryBranchContext()
+    {
+        var branchA = Guid.NewGuid();
+        var branchB = Guid.NewGuid();
+        await using var context = CreateContext();
+        await SeedBranchesAsync(context, branchA, branchB);
+        var investigationTypeId = await SeedInvestigationTypeAsync(context);
+        var customer = await SeedCustomerAsync(context, "Фільтр філії");
+
+        var orderA = await SeedRoutedSampleAsync(context, customer.Id, branchA, investigationTypeId, "SMP-A-ROUTE");
+        var orderB = await SeedRoutedSampleAsync(context, customer.Id, branchB, investigationTypeId, "SMP-B-ROUTE");
+        _ = orderA;
+        _ = orderB;
+
+        var service = CreateService(context, branchA);
+        var since = new DateTime(2026, 5, 29, 0, 0, 0, DateTimeKind.Utc);
+
+        var result = await service.GetIncomingSinceAsync(since);
+
+        Assert.Single(result);
+        Assert.Equal("SMP-A-ROUTE", result[0].SampleNumber);
+    }
+
+    private static async Task<Guid> SeedRoutedSampleAsync(
+        ApplicationDbContext context,
+        Guid customerId,
+        Guid branchId,
+        Guid investigationTypeId,
+        string sampleNumber)
+    {
+        var orderId = await SeedOrderWithSampleAsync(
+            context,
+            customerId,
+            branchId,
+            investigationTypeId,
+            $"REF-{sampleNumber}",
+            sampleNumber,
+            SampleStatus.Routed);
+
+        var sample = await context.Samples.SingleAsync(item => item.OrderId == orderId);
+        sample.RoutedAtUtc = new DateTime(2026, 5, 30, 10, 0, 0, DateTimeKind.Utc);
+        await context.SaveChangesAsync();
+        return orderId;
+    }
+
     private static async Task SeedBranchesAsync(ApplicationDbContext context, params Guid[] branchIds)
     {
         foreach (var branchId in branchIds)

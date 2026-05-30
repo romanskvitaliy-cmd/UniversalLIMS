@@ -1,0 +1,195 @@
+@model IssuanceIndexViewModel
+@using UniversalLIMS.Application.Registration
+@using UniversalLIMS.Domain.Registration
+
+@{
+    Layout = "_LayoutWorkspace";
+    ViewData["Title"] = Model.Filter.ShowIssued ? "Видані результати" : "Готові до видачі";
+}
+
+<div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+    <div>
+        <h1 class="h3 mb-1">@(Model.Filter.ShowIssued ? "Видані результати" : "Готові до видачі")</h1>
+        <p class="text-muted mb-0">
+            Проби з затвердженим висновком експерта.
+            @(Model.Filter.ShowIssued
+                ? "Архів видачі клієнту."
+                : "Передайте документ клієнту та натисніть «Видано».")
+        </p>
+    </div>
+    <div class="d-flex flex-wrap gap-2 align-items-start">
+        <partial name="_WorkspaceCabinetLink" />
+        @if (Model.Filter.ShowIssued)
+        {
+            <a class="btn btn-sm btn-outline-primary" asp-action="Index">← Очікують видачі</a>
+        }
+        else
+        {
+            <a class="btn btn-sm btn-outline-secondary" asp-action="Index" asp-route-showIssued="true">Архів виданих</a>
+        }
+    </div>
+</div>
+
+@if (TempData["IssuanceSuccess"] is string success)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @success
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Закрити"></button>
+    </div>
+}
+
+@if (TempData["IssuanceWarning"] is string warning)
+{
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        @warning
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Закрити"></button>
+    </div>
+}
+
+<form method="get" asp-action="Index" class="card mb-3">
+    <input type="hidden" name="showIssued" value="@(Model.Filter.ShowIssued ? "true" : "false")" />
+    <div class="card-body">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label small text-muted" for="sampleNumber">Номер проби</label>
+                <input type="text" class="form-control form-control-sm" id="sampleNumber" name="sampleNumber"
+                       value="@Model.Filter.SampleNumber" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small text-muted" for="customerFullName">ПІБ замовника</label>
+                <input type="text" class="form-control form-control-sm" id="customerFullName" name="customerFullName"
+                       value="@Model.Filter.CustomerFullName" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small text-muted" for="dateFrom">Дата від</label>
+                <input type="date" class="form-control form-control-sm" id="dateFrom" name="dateFrom"
+                       value="@(Model.Filter.DateFrom?.ToString("yyyy-MM-dd"))" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small text-muted" for="dateTo">Дата до</label>
+                <input type="date" class="form-control form-control-sm" id="dateTo" name="dateTo"
+                       value="@(Model.Filter.DateTo?.ToString("yyyy-MM-dd"))" />
+            </div>
+            <div class="col-md-12 col-lg-auto d-flex gap-2">
+                <button type="submit" class="btn btn-sm btn-primary">Застосувати</button>
+                <a class="btn btn-sm btn-outline-secondary"
+                   asp-action="Index"
+                   asp-route-showIssued="@Model.Filter.ShowIssued">Скинути</a>
+            </div>
+        </div>
+    </div>
+</form>
+
+@if (!Model.Result.Items.Any())
+{
+    <div class="alert alert-info mb-0">
+        @(Model.Filter.ShowIssued ? "Виданих проб за критеріями не знайдено." : "Немає проб, готових до видачі.")
+    </div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle lims-workspace-table">
+            <thead>
+                <tr>
+                    <th>Номер проби</th>
+                    <th>Направлення</th>
+                    <th>Замовник</th>
+                    <th>Дослідження</th>
+                    <th>Затверджено</th>
+                    @if (Model.Filter.ShowIssued)
+                    {
+                        <th>Видано</th>
+                    }
+                    else
+                    {
+                        <th>Готово з</th>
+                    }
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.Result.Items)
+                {
+                    <tr>
+                        <td class="fw-semibold">@item.SampleNumber</td>
+                        <td>@(string.IsNullOrWhiteSpace(item.ReferralNumber) ? "—" : item.ReferralNumber)</td>
+                        <td>@item.CustomerFullName</td>
+                        <td>@item.InvestigationTypeName</td>
+                        <td class="text-nowrap">
+                            @(item.ApprovedAtUtc?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "—")
+                        </td>
+                        <td class="text-nowrap">
+                            @if (Model.Filter.ShowIssued)
+                            {
+                                @(item.IssuedAtUtc?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "—")
+                            }
+                            else
+                            {
+                                @(item.ReadyForPickupAtUtc?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "—")
+                            }
+                        </td>
+                        <td class="text-end text-nowrap">
+                            <a class="btn btn-sm btn-outline-secondary"
+                               asp-controller="Orders"
+                               asp-action="Details"
+                               asp-route-id="@item.OrderId"
+                               title="Справу замовлення">Справа</a>
+                            @if (item.DocumentCount == 1
+                                && item.SingleTemplateVersionIdForFinalPdf.HasValue
+                                && item.SingleDocumentIdForFinalPdf.HasValue)
+                            {
+                                <a class="btn btn-sm btn-outline-success"
+                                   asp-controller="PdfWorkspace"
+                                   asp-action="FinalPdf"
+                                   asp-route-templateVersionId="@item.SingleTemplateVersionIdForFinalPdf.Value"
+                                   asp-route-orderId="@item.OrderId"
+                                   asp-route-orderDocumentId="@item.SingleDocumentIdForFinalPdf.Value"
+                                   target="_blank"
+                                   rel="noopener"
+                                   title="Фінальний PDF">PDF</a>
+                            }
+                            @if (!Model.Filter.ShowIssued)
+                            {
+                                <form asp-action="MarkIssued" method="post" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="sampleId" value="@item.SampleId" />
+                                    <button type="submit" class="btn btn-sm btn-primary"
+                                            onclick="return confirm('Підтвердити видачу результатів клієнту?');">
+                                        Видано
+                                    </button>
+                                </form>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @if (Model.Result.TotalPages > 1)
+    {
+        <nav aria-label="Сторінки" class="mt-3">
+            <ul class="pagination pagination-sm mb-0">
+                @for (var pageNumber = 1; pageNumber <= Model.Result.TotalPages; pageNumber++)
+                {
+                    var isActive = pageNumber == Model.Result.Page;
+                    <li class="page-item @(isActive ? "active" : null)">
+                        <a class="page-link"
+                           asp-action="Index"
+                           asp-route-page="@pageNumber"
+                           asp-route-showIssued="@Model.Filter.ShowIssued"
+                           asp-route-sampleNumber="@Model.Filter.SampleNumber"
+                           asp-route-customerFullName="@Model.Filter.CustomerFullName"
+                           asp-route-dateFrom="@(Model.Filter.DateFrom?.ToString("yyyy-MM-dd"))"
+                           asp-route-dateTo="@(Model.Filter.DateTo?.ToString("yyyy-MM-dd"))">@pageNumber</a>
+                    </li>
+                }
+            </ul>
+        </nav>
+    }
+
+    <p class="text-muted small mt-2 mb-0">
+        Показано @Model.Result.Items.Count з @Model.Result.TotalCount.
+    </p>
+}

@@ -506,6 +506,98 @@ a.lims-workspace-theme-option {
     font-size: 1rem;
 }
 
+/* ── Сповіщення про маршрутизацію проб ── */
+
+.lims-route-notify-dropdown {
+    position: relative;
+}
+
+.lims-route-notify-trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.125rem;
+    height: 2.125rem;
+    padding: 0;
+    border-radius: 999px;
+    border: 1px solid var(--ws-border, rgba(148, 163, 184, 0.35));
+    background: rgba(255, 255, 255, 0.72);
+    color: var(--ws-muted, #64748b);
+    transition: color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.lims-route-notify-trigger:hover,
+.lims-route-notify-trigger:focus-visible,
+.lims-route-notify-trigger.is-active {
+    color: var(--workspace-accent, #0d9488);
+    border-color: color-mix(in srgb, var(--workspace-accent, #0d9488) 45%, transparent);
+    box-shadow: 0 0 0 0.15rem color-mix(in srgb, var(--workspace-accent, #0d9488) 18%, transparent);
+}
+
+.lims-route-notify-menu {
+    min-width: 14.5rem;
+    padding-bottom: 0.35rem;
+}
+
+.lims-route-notify-option {
+    padding: 0.45rem 0.85rem;
+}
+
+.lims-route-notify-option .form-check-label {
+    font-size: 0.875rem;
+}
+
+.lims-route-notify-hint {
+    padding-top: 0.35rem;
+    line-height: 1.35;
+}
+
+.lims-route-notify-toasts {
+    z-index: 1090;
+    max-width: min(22rem, calc(100vw - 1.5rem));
+}
+
+.lims-route-notify-toast {
+    backdrop-filter: blur(8px);
+    box-shadow: 0 0.75rem 1.5rem rgba(15, 23, 42, 0.18);
+}
+
+.lims-route-notify-toast__title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    opacity: 0.88;
+    margin-bottom: 0.15rem;
+}
+
+.lims-route-notify-toast__link {
+    color: inherit;
+    text-decoration: none;
+}
+
+.lims-route-notify-toast__link:hover {
+    color: inherit;
+    text-decoration: underline;
+}
+
+.lims-route-notify-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.1rem;
+    height: 1.1rem;
+    margin-left: 0.35rem;
+    padding: 0 0.3rem;
+    border-radius: 999px;
+    background: #ef4444;
+    color: #fff;
+    font-size: 0.625rem;
+    font-weight: 700;
+    line-height: 1;
+    vertical-align: middle;
+}
+
 .lims-workspace-main {
     flex: 1;
     padding-top: 0.85rem;
@@ -4717,5 +4809,311 @@ body.template-permissions-body .footer {
 
     .order-detail-doc__name {
         white-space: normal;
+    }
+}
+
+/* ── Користувачі та ролі ── */
+.lims-users-page {
+    max-width: 1400px;
+}
+
+.lims-users-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+    gap: 1.25rem;
+    align-items: start;
+}
+
+.lims-users-layout__main {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    min-width: 0;
+}
+
+.lims-users-filters {
+    padding: 1rem 1.25rem;
+}
+
+.lims-users-filters__form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1rem;
+    align-items: flex-end;
+}
+
+.lims-users-filters__field {
+    flex: 1 1 160px;
+    min-width: 140px;
+}
+
+.lims-users-filters__field--check {
+    flex: 0 0 auto;
+    padding-bottom: 0.35rem;
+}
+
+.lims-users-filters__actions {
+    display: flex;
+    gap: 0.5rem;
+    flex: 0 0 auto;
+}
+
+.lims-users-role-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.lims-users-role-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--role-accent, #64748b);
+    background: color-mix(in srgb, var(--role-accent, #64748b) 12%, var(--ws-bg));
+    border: 1px solid color-mix(in srgb, var(--role-accent, #64748b) 24%, var(--ws-border));
+}
+
+.lims-users-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.15rem 0.45rem;
+    border-radius: 6px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ws-muted);
+    background: var(--ws-bg);
+    border: 1px solid var(--ws-border);
+}
+
+.lims-users-tag--portal {
+    color: #0369a1;
+    background: #e0f2fe;
+    border-color: #bae6fd;
+}
+
+.lims-users-roles-ref {
+    position: sticky;
+    top: 1rem;
+}
+
+.lims-users-roles-ref__header {
+    padding: 1rem 1.15rem 0.75rem;
+    border-bottom: 1px solid var(--ws-border);
+}
+
+.lims-users-roles-ref__title {
+    margin: 0 0 0.35rem;
+    font-size: 0.95rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+}
+
+.lims-users-roles-ref__list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    padding: 0.85rem;
+    max-height: calc(100vh - 8rem);
+    overflow: auto;
+}
+
+.lims-users-role-card {
+    padding: 0.75rem 0.85rem;
+    border-radius: 14px;
+    border: 1px solid color-mix(in srgb, var(--role-accent, #64748b) 18%, var(--ws-border));
+    background: color-mix(in srgb, var(--role-accent, #64748b) 5%, var(--ws-surface));
+}
+
+.lims-users-role-card__head {
+    display: flex;
+    gap: 0.65rem;
+    align-items: flex-start;
+    margin-bottom: 0.45rem;
+}
+
+.lims-users-role-card__icon {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--role-accent, #64748b);
+    background: color-mix(in srgb, var(--role-accent, #64748b) 14%, var(--ws-bg));
+    flex-shrink: 0;
+}
+
+.lims-users-role-card__name {
+    margin: 0;
+    font-size: 0.875rem;
+    font-weight: 700;
+}
+
+.lims-users-role-card__scope {
+    color: var(--ws-muted);
+}
+
+.lims-users-role-card__summary {
+    color: var(--ws-muted);
+    margin-bottom: 0.5rem;
+    line-height: 1.45;
+}
+
+.lims-users-role-card__tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+}
+
+.lims-users-form-layout {
+    max-width: 920px;
+}
+
+.lims-users-form-panel {
+    padding: 1.25rem 1.5rem 1.5rem;
+}
+
+.lims-password-field {
+    position: relative;
+    display: flex;
+    align-items: stretch;
+}
+
+.lims-password-field__input {
+    padding-right: 2.65rem;
+}
+
+.lims-password-field__toggle {
+    position: absolute;
+    top: 50%;
+    right: 0.35rem;
+    transform: translateY(-50%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    color: var(--ws-muted);
+    background: transparent;
+    cursor: pointer;
+    transition: color 0.15s ease, background 0.15s ease;
+}
+
+.lims-password-field__toggle:hover {
+    color: var(--workspace-accent, #6366f1);
+    background: color-mix(in srgb, var(--workspace-accent, #6366f1) 8%, var(--ws-bg));
+}
+
+.lims-password-field__toggle:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--workspace-accent, #6366f1) 45%, transparent);
+    outline-offset: 1px;
+}
+
+.lims-password-field--locked .lims-password-field__input:disabled {
+    color: var(--ws-muted);
+    background: var(--ws-bg);
+    letter-spacing: 0.12em;
+}
+
+.lims-users-role-picker__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 0.75rem;
+}
+
+.lims-users-role-option {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    padding: 0.85rem 0.95rem;
+    border-radius: 16px;
+    border: 1px solid var(--ws-border);
+    background: var(--ws-surface);
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.lims-users-role-option:hover {
+    border-color: color-mix(in srgb, var(--role-accent, #64748b) 35%, var(--ws-border));
+}
+
+.lims-users-role-option.is-selected,
+.lims-users-role-option:has(.lims-users-role-option__check:checked) {
+    border-color: color-mix(in srgb, var(--role-accent, #64748b) 45%, var(--ws-border));
+    background: color-mix(in srgb, var(--role-accent, #64748b) 7%, var(--ws-surface));
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--role-accent, #64748b) 20%, transparent);
+}
+
+.lims-users-role-option__check {
+    margin-top: 0.2rem;
+    flex-shrink: 0;
+}
+
+.lims-users-role-option__icon {
+    width: 2.1rem;
+    height: 2.1rem;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--role-accent, #64748b);
+    background: color-mix(in srgb, var(--role-accent, #64748b) 12%, var(--ws-bg));
+    flex-shrink: 0;
+}
+
+.lims-users-role-option__body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-width: 0;
+}
+
+.lims-users-role-option__title {
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--ws-text);
+}
+
+.lims-users-role-option__summary,
+.lims-users-role-option__meta {
+    font-size: 0.78rem;
+    color: var(--ws-muted);
+    line-height: 1.4;
+}
+
+.lims-branch-login {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem 0.5rem;
+}
+
+.lims-branch-login__email {
+    font-size: 0.75rem;
+}
+
+.lims-branch-login__edit {
+    padding-inline: 0.55rem;
+}
+
+@media (max-width: 1100px) {
+    .lims-users-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .lims-users-roles-ref {
+        position: static;
+    }
+
+    .lims-users-roles-ref__list {
+        max-height: none;
     }
 }

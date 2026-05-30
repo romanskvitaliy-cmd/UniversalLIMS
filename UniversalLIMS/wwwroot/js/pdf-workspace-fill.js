@@ -16,6 +16,7 @@
     const zoomContainer = document.getElementById("pdfFillZoomContainer");
     const previewError = document.getElementById("pdfFillPreviewError");
     const saveButton = document.getElementById("pdfFillSaveButton");
+    const sendToExpertButton = document.getElementById("pdfFillSendToExpertButton");
     const previewFinalButton = document.getElementById("pdfFillPreviewFinalButton");
     const downloadFinalButton = document.getElementById("pdfFillDownloadFinalButton");
     const statusBox = document.getElementById("pdfFillStatus");
@@ -2503,6 +2504,58 @@
         }
     };
 
+    let isSendingToExpert = false;
+
+    const sendDocumentToExpert = async () => {
+        const sendUrl = clientConfig.sendToExpertUrl;
+        const orderDocumentId = clientConfig.orderDocumentId;
+        if (!sendUrl || !orderDocumentId || isSendingToExpert) {
+            return;
+        }
+
+        if (isDirty || isLayoutDirty) {
+            await saveValues({ source: "send-to-expert", silent: false });
+            if (isDirty || isLayoutDirty) {
+                showStatus("Спочатку збережіть усі зміни перед відправкою експерту.", "warning");
+                return;
+            }
+        }
+
+        isSendingToExpert = true;
+        if (sendToExpertButton) {
+            sendToExpertButton.disabled = true;
+        }
+
+        try {
+            const response = await fetch(sendUrl, {
+                method: "POST",
+                credentials: "same-origin",
+                headers: {
+                    Accept: "application/json",
+                    RequestVerificationToken: getAntiforgeryToken()
+                }
+            });
+
+            const body = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(body.message || `Не вдалося відправити експерту (${response.status}).`);
+            }
+
+            clientConfig.canSendToExpert = false;
+            clientConfig.documentStatus = "ResultsEntered";
+            showStatus(body.message || "Шаблон відправлено експерту.", "success");
+            sendToExpertButton?.remove();
+        } catch (error) {
+            console.error("[PdfWorkspace Fill] send-to-expert error:", error);
+            showStatus(error.message || "Не вдалося відправити експерту.", "danger");
+            if (sendToExpertButton) {
+                sendToExpertButton.disabled = false;
+            }
+        } finally {
+            isSendingToExpert = false;
+        }
+    };
+
     const scrollWorkspaceToFirstField = () => {
         const targetPage = document.querySelector(`.pdf-fill-page[data-page="${firstFieldPage}"]`)
             ?? document.querySelector(".pdf-fill-page");
@@ -2602,6 +2655,7 @@
         });
 
         saveButton?.addEventListener("click", () => saveValues({ source: "toolbar" }));
+        sendToExpertButton?.addEventListener("click", () => sendDocumentToExpert());
 
         toolbarUndoButton?.addEventListener("click", () => undoLastAction());
         toolbarRedoButton?.addEventListener("click", () => redoLastAction());
