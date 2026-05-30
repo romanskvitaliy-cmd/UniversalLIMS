@@ -52,7 +52,7 @@
 |---|------|------------|
 | 0 | Admin: Upload `REF-MOZ-001.pdf` → Map → Permissions → Publish | Шаблон Active, Purpose=Referral |
 | 1 | Create: REF-MOZ-001 + протокол у рядку проби | 2 документи на пробу |
-| 2 | MapOrderFields | REF проби 1 + протокол проби 1 (не з пробою 2) |
+| 2 | MapOrderFields | Секції «Проба N» (D7): REF проби 1 + протокол проби 1 (не з пробою 2) |
 | 3 | «Друк направлення» на Details | Лише REF PDF |
 
 ## Критерії PASS

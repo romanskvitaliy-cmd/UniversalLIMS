@@ -90,4 +90,5 @@ dotnet run --project docs\tools\GenerateRefMoz001Pdf\GenerateRefMoz001Pdf.csproj
 
 - `docs/ref-registrar-quickstart-uk.md` — інструкція реєстратору
 - `docs/glossary-registration-uk.md` — терміни справа / проба / REF
-- `docs/pilot-smoke-c1-checklist.md` — сценарій D (REF)
+- `docs/pilot-smoke-c1-checklist.md` — сценарій D (REF, 1 проба)
+- `docs/pilot-d8a-qa-checklist.md` — D8a (3 проби × REF + протокол)

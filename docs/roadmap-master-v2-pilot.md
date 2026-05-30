@@ -24,7 +24,7 @@
 3. **Направлення (цифрове)** — реєстратура **формує на бланку**, який адмін завантажив (`REF-*`). Це один із документів замовлення поруч із протоколами — **не окремий модуль**.
 4. **Мапінг полів** — вже реалізовано (`OrderFieldLinkGroup`, `MapOrderFields`). Якщо один замовник + направлення + 4 протоколи — **один крок мапінгу** на всі документи: об’єднати «ПІБ», «дата відбору» тощо між REF і протоколами, заповнити один раз. Принесене паперове — скан + перенос у той самий цифровий REF-бланк.
 5. **Лабораторія** — UX має повторити ланцюжок реєстратури: **сторінка проби** з таблицею документів і статусів; «Відправити експерту» — **не** в toolbar PDF (тимчасово там, перенести на сторінку проби).
-6. **Пріоритет розробки (актуальний):** ~~B1–B2, T1, C2, R1, D1, D6a, D2, D3, G5/G6, C1 (auto)~~ ✅ → **D-контент-1** (контент у repo ✅; Upload/Publish на стенді) + ручний UI smoke C1.
+6. **Пріоритет розробки (актуальний):** ~~B1–B2, T1, C2, R1, D1, D6a, D2, D3, G5/G6, C1 (auto), D7~~ ✅ → **Publish REF на стенді** → **C1 UI** + **D8a QA** (автотест D8a ✅).
 7. **Терміни UI:** `Order.ReferralNumber` = **«Номер справи»**; слово **«Направлення»** — лише PDF-бланк REF-* (див. `glossary-registration-uk.md`).
 8. **REF на пілоті:** основний режим **Per Sample** (1 REF на пробу); Per Order — backlog (§7.0).
 
@@ -338,7 +338,7 @@ Create: 1 замовник + REF-* (направлення) + N протокол
 - [x] **D6a (Per Sample, пілот).** У рядку проби на `Orders/Create` — другий select «Бланк направлення REF-*» поруч із «Бланк протоколу»; створює 2 `OrderDocument` на пробу (`ReferralTemplateVersionId` + протокол; REF → `TargetBranchId` реєстратора).
 - [ ] **D6b (backlog).** Per Order: один dropdown REF на справу + nullable `SampleId` для referral-документів.
 - [x] **D7.** На `MapOrderFields` — групувати: Per Sample — «REF + протокол проби N»; Per Order — «Направлення | Протокол: f327 | …» (Per Order UI — backlog D6b).
-- [ ] **D8a.** QA Per Sample: 1 клієнт + 3 проби + 3 REF + 3 протоколи → Map → Fill.
+- [ ] **D8a.** QA Per Sample: 1 клієнт + 3 проби + 3 REF + 3 протоколи → Map → Fill. *(автотест `PilotRefPerSampleFlowTests`; ручний — `docs/pilot-d8a-qa-checklist.md`)*
 - [ ] **D8.** QA Per Order: 1 клієнт + 1 REF + 4 протоколи → Map → Fill.
 
 ### 7.3 Паперове направлення (другорядний сценарій)
@@ -418,7 +418,7 @@ REF **не** відправляється в lab як протокол (стат
 - [x] **D-контент-1.** 1–2 бланки REF у Word → upload → map тегів. *(2026-05-31: PDF `docs/assets/templates/REF-MOZ-001.pdf`, теги `protocol-tags-ref.json`, інструкції admin/registrar; Upload+Map+Publish — на стенді.)*
 - [x] **D-контент-2.** `docs/data/protocol-tags-ref.json` + seed / optgroup у Map. *(seed RefMoz у ProtocolTagCatalog; optgroup REF + SSOT у Map.cshtml.)*
 - [x] **D-контент-3.** Інструкція реєстратору: Create → REF + протоколи → Map → Fill (1 стор.). *(docs/ref-registrar-quickstart-uk.md)*
-- [ ] **D-контент-4.** Тестовий кейс QA: 1 клієнт + REF + 4 протоколи + мапінг 3 спільних полів.
+- [x] **D-контент-4.** Тестовий кейс QA: 1 клієнт + REF + 4 протоколи + мапінг 3 спільних полів. *(автотест `PilotRefDContent4Tests`; ручний — після Publish REF на стенді.)*
 
 ---
 
@@ -677,8 +677,11 @@ UniversalLIMS — пілот ЦКПХ (Житомир).
 | 7 | D2–D3 | ✅ Друк REF / протоколів окремо (`purposeFilter`, Orders/Details) | `ReferralPdfGenerator`, `OrdersController` |
 | 8 | G5/G6 | ✅ Адмін hub lab+expert | `/Laboratories`, `/Users` |
 | 9 | C1 | 🟡 Auto smoke ✅ (`PilotSmokeFlowTests`); UI poll — чеклист | `docs/pilot-smoke-c1-checklist.md` |
-| 10 | D-контент-1 | 🟡 Контент REF-MOZ-001 у repo; **Upload/Map/Publish на стенді** | `docs/ref-moz-001-admin-setup.md` |
-| 11 | D7 | ✅ MapOrderFields групує REF + протокол по пробах | `order-field-mapping.js`, `OrderFieldMappingSampleGroupBuilder` |
+| 10 | D-контент-1 | 🟡 Контент у repo ✅; **Publish на стенді** | `docs/ref-moz-001-admin-setup.md` |
+| 11 | D7 | ✅ MapOrderFields групує REF + протокол по пробах | `OrderFieldMappingSampleGroupBuilder` |
+| 12 | D8a | 🟡 Auto ✅; ручний QA на стенді | `docs/pilot-d8a-qa-checklist.md` |
+| 13 | D-контент-4 | ✅ Auto `PilotRefDContent4Tests` | `UniversalLIMS.Tests/Pilot/` |
+| 14 | — | 🟡 **Наступне:** Publish REF → C1 UI smoke → D8a ручний | чеклисти в `docs/` |
 
 ### Технічні нотатки
 

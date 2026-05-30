@@ -593,6 +593,89 @@ public sealed class OrderRegistrationServiceTests
     }
 
     [Fact]
+    public async Task CreateOrderAsync_PerSample_ThreeSamples_CreatesSixDocuments()
+    {
+        var branchId = Guid.NewGuid();
+        var labBranchId = Guid.NewGuid();
+        await using var context = CreateContext();
+        await SeedBranchesAsync(context, branchId, labBranchId);
+        var (waterTypeId, foodTypeId, airTypeId) = await SeedDefaultInvestigationTypesAsync(context);
+        var referralVersionId = await SeedActivePublishedPdfReferralTemplateAsync(
+            context,
+            "REF-MOZ-001",
+            "Направлення МОЗ");
+        var protocolWaterId = await SeedActivePublishedPdfTemplateAsync(context, "F327", "Ф327 вода");
+        var protocolFoodId = await SeedActivePublishedPdfTemplateAsync(context, "F343", "Ф343 харчі");
+        var protocolAirId = await SeedActivePublishedPdfTemplateAsync(context, "F205", "Ф205 повітря");
+        var customer = await SeedCustomerAsync(context, "D8a три проби");
+        var service = CreateService(context, branchId);
+
+        var result = await service.CreateOrderAsync(new CreateOrderRequest
+        {
+            CustomerId = customer.Id,
+            Samples =
+            [
+                new CreateOrderSampleRequest
+                {
+                    InvestigationTypeId = waterTypeId,
+                    ReferralTemplateVersionId = referralVersionId,
+                    Documents =
+                    [
+                        new CreateOrderDocumentRequest
+                        {
+                            TemplateVersionId = protocolWaterId,
+                            TargetBranchId = labBranchId
+                        }
+                    ]
+                },
+                new CreateOrderSampleRequest
+                {
+                    InvestigationTypeId = foodTypeId,
+                    ReferralTemplateVersionId = referralVersionId,
+                    Documents =
+                    [
+                        new CreateOrderDocumentRequest
+                        {
+                            TemplateVersionId = protocolFoodId,
+                            TargetBranchId = labBranchId
+                        }
+                    ]
+                },
+                new CreateOrderSampleRequest
+                {
+                    InvestigationTypeId = airTypeId,
+                    ReferralTemplateVersionId = referralVersionId,
+                    Documents =
+                    [
+                        new CreateOrderDocumentRequest
+                        {
+                            TemplateVersionId = protocolAirId,
+                            TargetBranchId = labBranchId
+                        }
+                    ]
+                }
+            ]
+        });
+
+        Assert.Equal(3, result.Samples.Count);
+        Assert.Equal(6, result.Documents.Count);
+
+        var documents = await context.OrderDocuments
+            .Where(document => document.OrderId == result.OrderId && !document.IsAnnulled)
+            .Include(document => document.TemplateVersion)
+            .ThenInclude(version => version!.Template)
+            .ToListAsync();
+
+        Assert.Equal(3, documents.Count(document =>
+            document.TemplateVersion!.Template.Purpose == TemplatePurpose.Referral));
+        Assert.Equal(3, documents.Count(document =>
+            document.TemplateVersion!.Template.Purpose == TemplatePurpose.Protocol));
+        Assert.All(
+            documents.Where(document => document.TemplateVersion!.Template.Purpose == TemplatePurpose.Referral),
+            document => Assert.Equal(branchId, document.TargetBranchId));
+    }
+
+    [Fact]
     public async Task GetCreateFormAsync_ListsActivePdfTemplatesFromConstructorEvenWithoutLinks()
     {
         await using var context = CreateContext();
