@@ -6,6 +6,7 @@ using UniversalLIMS.Application.Registration.Abstractions;
 using UniversalLIMS.Application.Security;
 using UniversalLIMS.Application.Templates.Abstractions;
 using UniversalLIMS.Domain.Registration;
+using UniversalLIMS.Domain.Templates;
 using UniversalLIMS.Infrastructure.Filters;
 using UniversalLIMS.ViewModels.Registration;
 
@@ -24,17 +25,20 @@ public sealed class OrdersController : Controller
     private readonly IOrderFieldLinkService _orderFieldLinks;
     private readonly ICustomerService _customerService;
     private readonly ITemplateOriginalOpenTokenIssuer _openTokenIssuer;
+    private readonly IReferralPdfGenerator _referralPdfGenerator;
 
     public OrdersController(
         IOrderRegistrationService orderRegistration,
         IOrderFieldLinkService orderFieldLinks,
         ICustomerService customerService,
-        ITemplateOriginalOpenTokenIssuer openTokenIssuer)
+        ITemplateOriginalOpenTokenIssuer openTokenIssuer,
+        IReferralPdfGenerator referralPdfGenerator)
     {
         _orderRegistration = orderRegistration;
         _orderFieldLinks = orderFieldLinks;
         _customerService = customerService;
         _openTokenIssuer = openTokenIssuer;
+        _referralPdfGenerator = referralPdfGenerator;
     }
 
     [HttpGet]
@@ -240,6 +244,14 @@ public sealed class OrdersController : Controller
             return View(BuildCreateViewModel(form, input));
         }
     }
+
+    [HttpGet]
+    public async Task<IActionResult> PrintReferralDocuments(Guid id, CancellationToken cancellationToken) =>
+        await PrintDocumentsByPurposeAsync(id, TemplatePurpose.Referral, "napravlennia", cancellationToken);
+
+    [HttpGet]
+    public async Task<IActionResult> PrintProtocolDocuments(Guid id, CancellationToken cancellationToken) =>
+        await PrintDocumentsByPurposeAsync(id, TemplatePurpose.Protocol, "protokoly", cancellationToken);
 
     [HttpGet]
     public async Task<IActionResult> Details(Guid id, CancellationToken cancellationToken)
@@ -456,6 +468,39 @@ public sealed class OrdersController : Controller
         {
             ModelState.AddModelError(nameof(input.SelectedCustomerId), "Оберіть замовника з результатів пошуку.");
         }
+    }
+
+    private async Task<IActionResult> PrintDocumentsByPurposeAsync(
+        Guid orderId,
+        TemplatePurpose purpose,
+        string fileNameStem,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var detail = await _orderRegistration.GetOrderDetailAsync(orderId, cancellationToken);
+            if (detail is null)
+            {
+                return NotFound();
+            }
+
+            var pdfBytes = await _referralPdfGenerator.GenerateAsync(orderId, purpose, cancellationToken);
+            var fileName = BuildOrderPrintFileName(detail.ReferralNumber, fileNameStem);
+            return File(pdfBytes, "application/pdf", fileName);
+        }
+        catch (InvalidOperationException ex)
+        {
+            TempData["OrderDetailError"] = ex.Message;
+            return RedirectToAction(nameof(Details), new { id = orderId });
+        }
+    }
+
+    private static string BuildOrderPrintFileName(string? referralNumber, string stem)
+    {
+        var safeNumber = string.IsNullOrWhiteSpace(referralNumber)
+            ? "sprava"
+            : referralNumber.Trim().Replace('/', '-').Replace('\\', '-');
+        return $"{stem}-{safeNumber}.pdf";
     }
 
     private static string BuildOrderCreateSuccessMessage(CreateOrderResult result)

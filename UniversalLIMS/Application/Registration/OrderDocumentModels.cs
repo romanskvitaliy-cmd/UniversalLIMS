@@ -1,4 +1,5 @@
 using UniversalLIMS.Domain.Registration;
+using UniversalLIMS.Domain.Templates;
 
 namespace UniversalLIMS.Application.Registration;
 
@@ -103,6 +104,8 @@ public sealed class OrderDocumentItemDto
     public Guid TemplateVersionId { get; init; }
 
     public required string TemplateNameUk { get; init; }
+
+    public TemplatePurpose TemplatePurpose { get; init; } = TemplatePurpose.Protocol;
 
     public int VersionNumber { get; init; }
 

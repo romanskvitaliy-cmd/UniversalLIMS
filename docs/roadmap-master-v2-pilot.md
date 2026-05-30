@@ -24,7 +24,7 @@
 3. **Направлення (цифрове)** — реєстратура **формує на бланку**, який адмін завантажив (`REF-*`). Це один із документів замовлення поруч із протоколами — **не окремий модуль**.
 4. **Мапінг полів** — вже реалізовано (`OrderFieldLinkGroup`, `MapOrderFields`). Якщо один замовник + направлення + 4 протоколи — **один крок мапінгу** на всі документи: об’єднати «ПІБ», «дата відбору» тощо між REF і протоколами, заповнити один раз. Принесене паперове — скан + перенос у той самий цифровий REF-бланк.
 5. **Лабораторія** — UX має повторити ланцюжок реєстратури: **сторінка проби** з таблицею документів і статусів; «Відправити експерту» — **не** в toolbar PDF (тимчасово там, перенести на сторінку проби).
-6. **Пріоритет розробки (актуальний):** ~~B1–B2, T1, C2, R1, D1, D6a~~ ✅ → **D2** → G5/G6.
+6. **Пріоритет розробки (актуальний):** ~~B1–B2, T1, C2, R1, D1, D6a, D2, D3~~ ✅ → **G5/G6**.
 7. **Терміни UI:** `Order.ReferralNumber` = **«Номер справи»**; слово **«Направлення»** — лише PDF-бланк REF-* (див. `glossary-registration-uk.md`).
 8. **REF на пілоті:** основний режим **Per Sample** (1 REF на пробу); Per Order — backlog (§7.0).
 
@@ -304,7 +304,7 @@ Create: 1 замовник + REF-* (направлення) + N протокол
         └── Протоколи — заповнити реєстраційні поля (решту — lab)
 
 Крок 5  Друк / архів
-        ├── «Друк направлення» — лише REF [TODO D2]
+        ├── «Друк направлення» — лише REF (D2 ✅)
         └── Протоколи — окремо або разом з lab flow
 
 Крок 6  Відправка протоколів у лабораторію (REF зазвичай лишається в реєстрації / видається клієнту)
@@ -403,8 +403,8 @@ public enum TemplatePurpose
 Зараз `ReferralPdfGenerator` збирає **усі** `OrderDocument`. Після REF-шаблонів:
 
 - [ ] **D1.** `TemplatePurpose` на `Template` + міграція.
-- [ ] **D2.** Кнопки на `Orders/Details`: «Друк направлення» / «Друк протоколів реєстрації».
-- [ ] **D3.** Параметр `purpose` у `IReferralPdfGenerator.GenerateAsync(orderId, purpose?)`.
+- [x] **D2.** Кнопки на `Orders/Details`: «Друк направлення» / «Друк протоколів реєстрації».
+- [x] **D3.** Параметр `purposeFilter` у `IReferralPdfGenerator.GenerateAsync(orderId, purpose?)`.
 
 REF **не** відправляється в lab як протокол (статус / workflow — лишається в реєстрації); у lab йдуть лише `Protocol` документи.
 
@@ -587,7 +587,7 @@ flowchart TD
 - [ ] Create: **3 проби × (REF + протокол)** → MapOrderFields показує 6 документів.
 - [ ] Map: REF проби 1 об’єднано з протоколом проби 1 (не з пробою 2).
 - [ ] Fill → значення на PDF; lab Fill → **R1:** результати в `SampleResultValue`.
-- [ ] «Друк направлення» — лише REF (D2).
+- [x] «Друк направлення» — лише REF (D2).
 - [ ] REF не в lab-журналі; протоколи відправлені в lab.
 - [x] UI: колонка «Номер справи», не «Направлення» (T1).
 
@@ -602,7 +602,7 @@ UniversalLIMS — пілот ЦКПХ (Житомир).
 Терміни: docs/glossary-registration-uk.md.
 
 Поточна фаза: 1.
-Наступні задачі (порядок): D2 → G5/G6 → C1 smoke.
+Наступні задачі (порядок): G5/G6 → C1 smoke.
 
 Ключові рішення (не перепитувати):
 - Протокол = PDF-шаблон (OrderDocument), Fill у PDF Workspace; не ResultEntry UI.
@@ -674,8 +674,9 @@ UniversalLIMS — пілот ЦКПХ (Житомир).
 | 4 | R1 | ✅ `SampleResultValue` при PDF Save (Result scope + annul on update) | Fill service |
 | 5 | D1 | ✅ `TemplatePurpose` enum + migration + UI `/Templates` | Template |
 | 6 | D6a | ✅ REF select у рядку проби Create → 2 OrderDocument на Sample | Create VM, `OrderRegistrationService`, `order-create.js` |
-| 7 | D2 | «Друк направлення» окремо від протоколів | `ReferralPdfGenerator` |
-| 8 | D-контент-1 | Перший REF-бланк у Templates | admin + docs |
+| 7 | D2–D3 | ✅ Друк REF / протоколів окремо (`purposeFilter`, Orders/Details) | `ReferralPdfGenerator`, `OrdersController` |
+| 8 | G5/G6 | Адмін hub lab+expert | `/Laboratories`, `/Users` |
+| 9 | D-контент-1 | Перший REF-бланк у Templates | admin + docs |
 
 ### Технічні нотатки
 

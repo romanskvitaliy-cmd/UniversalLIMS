@@ -332,6 +332,7 @@ public sealed class OrderRegistrationService : IOrderRegistrationService
                         document.SampleId,
                         document.TemplateVersionId,
                         TemplateNameUk = document.TemplateVersion.Template.NameUk,
+                        TemplatePurpose = document.Template.Purpose,
                         document.TemplateVersion.VersionNumber,
                         document.TargetBranchId,
                         TargetBranchName = document.TargetBranch.Name,
@@ -363,12 +364,14 @@ public sealed class OrderRegistrationService : IOrderRegistrationService
                 SampleId = document.SampleId,
                 TemplateVersionId = document.TemplateVersionId,
                 TemplateNameUk = document.TemplateNameUk,
+                TemplatePurpose = document.TemplatePurpose,
                 VersionNumber = document.VersionNumber,
                 TargetBranchId = document.TargetBranchId,
                 TargetBranchName = document.TargetBranchName,
                 Status = document.Status,
                 CanFill = document.Status == OrderDocumentStatus.Pending,
                 CanSendToLab = document.Status == OrderDocumentStatus.Pending
+                    && document.TemplatePurpose == TemplatePurpose.Protocol
             })
             .ToList();
 

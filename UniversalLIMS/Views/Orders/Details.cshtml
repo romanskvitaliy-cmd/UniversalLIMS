@@ -1,6 +1,8 @@
 @model OrderDetailViewModel
 @using System.Text.Json
 @using UniversalLIMS.Application.Registration
+@using UniversalLIMS.Application.Templates
+@using UniversalLIMS.Domain.Templates
 
 @{
     Layout = "_LayoutWorkspace";
@@ -33,6 +35,8 @@
         .Where(seed => seed.templateVersionId != Guid.Empty)
         .ToList();
     var appendSeedsJson = JsonSerializer.Serialize(appendSeeds, orderCreateJsonOptions);
+    var referralDocumentCount = detail.Documents.Count(document => document.TemplatePurpose == TemplatePurpose.Referral);
+    var protocolDocumentCount = detail.Documents.Count(document => document.TemplatePurpose == TemplatePurpose.Protocol);
 }
 
 <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
@@ -156,9 +160,47 @@
 </div>
 
 <div class="card mb-3">
-    <div class="card-header py-2 d-flex justify-content-between align-items-center gap-2">
+    <div class="card-header py-2 d-flex flex-wrap justify-content-between align-items-center gap-2">
         <span class="fw-semibold">Проби та документи</span>
-        <span class="badge text-bg-light border">@detail.Samples.Count проб · @detail.Documents.Count док.</span>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <span class="badge text-bg-light border">@detail.Samples.Count проб · @detail.Documents.Count док.</span>
+            @if (referralDocumentCount > 0)
+            {
+                <a class="btn btn-sm btn-outline-secondary"
+                   asp-action="PrintReferralDocuments"
+                   asp-route-id="@detail.OrderId"
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   title="PDF лише бланки направлення REF">
+                    Друк направлення (@referralDocumentCount)
+                </a>
+            }
+            else
+            {
+                <button type="button" class="btn btn-sm btn-outline-secondary" disabled
+                        title="Немає бланків REF у справі">
+                    Друк направлення
+                </button>
+            }
+            @if (protocolDocumentCount > 0)
+            {
+                <a class="btn btn-sm btn-outline-secondary"
+                   asp-action="PrintProtocolDocuments"
+                   asp-route-id="@detail.OrderId"
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   title="PDF лише бланки протоколів реєстрації">
+                    Друк протоколів (@protocolDocumentCount)
+                </a>
+            }
+            else
+            {
+                <button type="button" class="btn btn-sm btn-outline-secondary" disabled
+                        title="Немає бланків протоколу у справі">
+                    Друк протоколів
+                </button>
+            }
+        </div>
     </div>
     <div class="card-body p-0">
         @if (!detail.Documents.Any())
@@ -247,6 +289,9 @@
                                                 <td>
                                                     <div class="order-detail-doc__name" title="@document.TemplateNameUk">
                                                         @document.TemplateNameUk
+                                                        <span class="badge text-bg-light border ms-1 fw-normal">
+                                                            @TemplatePurposeCatalog.GetDisplayNameUk(document.TemplatePurpose)
+                                                        </span>
                                                     </div>
                                                     <div class="small text-muted">v@(document.VersionNumber)</div>
                                                 </td>

@@ -3,6 +3,7 @@ using Syncfusion.Pdf;
 using Syncfusion.Pdf.Parsing;
 using UniversalLIMS.Application.Registration.Abstractions;
 using UniversalLIMS.Application.Templates.Abstractions;
+using UniversalLIMS.Domain.Templates;
 using UniversalLIMS.Infrastructure.Persistence;
 
 namespace UniversalLIMS.Infrastructure.Registration;
@@ -24,7 +25,10 @@ public sealed class ReferralPdfGenerator : IReferralPdfGenerator
         _overlayRenderer = new ReferralPdfOverlayRenderer();
     }
 
-    public async Task<byte[]> GenerateAsync(Guid orderId, CancellationToken cancellationToken = default)
+    public async Task<byte[]> GenerateAsync(
+        Guid orderId,
+        TemplatePurpose? purposeFilter = null,
+        CancellationToken cancellationToken = default)
     {
         var order = await _context.Orders
             .AsNoTracking()
@@ -33,6 +37,8 @@ public sealed class ReferralPdfGenerator : IReferralPdfGenerator
             .Include(item => item.Samples)
             .Include(item => item.FieldValues)
                 .ThenInclude(fieldValue => fieldValue.DataField)
+            .Include(item => item.OrderDocuments)
+                .ThenInclude(document => document.Template)
             .Include(item => item.OrderDocuments)
                 .ThenInclude(document => document.TemplateVersion)
             .Include(item => item.OrderDocuments)
@@ -44,9 +50,22 @@ public sealed class ReferralPdfGenerator : IReferralPdfGenerator
             throw new InvalidOperationException("Замовлення не знайдено.");
         }
 
-        if (order.OrderDocuments.Count == 0)
+        var documentsToRender = order.OrderDocuments
+            .Where(document => !document.IsAnnulled)
+            .Where(document => purposeFilter is null || document.Template.Purpose == purposeFilter.Value)
+            .OrderBy(document => document.CreatedAtUtc)
+            .ToList();
+
+        if (documentsToRender.Count == 0)
         {
-            throw new InvalidOperationException("Для замовлення не створено жодного OrderDocument.");
+            throw purposeFilter switch
+            {
+                TemplatePurpose.Referral => new InvalidOperationException(
+                    "Для друку направлення немає бланків REF у цій справі."),
+                TemplatePurpose.Protocol => new InvalidOperationException(
+                    "Для друку протоколів немає бланків протоколу у цій справі."),
+                _ => new InvalidOperationException("Для замовлення не створено жодного документа для друку.")
+            };
         }
 
         var dynamicValuesByKey = order.FieldValues
@@ -61,8 +80,9 @@ public sealed class ReferralPdfGenerator : IReferralPdfGenerator
                 StringComparer.Ordinal);
 
         using var mergedDocument = new PdfDocument();
+        var renderedDocuments = new List<PdfLoadedDocument>();
 
-        foreach (var orderDocument in order.OrderDocuments.OrderBy(document => document.CreatedAtUtc))
+        foreach (var orderDocument in documentsToRender)
         {
             var templateVersion = orderDocument.TemplateVersion;
             if (templateVersion is null)
@@ -79,6 +99,9 @@ public sealed class ReferralPdfGenerator : IReferralPdfGenerator
             await using var originalPdfStream = await _templateDocumentStorage.OpenReadAsync(
                 templateVersion.StorageKey,
                 cancellationToken);
+            await using var originalPdfCopy = new MemoryStream();
+            await originalPdfStream.CopyToAsync(originalPdfCopy, cancellationToken);
+            originalPdfCopy.Position = 0;
 
             var segments = await LoadOverlaySegmentsAsync(templateVersion.Id, cancellationToken);
             var valuesByDataFieldId = await BuildValuesByDataFieldIdAsync(
@@ -88,16 +111,27 @@ public sealed class ReferralPdfGenerator : IReferralPdfGenerator
                 segments,
                 cancellationToken);
 
-            var renderedBytes = _overlayRenderer.Render(originalPdfStream, segments, valuesByDataFieldId);
+            var renderedBytes = _overlayRenderer.Render(originalPdfCopy, segments, valuesByDataFieldId);
 
-            using var renderedStream = new MemoryStream(renderedBytes);
-            using var renderedDocument = new PdfLoadedDocument(renderedStream);
+            var renderedStream = new MemoryStream(renderedBytes);
+            var renderedDocument = new PdfLoadedDocument(renderedStream);
+            renderedDocuments.Add(renderedDocument);
             mergedDocument.ImportPageRange(renderedDocument, 0, renderedDocument.Pages.Count - 1);
         }
 
-        using var output = new MemoryStream();
-        mergedDocument.Save(output);
-        return output.ToArray();
+        try
+        {
+            using var output = new MemoryStream();
+            mergedDocument.Save(output);
+            return output.ToArray();
+        }
+        finally
+        {
+            foreach (var renderedDocument in renderedDocuments)
+            {
+                renderedDocument.Close(true);
+            }
+        }
     }
 
     private async Task<IReadOnlyList<ReferralOverlaySegment>> LoadOverlaySegmentsAsync(

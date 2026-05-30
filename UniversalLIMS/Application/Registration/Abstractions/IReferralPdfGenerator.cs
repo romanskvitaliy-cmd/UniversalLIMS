@@ -1,6 +1,14 @@
+using UniversalLIMS.Domain.Templates;
+
 namespace UniversalLIMS.Application.Registration.Abstractions;
 
 public interface IReferralPdfGenerator
 {
-    Task<byte[]> GenerateAsync(Guid orderId, CancellationToken cancellationToken = default);
+    /// <param name="purposeFilter">
+    /// Якщо задано — лише документи з відповідним <see cref="Template.Purpose"/> (D2/D3).
+    /// </param>
+    Task<byte[]> GenerateAsync(
+        Guid orderId,
+        TemplatePurpose? purposeFilter = null,
+        CancellationToken cancellationToken = default);
 }
