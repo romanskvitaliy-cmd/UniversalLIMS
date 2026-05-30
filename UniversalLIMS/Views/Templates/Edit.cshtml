@@ -20,6 +20,11 @@
         <span asp-validation-for="NameUk" class="text-danger"></span>
     </div>
     <div class="mb-3">
+        <label asp-for="Purpose" class="form-label"></label>
+        <select asp-for="Purpose" asp-items="Model.PurposeOptions" class="form-select"></select>
+        <span asp-validation-for="Purpose" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
         <label asp-for="DescriptionUk" class="form-label"></label>
         <textarea asp-for="DescriptionUk" class="form-control" rows="4"></textarea>
         <span asp-validation-for="DescriptionUk" class="text-danger"></span>

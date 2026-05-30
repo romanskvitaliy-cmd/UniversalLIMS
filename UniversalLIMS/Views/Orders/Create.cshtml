@@ -6,6 +6,7 @@
     ViewData["Title"] = "Прийом справи";
     var orderCreateJsonOptions = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
     var templateOptionsJson = JsonSerializer.Serialize(Model.Form.TemplateOptions, orderCreateJsonOptions);
+    var referralTemplateOptionsJson = JsonSerializer.Serialize(Model.Form.ReferralTemplateOptions, orderCreateJsonOptions);
     var investigationTypesJson = JsonSerializer.Serialize(Model.Form.InvestigationTypes, orderCreateJsonOptions);
     var branchesJson = JsonSerializer.Serialize(Model.Form.Branches, orderCreateJsonOptions);
     var initialSamplesJson = JsonSerializer.Serialize(Model.Input.Samples, orderCreateJsonOptions);
@@ -115,8 +116,8 @@
             <div>
                 <h2 class="h6 text-muted text-uppercase mb-1">Проби та бланки</h2>
                 <p class="small text-muted mb-0">
-                    Один рядок — <strong>одна проба</strong> і <strong>бланк PDF</strong> для неї (на папері це часто «протокол» Ф327, 205…).
-                    Номер справи REF — на всю справу. Бланк направлення REF-* — окремо, не в цьому списку.
+                    Один рядок — <strong>одна проба</strong>: бланк направлення <strong>REF-*</strong> + бланк <strong>протоколу</strong> (Ф327, 205…).
+                    Номер справи (REF-…) — автоматично на всю справу.
                 </p>
             </div>
             <button type="button" class="btn btn-sm btn-outline-primary" id="btnAddOrderSample">
@@ -126,8 +127,9 @@
 
         <div id="orderSamplesPanel" class="border rounded-3 p-2 mb-2 bg-light">
             <div class="row g-2 px-1 pb-2 small text-muted fw-semibold d-none d-md-flex">
-                <div class="col-md-6">Бланк для проби</div>
-                <div class="col-md-5">Лабораторія-виконавець</div>
+                <div class="col-md-3">Бланк направлення REF-*</div>
+                <div class="col-md-4">Бланк протоколу</div>
+                <div class="col-md-4">Лабораторія-виконавець</div>
                 <div class="col-md-1 text-end">Дія</div>
             </div>
             <div id="orderSamplesList"></div>
@@ -193,6 +195,7 @@
     <partial name="_ValidationScriptsPartial" />
     <script>
         window.__orderCreateTemplateOptions = @Html.Raw(templateOptionsJson);
+        window.__orderCreateReferralTemplateOptions = @Html.Raw(referralTemplateOptionsJson);
         window.__orderCreateInvestigationTypes = @Html.Raw(investigationTypesJson);
         window.__orderCreateBranches = @Html.Raw(branchesJson);
         window.__orderCreateInitialSamples = @Html.Raw(initialSamplesJson);

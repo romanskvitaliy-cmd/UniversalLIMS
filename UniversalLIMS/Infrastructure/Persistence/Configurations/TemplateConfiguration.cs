@@ -28,6 +28,9 @@ public sealed class TemplateConfiguration : IEntityTypeConfiguration<Template>
             .HasMaxLength(50)
             .IsRequired();
 
+        builder.Property(template => template.Purpose)
+            .HasDefaultValue(TemplatePurpose.Protocol);
+
         builder.Property(template => template.CreatedAtUtc)
             .HasColumnType("datetime2");
 

@@ -167,7 +167,18 @@ public sealed class OrderRegistrationService : IOrderRegistrationService
                 TemplateVersionId = option.TemplateVersionId,
                 TemplateNameUk = option.TemplateNameUk,
                 VersionNumber = option.VersionNumber,
-                IsDefault = true
+                IsDefault = true,
+                Purpose = TemplatePurpose.Protocol
+            })
+            .ToList();
+
+        var referralTemplateDtos = (await GetAvailableReferralTemplateOptionsAsync(cancellationToken))
+            .Select(option => new OrderReferralTemplateOptionDto
+            {
+                TemplateVersionId = option.TemplateVersionId,
+                TemplateCode = option.TemplateCode,
+                TemplateNameUk = option.TemplateNameUk,
+                VersionNumber = option.VersionNumber
             })
             .ToList();
 
@@ -187,6 +198,7 @@ public sealed class OrderRegistrationService : IOrderRegistrationService
         {
             InvestigationTypes = investigationTypeDtos,
             TemplateOptions = templateDtos,
+            ReferralTemplateOptions = referralTemplateDtos,
             Branches = branches,
             DefaultBranchId = _currentUser.BranchId
         };
@@ -603,9 +615,21 @@ public sealed class OrderRegistrationService : IOrderRegistrationService
         var plans = new List<OrderSamplePlan>();
         foreach (var sample in requestedSamples)
         {
+            var documentRequests = sample.Documents.ToList();
+            if (sample.ReferralTemplateVersionId is Guid referralVersionId && referralVersionId != Guid.Empty)
+            {
+                documentRequests.Insert(
+                    0,
+                    new CreateOrderDocumentRequest
+                    {
+                        TemplateVersionId = referralVersionId,
+                        TargetBranchId = defaultBranchId
+                    });
+            }
+
             var documents = await ResolveDocumentPlansAsync(
                 sample.InvestigationTypeId,
-                sample.Documents,
+                documentRequests,
                 sample.TemplateVersionId,
                 defaultBranchId,
                 cancellationToken);
@@ -663,14 +687,23 @@ public sealed class OrderRegistrationService : IOrderRegistrationService
             throw new InvalidOperationException("Оберіть активні філії для всіх документів.");
         }
 
+        var versionIds = explicitDocuments
+            .Select(document => document.TemplateVersionId)
+            .Distinct()
+            .ToList();
+        var purposeByVersionId = await LoadTemplatePurposeByVersionIdAsync(versionIds, cancellationToken);
+
         var plans = new List<OrderDocumentPlan>();
 
         foreach (var document in explicitDocuments)
         {
-            var versionId = await ResolveTemplateVersionIdAsync(
-                investigationTypeId,
-                document.TemplateVersionId,
-                cancellationToken);
+            var purpose = purposeByVersionId.GetValueOrDefault(document.TemplateVersionId, TemplatePurpose.Protocol);
+            var versionId = purpose == TemplatePurpose.Referral
+                ? await ResolveReferralTemplateVersionIdAsync(document.TemplateVersionId, cancellationToken)
+                : await ResolveTemplateVersionIdAsync(
+                    investigationTypeId,
+                    document.TemplateVersionId,
+                    cancellationToken);
 
             var targetBranchId = document.TargetBranchId != Guid.Empty
                 ? document.TargetBranchId
@@ -705,6 +738,36 @@ public sealed class OrderRegistrationService : IOrderRegistrationService
         }
 
         return await _customerService.CreateAsync(request.NewCustomer, cancellationToken);
+    }
+
+    private async Task<Guid> ResolveReferralTemplateVersionIdAsync(
+        Guid explicitTemplateVersionId,
+        CancellationToken cancellationToken)
+    {
+        var availableOptions = await GetAvailableReferralTemplateOptionsAsync(cancellationToken);
+        if (availableOptions.All(option => option.TemplateVersionId != explicitTemplateVersionId))
+        {
+            throw new InvalidOperationException("Обраний бланк направлення REF недоступний.");
+        }
+
+        return explicitTemplateVersionId;
+    }
+
+    private async Task<Dictionary<Guid, TemplatePurpose>> LoadTemplatePurposeByVersionIdAsync(
+        IReadOnlyList<Guid> templateVersionIds,
+        CancellationToken cancellationToken)
+    {
+        if (templateVersionIds.Count == 0)
+        {
+            return [];
+        }
+
+        return await (
+                from version in _context.TemplateVersions.AsNoTracking()
+                join template in _context.Templates.AsNoTracking() on version.TemplateId equals template.Id
+                where templateVersionIds.Contains(version.Id)
+                select new { version.Id, template.Purpose })
+            .ToDictionaryAsync(item => item.Id, item => item.Purpose, cancellationToken);
     }
 
     private async Task<Guid> ResolveTemplateVersionIdAsync(
@@ -765,6 +828,7 @@ public sealed class OrderRegistrationService : IOrderRegistrationService
                     on template.CurrentPublishedVersionId equals version.Id
                 where template.Status == TemplateStatus.Active
                       && !template.IsAnnulled
+                      && template.Purpose == TemplatePurpose.Protocol
                       && version.Status == TemplateVersionStatus.Published
                       && !version.IsAnnulled
                       && version.DocumentFormat == TemplateDocumentFormat.Pdf
@@ -835,6 +899,28 @@ public sealed class OrderRegistrationService : IOrderRegistrationService
             .ThenBy(option => option.TemplateCode)
             .ThenBy(option => option.TemplateNameUk)
             .ToList();
+    }
+
+    private async Task<List<AvailableReferralTemplateOption>> GetAvailableReferralTemplateOptionsAsync(
+        CancellationToken cancellationToken)
+    {
+        return await (
+                from template in _context.Templates.AsNoTracking()
+                join version in _context.TemplateVersions.AsNoTracking()
+                    on template.CurrentPublishedVersionId equals version.Id
+                where template.Status == TemplateStatus.Active
+                      && !template.IsAnnulled
+                      && template.Purpose == TemplatePurpose.Referral
+                      && version.Status == TemplateVersionStatus.Published
+                      && !version.IsAnnulled
+                      && version.DocumentFormat == TemplateDocumentFormat.Pdf
+                orderby template.Code, template.NameUk
+                select new AvailableReferralTemplateOption(
+                    version.Id,
+                    template.Code,
+                    template.NameUk,
+                    version.VersionNumber))
+            .ToListAsync(cancellationToken);
     }
 
     private static ActiveInvestigationType? ResolveBestInvestigationType(
@@ -948,4 +1034,10 @@ public sealed class OrderRegistrationService : IOrderRegistrationService
         string TemplateNameUk,
         int VersionNumber,
         int LinkSortOrder);
+
+    private sealed record AvailableReferralTemplateOption(
+        Guid TemplateVersionId,
+        string TemplateCode,
+        string TemplateNameUk,
+        int VersionNumber);
 }

@@ -4,10 +4,12 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using Syncfusion.Pdf;
 using Syncfusion.Pdf.Graphics;
+using UniversalLIMS.Application.Abstractions;
 using UniversalLIMS.Application.Registration;
 using UniversalLIMS.Application.Registration.Abstractions;
 using UniversalLIMS.Application.Templates.Abstractions;
 using UniversalLIMS.Domain.Organization;
+using UniversalLIMS.Domain.Laboratory;
 using UniversalLIMS.Domain.Registration;
 using UniversalLIMS.Domain.Templates;
 using UniversalLIMS.Infrastructure.Persistence;
@@ -114,14 +116,7 @@ public sealed class PdfWorkspaceFillServiceTests
 
         await context.SaveChangesAsync();
 
-        var service = new PdfWorkspaceFillService(
-            context,
-            new FakeTemplateDocumentStorage(),
-            new OrderFieldValueService(context),
-            new AllowAllTemplateFieldPermissionService(context),
-            NullLogger<PdfWorkspaceFillService>.Instance,
-            NullLogger<ReferralPdfOverlayRenderer>.Instance,
-            TestHostEnvironment.Development);
+        var service = CreateService(context);
 
         var templateField = await context.TemplateFields.SingleAsync(field => field.TemplateVersionId == versionId);
 
@@ -270,14 +265,7 @@ public sealed class PdfWorkspaceFillServiceTests
         context.OrderDocuments.AddRange(documentA, documentB);
         await context.SaveChangesAsync();
 
-        var service = new PdfWorkspaceFillService(
-            context,
-            new FakeTemplateDocumentStorage(),
-            new OrderFieldValueService(context),
-            new AllowAllTemplateFieldPermissionService(context),
-            NullLogger<PdfWorkspaceFillService>.Instance,
-            NullLogger<ReferralPdfOverlayRenderer>.Instance,
-            TestHostEnvironment.Development);
+        var service = CreateService(context);
 
         await service.SaveValuesAsync(
             versionId,
@@ -304,6 +292,347 @@ public sealed class PdfWorkspaceFillServiceTests
         Assert.Equal("value B", savedB[templateFieldId.ToString("D")]);
         Assert.Equal("value A", savedA["DocumentScopedValue"]);
         Assert.Equal("value B", savedB["DocumentScopedValue"]);
+    }
+
+    [Fact]
+    public async Task SaveValuesAsync_ResultScope_PersistsSampleResultValue_NotOrderFieldValue()
+    {
+        await using var context = CreateContext();
+        var branchId = Guid.NewGuid();
+        var customerId = Guid.NewGuid();
+        var investigationTypeId = Guid.NewGuid();
+        var templateId = Guid.NewGuid();
+        var versionId = Guid.NewGuid();
+        var dataFieldId = Guid.NewGuid();
+        var templateFieldId = Guid.NewGuid();
+        var equipmentId = Guid.NewGuid();
+
+        context.Branches.Add(new Branch
+        {
+            Id = branchId,
+            Code = "BR-RES",
+            Name = "Result branch",
+            City = "Zhytomyr",
+            IsActive = true
+        });
+        context.Customers.Add(new Customer
+        {
+            Id = customerId,
+            Kind = CustomerKind.Individual,
+            FullName = "Result customer"
+        });
+        context.InvestigationTypes.Add(new InvestigationType
+        {
+            Id = investigationTypeId,
+            Code = "INV-RES",
+            NameUk = "Result investigation",
+            SortOrder = 1,
+            IsActive = true
+        });
+        context.Equipment.Add(new Equipment
+        {
+            Id = equipmentId,
+            Code = "LAB-GEN-01",
+            NameUk = "Test equipment",
+            IsActive = true
+        });
+        context.DataFields.Add(new DataField
+        {
+            Id = dataFieldId,
+            Key = "f327_pH",
+            DisplayNameUk = "pH",
+            FieldType = DataFieldType.Number,
+            Scope = DataFieldScope.Result,
+            Unit = "од.",
+            IsActive = true
+        });
+        context.Templates.Add(new Template
+        {
+            Id = templateId,
+            Code = "PDF-RES",
+            NameUk = "Result PDF",
+            Status = TemplateStatus.Draft
+        });
+        context.TemplateVersions.Add(new TemplateVersion
+        {
+            Id = versionId,
+            TemplateId = templateId,
+            VersionNumber = 1,
+            Status = TemplateVersionStatus.Draft,
+            DocumentFormat = TemplateDocumentFormat.Pdf,
+            OriginalFileName = "template.pdf",
+            StorageKey = "templates/template.pdf",
+            ContentType = "application/pdf",
+            FileSizeBytes = 1,
+            Sha256Hash = new string('c', 64),
+            UploadedAtUtc = DateTime.UtcNow,
+            Fields =
+            [
+                new TemplateField
+                {
+                    Id = templateFieldId,
+                    TemplateVersionId = versionId,
+                    Tag = "pH",
+                    Title = "pH",
+                    DataFieldId = dataFieldId,
+                    SortOrder = 1
+                }
+            ]
+        });
+
+        var order = new Order
+        {
+            CustomerId = customerId,
+            BranchId = branchId,
+            Status = OrderStatus.Registered,
+            ReferralNumber = "REF-RESULT"
+        };
+        var sample = new Sample
+        {
+            OrderId = order.Id,
+            InvestigationTypeId = investigationTypeId,
+            Number = "S-RES",
+            RegisteredAt = DateTime.UtcNow,
+            Status = SampleStatus.InProgress
+        };
+        var document = new OrderDocument
+        {
+            OrderId = order.Id,
+            SampleId = sample.Id,
+            TemplateId = templateId,
+            TemplateVersionId = versionId,
+            TargetBranchId = branchId,
+            Status = OrderDocumentStatus.InProgress
+        };
+
+        context.Orders.Add(order);
+        context.Samples.Add(sample);
+        context.OrderDocuments.Add(document);
+        await context.SaveChangesAsync();
+
+        var service = CreateService(context);
+
+        var result = await service.SaveValuesAsync(
+            versionId,
+            order.Id,
+            document.Id,
+            [new PdfWorkspaceFieldValueDto { TemplateFieldId = templateFieldId, Value = "7.2" }]);
+
+        Assert.Equal(1, result.Saved);
+        Assert.False(await context.OrderFieldValues.AnyAsync(fieldValue => fieldValue.OrderId == order.Id));
+
+        var storedResult = await context.SampleResultValues
+            .SingleAsync(resultValue => resultValue.SampleId == sample.Id);
+        Assert.Equal(dataFieldId, storedResult.DataFieldId);
+        Assert.Equal("7.2", storedResult.StoredValue);
+        Assert.Equal("од.", storedResult.Unit);
+        Assert.Equal(equipmentId, storedResult.EquipmentId);
+        Assert.Equal("test-lab-user", storedResult.EnteredByUserId);
+    }
+
+    [Fact]
+    public async Task SaveValuesAsync_ResultScope_UpdateAnnulsPreviousValue()
+    {
+        await using var context = CreateContext();
+        var branchId = Guid.NewGuid();
+        var customerId = Guid.NewGuid();
+        var investigationTypeId = Guid.NewGuid();
+        var templateId = Guid.NewGuid();
+        var versionId = Guid.NewGuid();
+        var dataFieldId = Guid.NewGuid();
+        var templateFieldId = Guid.NewGuid();
+
+        context.Branches.Add(new Branch { Id = branchId, Code = "BR-R2", Name = "B", City = "Z", IsActive = true });
+        context.Customers.Add(new Customer { Id = customerId, Kind = CustomerKind.Individual, FullName = "C" });
+        context.InvestigationTypes.Add(new InvestigationType
+        {
+            Id = investigationTypeId,
+            Code = "INV-R2",
+            NameUk = "I",
+            SortOrder = 1,
+            IsActive = true
+        });
+        context.Equipment.Add(new Equipment { Code = "EQ-1", NameUk = "Eq", IsActive = true });
+        context.DataFields.Add(new DataField
+        {
+            Id = dataFieldId,
+            Key = "Result.pH",
+            DisplayNameUk = "pH",
+            FieldType = DataFieldType.Number,
+            Scope = DataFieldScope.Result,
+            IsActive = true
+        });
+        context.Templates.Add(new Template { Id = templateId, Code = "T", NameUk = "T", Status = TemplateStatus.Draft });
+        context.TemplateVersions.Add(new TemplateVersion
+        {
+            Id = versionId,
+            TemplateId = templateId,
+            VersionNumber = 1,
+            Status = TemplateVersionStatus.Draft,
+            DocumentFormat = TemplateDocumentFormat.Pdf,
+            OriginalFileName = "t.pdf",
+            StorageKey = "t.pdf",
+            ContentType = "application/pdf",
+            FileSizeBytes = 1,
+            Sha256Hash = new string('d', 64),
+            UploadedAtUtc = DateTime.UtcNow,
+            Fields =
+            [
+                new TemplateField
+                {
+                    Id = templateFieldId,
+                    TemplateVersionId = versionId,
+                    Tag = "pH",
+                    Title = "pH",
+                    DataFieldId = dataFieldId,
+                    SortOrder = 1
+                }
+            ]
+        });
+
+        var order = new Order { CustomerId = customerId, BranchId = branchId, Status = OrderStatus.Registered };
+        var sample = new Sample
+        {
+            OrderId = order.Id,
+            InvestigationTypeId = investigationTypeId,
+            Number = "S1",
+            RegisteredAt = DateTime.UtcNow,
+            Status = SampleStatus.InProgress
+        };
+        var document = new OrderDocument
+        {
+            OrderId = order.Id,
+            SampleId = sample.Id,
+            TemplateId = templateId,
+            TemplateVersionId = versionId,
+            TargetBranchId = branchId,
+            Status = OrderDocumentStatus.InProgress
+        };
+        context.Orders.Add(order);
+        context.Samples.Add(sample);
+        context.OrderDocuments.Add(document);
+        await context.SaveChangesAsync();
+
+        var service = CreateService(context);
+        await service.SaveValuesAsync(
+            versionId,
+            order.Id,
+            document.Id,
+            [new PdfWorkspaceFieldValueDto { TemplateFieldId = templateFieldId, Value = "6.8" }]);
+        await service.SaveValuesAsync(
+            versionId,
+            order.Id,
+            document.Id,
+            [new PdfWorkspaceFieldValueDto { TemplateFieldId = templateFieldId, Value = "7.1" }]);
+
+        var active = await context.SampleResultValues
+            .SingleAsync(resultValue => resultValue.SampleId == sample.Id && !resultValue.IsAnnulled);
+        Assert.Equal("7.1", active.StoredValue);
+
+        var annulled = await context.SampleResultValues
+            .IgnoreQueryFilters()
+            .SingleAsync(resultValue => resultValue.SampleId == sample.Id && resultValue.IsAnnulled);
+        Assert.Equal("6.8", annulled.StoredValue);
+    }
+
+    [Fact]
+    public async Task GetSavedValuesByKeyAsync_ReadsSampleResultValue()
+    {
+        await using var context = CreateContext();
+        var branchId = Guid.NewGuid();
+        var customerId = Guid.NewGuid();
+        var investigationTypeId = Guid.NewGuid();
+        var templateId = Guid.NewGuid();
+        var versionId = Guid.NewGuid();
+        var dataFieldId = Guid.NewGuid();
+        var templateFieldId = Guid.NewGuid();
+        var equipmentId = Guid.NewGuid();
+
+        context.Branches.Add(new Branch { Id = branchId, Code = "BR-R3", Name = "B", City = "Z", IsActive = true });
+        context.Customers.Add(new Customer { Id = customerId, Kind = CustomerKind.Individual, FullName = "C" });
+        context.InvestigationTypes.Add(new InvestigationType
+        {
+            Id = investigationTypeId,
+            Code = "INV-R3",
+            NameUk = "I",
+            SortOrder = 1,
+            IsActive = true
+        });
+        context.Equipment.Add(new Equipment { Id = equipmentId, Code = "EQ-2", NameUk = "Eq", IsActive = true });
+        context.DataFields.Add(new DataField
+        {
+            Id = dataFieldId,
+            Key = "f327_Iron",
+            DisplayNameUk = "Залізо",
+            FieldType = DataFieldType.Text,
+            Scope = DataFieldScope.Result,
+            IsActive = true
+        });
+        context.Templates.Add(new Template { Id = templateId, Code = "T2", NameUk = "T", Status = TemplateStatus.Draft });
+        context.TemplateVersions.Add(new TemplateVersion
+        {
+            Id = versionId,
+            TemplateId = templateId,
+            VersionNumber = 1,
+            Status = TemplateVersionStatus.Draft,
+            DocumentFormat = TemplateDocumentFormat.Pdf,
+            OriginalFileName = "t.pdf",
+            StorageKey = "t.pdf",
+            ContentType = "application/pdf",
+            FileSizeBytes = 1,
+            Sha256Hash = new string('e', 64),
+            UploadedAtUtc = DateTime.UtcNow,
+            Fields =
+            [
+                new TemplateField
+                {
+                    Id = templateFieldId,
+                    TemplateVersionId = versionId,
+                    Tag = "Iron",
+                    Title = "Залізо",
+                    DataFieldId = dataFieldId,
+                    SortOrder = 1
+                }
+            ]
+        });
+
+        var order = new Order { CustomerId = customerId, BranchId = branchId, Status = OrderStatus.Registered };
+        var sample = new Sample
+        {
+            OrderId = order.Id,
+            InvestigationTypeId = investigationTypeId,
+            Number = "S2",
+            RegisteredAt = DateTime.UtcNow,
+            Status = SampleStatus.InProgress
+        };
+        var document = new OrderDocument
+        {
+            OrderId = order.Id,
+            SampleId = sample.Id,
+            TemplateId = templateId,
+            TemplateVersionId = versionId,
+            TargetBranchId = branchId,
+            Status = OrderDocumentStatus.InProgress
+        };
+        context.Orders.Add(order);
+        context.Samples.Add(sample);
+        context.OrderDocuments.Add(document);
+        context.SampleResultValues.Add(new SampleResultValue(
+            sample.Id,
+            dataFieldId,
+            "0.15",
+            "мг/дм³",
+            0m,
+            equipmentId,
+            DateTime.UtcNow,
+            "seed-user"));
+        await context.SaveChangesAsync();
+
+        var service = CreateService(context);
+        var saved = await service.GetSavedValuesByKeyAsync(order.Id, versionId, document.Id);
+
+        Assert.Equal("0.15", saved[templateFieldId.ToString("D")]);
+        Assert.Equal("0.15", saved["Iron"]);
     }
 
     [Fact]
@@ -388,14 +717,7 @@ public sealed class PdfWorkspaceFillServiceTests
 
         await context.SaveChangesAsync();
 
-        var service = new PdfWorkspaceFillService(
-            context,
-            new FakeTemplateDocumentStorage(),
-            new OrderFieldValueService(context),
-            new AllowAllTemplateFieldPermissionService(context),
-            NullLogger<PdfWorkspaceFillService>.Instance,
-            NullLogger<ReferralPdfOverlayRenderer>.Instance,
-            TestHostEnvironment.Development);
+        var service = CreateService(context);
 
         var submissions = templateFieldIds
             .Select((id, index) => new PdfWorkspaceFieldValueDto
@@ -485,14 +807,7 @@ public sealed class PdfWorkspaceFillServiceTests
 
         await context.SaveChangesAsync();
 
-        var service = new PdfWorkspaceFillService(
-            context,
-            new FakeTemplateDocumentStorage(CreateBlankPdf()),
-            new OrderFieldValueService(context),
-            new AllowAllTemplateFieldPermissionService(context),
-            NullLogger<PdfWorkspaceFillService>.Instance,
-            NullLogger<ReferralPdfOverlayRenderer>.Instance,
-            TestHostEnvironment.Development);
+        var service = CreateService(context, new FakeTemplateDocumentStorage(CreateBlankPdf()));
 
         var request = new PreviewCalibrationRequest
         {
@@ -550,14 +865,7 @@ public sealed class PdfWorkspaceFillServiceTests
 
         await context.SaveChangesAsync();
 
-        var service = new PdfWorkspaceFillService(
-            context,
-            new FakeTemplateDocumentStorage(CreateBlankPdf()),
-            new OrderFieldValueService(context),
-            new AllowAllTemplateFieldPermissionService(context),
-            NullLogger<PdfWorkspaceFillService>.Instance,
-            NullLogger<ReferralPdfOverlayRenderer>.Instance,
-            TestHostEnvironment.Development);
+        var service = CreateService(context, new FakeTemplateDocumentStorage(CreateBlankPdf()));
 
         var request = new PreviewCalibrationRequest
         {
@@ -616,14 +924,7 @@ public sealed class PdfWorkspaceFillServiceTests
 
         await context.SaveChangesAsync();
 
-        var service = new PdfWorkspaceFillService(
-            context,
-            new FakeTemplateDocumentStorage(CreateBlankPdf()),
-            new OrderFieldValueService(context),
-            new AllowAllTemplateFieldPermissionService(context),
-            NullLogger<PdfWorkspaceFillService>.Instance,
-            NullLogger<ReferralPdfOverlayRenderer>.Instance,
-            TestHostEnvironment.Development);
+        var service = CreateService(context, new FakeTemplateDocumentStorage(CreateBlankPdf()));
 
         var preview = await service.GenerateCalibrationPreviewAsync(new PreviewCalibrationRequest
         {
@@ -679,14 +980,7 @@ public sealed class PdfWorkspaceFillServiceTests
 
         await context.SaveChangesAsync();
 
-        var service = new PdfWorkspaceFillService(
-            context,
-            new FakeTemplateDocumentStorage(CreateBlankPdf()),
-            new OrderFieldValueService(context),
-            new AllowAllTemplateFieldPermissionService(context),
-            NullLogger<PdfWorkspaceFillService>.Instance,
-            NullLogger<ReferralPdfOverlayRenderer>.Instance,
-            TestHostEnvironment.Development);
+        var service = CreateService(context, new FakeTemplateDocumentStorage(CreateBlankPdf()));
 
         var preview = await service.GenerateCalibrationPreviewAsync(new PreviewCalibrationRequest
         {
@@ -744,14 +1038,7 @@ public sealed class PdfWorkspaceFillServiceTests
 
         await context.SaveChangesAsync();
 
-        var service = new PdfWorkspaceFillService(
-            context,
-            new FakeTemplateDocumentStorage(CreateBlankPdf()),
-            new OrderFieldValueService(context),
-            new AllowAllTemplateFieldPermissionService(context),
-            NullLogger<PdfWorkspaceFillService>.Instance,
-            NullLogger<ReferralPdfOverlayRenderer>.Instance,
-            TestHostEnvironment.Development);
+        var service = CreateService(context, new FakeTemplateDocumentStorage(CreateBlankPdf()));
 
         var preview = await service.GenerateCalibrationPreviewAsync(new PreviewCalibrationRequest
         {
@@ -835,14 +1122,7 @@ public sealed class PdfWorkspaceFillServiceTests
 
         await context.SaveChangesAsync();
 
-        var service = new PdfWorkspaceFillService(
-            context,
-            new FakeTemplateDocumentStorage(CreateBlankPdf()),
-            new OrderFieldValueService(context),
-            new AllowAllTemplateFieldPermissionService(context),
-            NullLogger<PdfWorkspaceFillService>.Instance,
-            NullLogger<ReferralPdfOverlayRenderer>.Instance,
-            TestHostEnvironment.Development);
+        var service = CreateService(context, new FakeTemplateDocumentStorage(CreateBlankPdf()));
 
         var preview = await service.GenerateCalibrationPreviewAsync(new PreviewCalibrationRequest
         {
@@ -925,14 +1205,7 @@ public sealed class PdfWorkspaceFillServiceTests
 
         await context.SaveChangesAsync();
 
-        var service = new PdfWorkspaceFillService(
-            context,
-            new FakeTemplateDocumentStorage(CreateBlankPdf()),
-            new OrderFieldValueService(context),
-            new AllowAllTemplateFieldPermissionService(context),
-            NullLogger<PdfWorkspaceFillService>.Instance,
-            NullLogger<ReferralPdfOverlayRenderer>.Instance,
-            TestHostEnvironment.Development);
+        var service = CreateService(context, new FakeTemplateDocumentStorage(CreateBlankPdf()));
 
         var preview = await service.GenerateCalibrationPreviewAsync(new PreviewCalibrationRequest
         {
@@ -1026,14 +1299,7 @@ public sealed class PdfWorkspaceFillServiceTests
 
         await context.SaveChangesAsync();
 
-        var service = new PdfWorkspaceFillService(
-            context,
-            new FakeTemplateDocumentStorage(CreateBlankPdf()),
-            new OrderFieldValueService(context),
-            new AllowAllTemplateFieldPermissionService(context),
-            NullLogger<PdfWorkspaceFillService>.Instance,
-            NullLogger<ReferralPdfOverlayRenderer>.Instance,
-            TestHostEnvironment.Development);
+        var service = CreateService(context, new FakeTemplateDocumentStorage(CreateBlankPdf()));
 
         var preview = await service.GenerateCalibrationPreviewAsync(new PreviewCalibrationRequest
         {
@@ -1139,14 +1405,7 @@ public sealed class PdfWorkspaceFillServiceTests
 
         await context.SaveChangesAsync();
 
-        var service = new PdfWorkspaceFillService(
-            context,
-            new FakeTemplateDocumentStorage(CreateBlankPdf()),
-            new OrderFieldValueService(context),
-            new AllowAllTemplateFieldPermissionService(context),
-            NullLogger<PdfWorkspaceFillService>.Instance,
-            NullLogger<ReferralPdfOverlayRenderer>.Instance,
-            TestHostEnvironment.Development);
+        var service = CreateService(context, new FakeTemplateDocumentStorage(CreateBlankPdf()));
 
         var submissions = templateFieldIds
             .Select((id, index) => new PdfWorkspaceFieldValueDto
@@ -1290,14 +1549,7 @@ public sealed class PdfWorkspaceFillServiceTests
 
         await context.SaveChangesAsync();
 
-        var service = new PdfWorkspaceFillService(
-            context,
-            new FakeTemplateDocumentStorage(CreateBlankPdf()),
-            new OrderFieldValueService(context),
-            new AllowAllTemplateFieldPermissionService(context),
-            NullLogger<PdfWorkspaceFillService>.Instance,
-            NullLogger<ReferralPdfOverlayRenderer>.Instance,
-            TestHostEnvironment.Development);
+        var service = CreateService(context, new FakeTemplateDocumentStorage(CreateBlankPdf()));
 
         var blankPdf = CreateBlankPdf();
         var rendered = await service.GenerateFilledPdfAsync(versionId, orderId);
@@ -1432,14 +1684,7 @@ public sealed class PdfWorkspaceFillServiceTests
 
         await context.SaveChangesAsync();
 
-        var service = new PdfWorkspaceFillService(
-            context,
-            new FakeTemplateDocumentStorage(CreateBlankPdf()),
-            new OrderFieldValueService(context),
-            new AllowAllTemplateFieldPermissionService(context),
-            NullLogger<PdfWorkspaceFillService>.Instance,
-            NullLogger<ReferralPdfOverlayRenderer>.Instance,
-            TestHostEnvironment.Development);
+        var service = CreateService(context, new FakeTemplateDocumentStorage(CreateBlankPdf()));
 
         var rendered = await service.GenerateFilledPdfAsync(versionId, orderId);
 
@@ -1561,14 +1806,7 @@ public sealed class PdfWorkspaceFillServiceTests
 
         await context.SaveChangesAsync();
 
-        var service = new PdfWorkspaceFillService(
-            context,
-            new FakeTemplateDocumentStorage(),
-            new OrderFieldValueService(context),
-            new AllowAllTemplateFieldPermissionService(context),
-            NullLogger<PdfWorkspaceFillService>.Instance,
-            NullLogger<ReferralPdfOverlayRenderer>.Instance,
-            TestHostEnvironment.Development);
+        var service = CreateService(context);
 
         var result = await service.SaveValuesAsync(
             versionId,
@@ -1701,14 +1939,7 @@ public sealed class PdfWorkspaceFillServiceTests
         });
         await context.SaveChangesAsync();
 
-        var service = new PdfWorkspaceFillService(
-            context,
-            new FakeTemplateDocumentStorage(),
-            new OrderFieldValueService(context),
-            new AllowAllTemplateFieldPermissionService(context),
-            NullLogger<PdfWorkspaceFillService>.Instance,
-            NullLogger<ReferralPdfOverlayRenderer>.Instance,
-            TestHostEnvironment.Development);
+        var service = CreateService(context);
 
         var saved = await service.GetSavedValuesByKeyAsync(orderId, versionId);
 
@@ -1755,19 +1986,14 @@ public sealed class PdfWorkspaceFillServiceTests
 
         await context.SaveChangesAsync();
 
-        var service = new PdfWorkspaceFillService(
+        var service = CreateService(
             context,
-            new FakeTemplateDocumentStorage(),
-            new OrderFieldValueService(context),
-            new FixedTemplateFieldPermissionService(
+            fieldPermissions: new FixedTemplateFieldPermissionService(
                 new Dictionary<Guid, FieldAccessLevel>
                 {
                     [writableFieldId] = FieldAccessLevel.Write,
                     [hiddenFieldId] = FieldAccessLevel.None
-                }),
-            NullLogger<PdfWorkspaceFillService>.Instance,
-            NullLogger<ReferralPdfOverlayRenderer>.Instance,
-            TestHostEnvironment.Development);
+                }));
 
         var segments = await service.GetFillSegmentsAsync(versionId);
 
@@ -1869,15 +2095,10 @@ public sealed class PdfWorkspaceFillServiceTests
 
         await context.SaveChangesAsync();
 
-        var service = new PdfWorkspaceFillService(
+        var service = CreateService(
             context,
-            new FakeTemplateDocumentStorage(),
-            new OrderFieldValueService(context),
-            new FixedTemplateFieldPermissionService(
-                new Dictionary<Guid, FieldAccessLevel> { [templateFieldId] = FieldAccessLevel.Read }),
-            NullLogger<PdfWorkspaceFillService>.Instance,
-            NullLogger<ReferralPdfOverlayRenderer>.Instance,
-            TestHostEnvironment.Development);
+            fieldPermissions: new FixedTemplateFieldPermissionService(
+                new Dictionary<Guid, FieldAccessLevel> { [templateFieldId] = FieldAccessLevel.Read }));
 
         var result = await service.SaveValuesAsync(
             versionId,
@@ -1912,6 +2133,40 @@ public sealed class PdfWorkspaceFillServiceTests
                 }
             ]
         };
+
+    private static PdfWorkspaceFillService CreateService(
+        ApplicationDbContext context,
+        ITemplateDocumentStorage? storage = null,
+        ITemplateFieldPermissionService? fieldPermissions = null,
+        ICurrentUserService? currentUser = null) =>
+        new(
+            context,
+            storage ?? new FakeTemplateDocumentStorage(),
+            new OrderFieldValueService(context),
+            fieldPermissions ?? new AllowAllTemplateFieldPermissionService(context),
+            currentUser ?? new TestCurrentUserService(),
+            NullLogger<PdfWorkspaceFillService>.Instance,
+            NullLogger<ReferralPdfOverlayRenderer>.Instance,
+            TestHostEnvironment.Development);
+
+    private sealed class TestCurrentUserService : ICurrentUserService
+    {
+        public string? UserId { get; } = "test-lab-user";
+
+        public string? UserName { get; } = "test-lab-user";
+
+        public string? UserFullName { get; } = "Test Lab User";
+
+        public Guid? BranchId { get; }
+
+        public string? IpAddress { get; }
+
+        public string? UserAgent { get; }
+
+        public string? CorrelationId { get; }
+
+        public bool IsAuthenticated { get; } = true;
+    }
 
     private static ApplicationDbContext CreateContext()
     {

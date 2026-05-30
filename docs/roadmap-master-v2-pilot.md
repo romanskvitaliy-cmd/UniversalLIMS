@@ -24,7 +24,7 @@
 3. **Направлення (цифрове)** — реєстратура **формує на бланку**, який адмін завантажив (`REF-*`). Це один із документів замовлення поруч із протоколами — **не окремий модуль**.
 4. **Мапінг полів** — вже реалізовано (`OrderFieldLinkGroup`, `MapOrderFields`). Якщо один замовник + направлення + 4 протоколи — **один крок мапінгу** на всі документи: об’єднати «ПІБ», «дата відбору» тощо між REF і протоколами, заповнити один раз. Принесене паперове — скан + перенос у той самий цифровий REF-бланк.
 5. **Лабораторія** — UX має повторити ланцюжок реєстратури: **сторінка проби** з таблицею документів і статусів; «Відправити експерту» — **не** в toolbar PDF (тимчасово там, перенести на сторінку проби).
-6. **Пріоритет розробки (актуальний):** ~~B1–B2, T1~~ ✅ → **C2** (rework notify) → **R1** (`SampleResultValue`) → **D1+D6a** (REF Per Sample) → E1 MappingProfile.
+6. **Пріоритет розробки (актуальний):** ~~B1–B2, T1, C2, R1, D1, D6a~~ ✅ → **D2** → G5/G6.
 7. **Терміни UI:** `Order.ReferralNumber` = **«Номер справи»**; слово **«Направлення»** — лише PDF-бланк REF-* (див. `glossary-registration-uk.md`).
 8. **REF на пілоті:** основний режим **Per Sample** (1 REF на пробу); Per Order — backlog (§7.0).
 
@@ -76,7 +76,7 @@
 | Upload Word (.doc/.docx) → **авто PDF** | ✅ | `TemplateVersionService`, Syncfusion/LibreOffice |
 | Map тегів на PDF | ✅ | `TemplateFields/Map.cshtml` |
 | Гібридні теги (f327_, Food_, глобальні) | ✅ Etap 0–1 | `ProtocolTagCatalog`, spec |
-| Тип шаблону «Направлення / Протокол» | ❌ | немає `TemplatePurpose` |
+| Тип шаблону «Направлення / Протокол» | ✅ (D1) | `TemplatePurpose` на `Template` |
 
 ### 2.5 Філії
 
@@ -235,7 +235,7 @@ Create: 1 замовник + REF-* (направлення) + N протокол
 
 - [x] **B1.** Фільтр `ExpertReviewQueueService.GetQueueAsync` по філії експерта.
 - [x] **B2.** Фільтр `GetIncomingSinceAsync` — те саме.
-- [ ] **B3.** Сповіщення rework → лаборант: фільтр по `TargetBranchId` (перевірити наявну реалізацію).
+- [x] **B3.** Сповіщення rework → лаборант: фільтр по `TargetBranchId` (GetReworkSinceAsync + тести).
 - [ ] **B4.** UI: у черзі експерта показувати `TargetBranchName` (вже частково є).
 - [x] **B5.** Тести: два експерти в різних філіях — кожен бачить лише «свої» проби.
 
@@ -256,7 +256,7 @@ Create: 1 замовник + REF-* (направлення) + N протокол
 ### 6.2 Задачі розробки (Блок C)
 
 - [ ] **C1.** Перевірити крок 1–2–4 end-to-end на пілоті (дзвіночок у navbar).
-- [ ] **C2.** Rework notification — API + JS для лаборанта при `ReturnedForRework` (частково є `GetReworkSinceAsync` + JS; перевірити end-to-end).
+- [x] **C2.** Rework notification — API + JS для лаборанта при `ReturnedForRework` (toast з причиною → SampleDetails).
 - [ ] **C3.** Після B1/B2 — expert notifications лише для своєї філії.
 - [ ] **C4.** Документувати для адміна: 5–10 ПК = одна філія, poll на кожному браузері (не баг).
 - [ ] **C5.** SignalR — **не v1** (залишити в backlog).
@@ -334,8 +334,8 @@ Create: 1 замовник + REF-* (направлення) + N протокол
 
 **Що потрібно доробити в UX (не новий мапінг-движок):**
 
-- [ ] **D1.** `TemplatePurpose` на `Template` + міграція (Referral / Protocol / Conclusion).
-- [ ] **D6a (Per Sample, пілот).** У рядку проби на `Orders/Create` — другий select «Бланк направлення REF-*» поруч із «Бланк протоколу»; створює 2 `OrderDocument` на пробу.
+- [x] **D1.** `TemplatePurpose` на `Template` + міграція (Referral / Protocol / Conclusion). UI у `/Templates`; фільтр Create — D6a.
+- [x] **D6a (Per Sample, пілот).** У рядку проби на `Orders/Create` — другий select «Бланк направлення REF-*» поруч із «Бланк протоколу»; створює 2 `OrderDocument` на пробу (`ReferralTemplateVersionId` + протокол; REF → `TargetBranchId` реєстратора).
 - [ ] **D6b (backlog).** Per Order: один dropdown REF на справу + nullable `SampleId` для referral-документів.
 - [ ] **D7.** На `MapOrderFields` — групувати: Per Sample — «REF + протокол проби N»; Per Order — «Направлення | Протокол: f327 | …».
 - [ ] **D8a.** QA Per Sample: 1 клієнт + 3 проби + 3 REF + 3 протоколи → Map → Fill.
@@ -536,7 +536,7 @@ flowchart TD
 | A4 | ExpertBranchId для LAB→EXP (якщо не лише Mixed) | A | ❌ |
 | C2, C1 | Rework + end-to-end сповіщення (після B1–B2) | C | 🟡 C6 ✅ |
 | G1–G3 | SampleDetails + «Відправити експерту» | G | ✅ |
-| **R1** | **`DataFieldScope.Result` → `SampleResultValue` у PDF Save** (зараз усе в `OrderFieldValue`) | Lab | ❌ |
+| **R1** | **`DataFieldScope.Result` → `SampleResultValue` у PDF Save** | Lab | ✅ |
 | — | Smoke QA весь ланцюжок | QA | ❌ |
 
 ### Фаза 2 — Направлення Per Sample (1–2 тижні, паралельно контент)
@@ -544,7 +544,7 @@ flowchart TD
 | ID | Задача | Блок |
 |----|--------|------|
 | D1, D2–D3 | TemplatePurpose + розділення друку REF / протоколи | D |
-| **D6a** | REF у рядку проби (Per Sample) | D |
+| **D6a** ✅ | REF у рядку проби (Per Sample) | D |
 | D-контент-1 | Перший REF-бланк Word → upload → map | D |
 | D7, D8a | Групування Map + QA Per Sample | D |
 | D4–D5, D6b, D8 | Scan, Per Order, QA пакетного REF — **після пілоту** | backlog |
@@ -602,13 +602,13 @@ UniversalLIMS — пілот ЦКПХ (Житомир).
 Терміни: docs/glossary-registration-uk.md.
 
 Поточна фаза: 1.
-Наступні задачі (порядок): C2 → R1 → D1+D6a.
+Наступні задачі (порядок): D2 → G5/G6 → C1 smoke.
 
 Ключові рішення (не перепитувати):
 - Протокол = PDF-шаблон (OrderDocument), Fill у PDF Workspace; не ResultEntry UI.
 - REF-* = той самий механізм; на пілоті Per Sample (1 REF на пробу).
 - Order.ReferralNumber у UI = «Номер справи»; «Направлення» = лише REF-бланк.
-- SampleResultValue для Result scope — таблиця є, запису поки немає (R1).
+- SampleResultValue для Result scope — запис у PDF Save (R1 ✅); annul+insert при оновленні.
 - G1–G3 (SampleDetails + експерту) — зроблено; не дублювати.
 
 Правила:
@@ -670,18 +670,19 @@ UniversalLIMS — пілот ЦКПХ (Житомир).
 |---|-----|------------|--------------|
 | 1 | B1–B2 | ✅ Фільтр expert queue + notifications по BranchId | `ExpertReviewQueueService.cs` |
 | 2 | T1 | ✅ «Номер справи» в Index/Lab/Issuance/Expert | Views |
-| 3 | C2 | Rework toast лаборанта end-to-end | lab notifications API + JS |
-| 4 | R1 | `DataFieldScope.Result` → `SampleResultValue` у PDF Save | Fill service + tests |
-| 5 | D1 | `TemplatePurpose` enum + migration | `Template`, Create filters |
-| 6 | D6a | REF select у рядку проби Create → 2 OrderDocument на Sample | Create VM, `OrderRegistrationService` |
-| 7 | D-контент-1 | Перший REF-бланк у Templates | admin + docs |
+| 3 | C2 | ✅ Rework toast → SampleDetails + причина | lims-route-notify.js |
+| 4 | R1 | ✅ `SampleResultValue` при PDF Save (Result scope + annul on update) | Fill service |
+| 5 | D1 | ✅ `TemplatePurpose` enum + migration + UI `/Templates` | Template |
+| 6 | D6a | ✅ REF select у рядку проби Create → 2 OrderDocument на Sample | Create VM, `OrderRegistrationService`, `order-create.js` |
+| 7 | D2 | «Друк направлення» окремо від протоколів | `ReferralPdfGenerator` |
+| 8 | D-контент-1 | Перший REF-бланк у Templates | admin + docs |
 
 ### Технічні нотатки
 
 - **`OrderDocument.SampleId`** — required; Per Sample REF не потребує зміни схеми.
 - **`Branch.ExpertBranchId`** — поле є; для LAB→EXP задати в БД або через UI (A4 UI — backlog).
 - **`ReferralNumber` у коді/БД** — не перейменовувати; лише UI labels (T1).
-- **Lab результати** зараз у `OrderFieldValue` — борг; R1 обов’язковий до масового пілоту.
+- **Lab результати** з `DataFieldScope.Result` зберігаються в `SampleResultValue` (R1 ✅); OrderFieldValue — реєстрація/проба.
 
 ### Заборонено на v1
 

@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using UniversalLIMS.Application.Abstractions;
 using UniversalLIMS.Application.Laboratory;
 using UniversalLIMS.Application.Laboratory.Abstractions;
+using UniversalLIMS.Domain.Laboratory;
 using UniversalLIMS.Domain.Organization;
 using UniversalLIMS.Domain.Registration;
 using UniversalLIMS.Infrastructure.Laboratory;
@@ -309,6 +310,119 @@ public sealed class LaboratoryJournalServiceTests
 
         Assert.Single(result);
         Assert.Equal("SMP-A-ROUTE", result[0].SampleNumber);
+    }
+
+    [Fact]
+    public async Task GetReworkSinceAsync_ReturnsSampleReturnedAfterTimestamp()
+    {
+        var branchId = Guid.NewGuid();
+        await using var context = CreateContext();
+        await SeedBranchesAsync(context, branchId);
+        var investigationTypeId = await SeedInvestigationTypeAsync(context);
+        var customer = await SeedCustomerAsync(context, "Rework Клієнт");
+        var orderId = await SeedOrderWithSampleAsync(
+            context,
+            customer.Id,
+            branchId,
+            investigationTypeId,
+            "REF-RW",
+            "SMP-RW-001",
+            SampleStatus.InProgress);
+
+        var sample = await context.Samples.SingleAsync(item => item.OrderId == orderId);
+        var returnedAt = new DateTime(2026, 5, 30, 14, 0, 0, DateTimeKind.Utc);
+        context.ExpertConclusionReviews.Add(new ExpertConclusionReview
+        {
+            SampleId = sample.Id,
+            Status = ExpertConclusionStatus.ReturnedForRework,
+            ReturnedForReworkAtUtc = returnedAt,
+            ReworkReasonUk = "Виправити формулювання"
+        });
+        await context.SaveChangesAsync();
+
+        var service = CreateService(context, branchId);
+        var result = await service.GetReworkSinceAsync(returnedAt.AddMinutes(-5));
+
+        Assert.Single(result);
+        Assert.Equal("SMP-RW-001", result[0].SampleNumber);
+        Assert.Equal("Виправити формулювання", result[0].ReworkReasonUk);
+    }
+
+    [Fact]
+    public async Task GetReworkSinceAsync_RespectsLaboratoryBranchContext()
+    {
+        var branchA = Guid.NewGuid();
+        var branchB = Guid.NewGuid();
+        await using var context = CreateContext();
+        await SeedBranchesAsync(context, branchA, branchB);
+        var investigationTypeId = await SeedInvestigationTypeAsync(context);
+        var customer = await SeedCustomerAsync(context, "Rework філія");
+        var returnedAt = new DateTime(2026, 5, 30, 15, 0, 0, DateTimeKind.Utc);
+
+        var orderA = await SeedReworkSampleAsync(context, customer.Id, branchA, investigationTypeId, "SMP-A-RW", returnedAt);
+        var orderB = await SeedReworkSampleAsync(context, customer.Id, branchB, investigationTypeId, "SMP-B-RW", returnedAt);
+        _ = orderA;
+        _ = orderB;
+
+        var service = CreateService(context, branchA);
+        var result = await service.GetReworkSinceAsync(returnedAt.AddMinutes(-5));
+
+        Assert.Single(result);
+        Assert.Equal("SMP-A-RW", result[0].SampleNumber);
+    }
+
+    [Fact]
+    public async Task GetReworkSinceAsync_ExcludesReturnsBeforeTimestamp()
+    {
+        var branchId = Guid.NewGuid();
+        await using var context = CreateContext();
+        await SeedBranchesAsync(context, branchId);
+        var investigationTypeId = await SeedInvestigationTypeAsync(context);
+        var customer = await SeedCustomerAsync(context, "Старе rework");
+        await SeedReworkSampleAsync(
+            context,
+            customer.Id,
+            branchId,
+            investigationTypeId,
+            "SMP-OLD-RW",
+            new DateTime(2026, 5, 29, 10, 0, 0, DateTimeKind.Utc));
+
+        var service = CreateService(context, branchId);
+        var result = await service.GetReworkSinceAsync(new DateTime(2026, 5, 30, 0, 0, 0, DateTimeKind.Utc));
+
+        Assert.Empty(result);
+    }
+
+    private static async Task<Guid> SeedReworkSampleAsync(
+        ApplicationDbContext context,
+        Guid customerId,
+        Guid branchId,
+        Guid investigationTypeId,
+        string sampleNumber,
+        DateTime returnedAtUtc)
+    {
+        var orderId = await SeedOrderWithSampleAsync(
+            context,
+            customerId,
+            branchId,
+            investigationTypeId,
+            $"REF-{sampleNumber}",
+            sampleNumber,
+            SampleStatus.InProgress);
+
+        var sample = await context.Samples.SingleAsync(item => item.OrderId == orderId);
+        var document = await context.OrderDocuments.SingleAsync(item => item.SampleId == sample.Id);
+        document.Status = OrderDocumentStatus.InProgress;
+
+        context.ExpertConclusionReviews.Add(new ExpertConclusionReview
+        {
+            SampleId = sample.Id,
+            Status = ExpertConclusionStatus.ReturnedForRework,
+            ReturnedForReworkAtUtc = returnedAtUtc,
+            ReworkReasonUk = "Тестова причина"
+        });
+        await context.SaveChangesAsync();
+        return orderId;
     }
 
     private static async Task<Guid> SeedRoutedSampleAsync(

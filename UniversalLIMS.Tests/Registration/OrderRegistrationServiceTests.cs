@@ -507,6 +507,92 @@ public sealed class OrderRegistrationServiceTests
     }
 
     [Fact]
+    public async Task GetCreateFormAsync_SeparatesReferralAndProtocolTemplateOptions()
+    {
+        var branchId = Guid.NewGuid();
+        await using var context = CreateContext();
+        await SeedBranchesAsync(context, branchId);
+        var (_, foodTypeId, _) = await SeedDefaultInvestigationTypesAsync(context);
+        var protocolVersionId = await SeedActivePublishedPdfTemplateAsync(
+            context,
+            "F343",
+            "Ф343 досліджень проб харчових продуктів");
+        var referralVersionId = await SeedActivePublishedPdfReferralTemplateAsync(
+            context,
+            "REF-MOZ-001",
+            "Направлення МОЗ");
+
+        var service = CreateService(context, branchId);
+
+        var form = await service.GetCreateFormAsync();
+
+        Assert.Single(form.TemplateOptions);
+        Assert.Equal(protocolVersionId, form.TemplateOptions[0].TemplateVersionId);
+        Assert.Equal(foodTypeId, form.TemplateOptions[0].InvestigationTypeId);
+
+        Assert.Single(form.ReferralTemplateOptions);
+        Assert.Equal(referralVersionId, form.ReferralTemplateOptions[0].TemplateVersionId);
+        Assert.Equal("REF-MOZ-001", form.ReferralTemplateOptions[0].TemplateCode);
+    }
+
+    [Fact]
+    public async Task CreateOrderAsync_PerSample_CreatesReferralAndProtocolDocumentsOnSample()
+    {
+        var branchId = Guid.NewGuid();
+        var labBranchId = Guid.NewGuid();
+        await using var context = CreateContext();
+        await SeedBranchesAsync(context, branchId, labBranchId);
+        var (_, foodTypeId, _) = await SeedDefaultInvestigationTypesAsync(context);
+        var protocolVersionId = await SeedActivePublishedPdfTemplateAsync(
+            context,
+            "F343",
+            "Ф343 досліджень проб харчових продуктів");
+        var referralVersionId = await SeedActivePublishedPdfReferralTemplateAsync(
+            context,
+            "REF-MOZ-001",
+            "Направлення МОЗ");
+        var customer = await SeedCustomerAsync(context, "REF + протокол");
+        var service = CreateService(context, branchId);
+
+        var result = await service.CreateOrderAsync(new CreateOrderRequest
+        {
+            CustomerId = customer.Id,
+            Samples =
+            [
+                new CreateOrderSampleRequest
+                {
+                    InvestigationTypeId = foodTypeId,
+                    ReferralTemplateVersionId = referralVersionId,
+                    Documents =
+                    [
+                        new CreateOrderDocumentRequest
+                        {
+                            TemplateVersionId = protocolVersionId,
+                            TargetBranchId = labBranchId
+                        }
+                    ]
+                }
+            ]
+        });
+
+        Assert.Single(result.Samples);
+        Assert.Equal(2, result.Documents.Count);
+
+        var documents = await context.OrderDocuments
+            .Where(document => document.OrderId == result.OrderId && !document.IsAnnulled)
+            .ToListAsync();
+
+        Assert.Equal(2, documents.Count);
+        Assert.All(documents, document => Assert.Equal(result.Samples[0].SampleId, document.SampleId));
+
+        var referralDocument = Assert.Single(documents, document => document.TemplateVersionId == referralVersionId);
+        Assert.Equal(branchId, referralDocument.TargetBranchId);
+
+        var protocolDocument = Assert.Single(documents, document => document.TemplateVersionId == protocolVersionId);
+        Assert.Equal(labBranchId, protocolDocument.TargetBranchId);
+    }
+
+    [Fact]
     public async Task GetCreateFormAsync_ListsActivePdfTemplatesFromConstructorEvenWithoutLinks()
     {
         await using var context = CreateContext();
@@ -604,6 +690,35 @@ public sealed class OrderRegistrationServiceTests
         return (waterType.Id, foodType.Id, airType.Id);
     }
 
+    private static async Task<Guid> SeedActivePublishedPdfReferralTemplateAsync(
+        ApplicationDbContext context,
+        string code,
+        string nameUk)
+    {
+        var template = new Template
+        {
+            Code = code,
+            NameUk = nameUk,
+            Status = TemplateStatus.Active,
+            Purpose = TemplatePurpose.Referral
+        };
+        context.Templates.Add(template);
+
+        var version = new TemplateVersion
+        {
+            TemplateId = template.Id,
+            VersionNumber = 1,
+            Status = TemplateVersionStatus.Published,
+            DocumentFormat = TemplateDocumentFormat.Pdf,
+            StorageKey = $"{code}.pdf"
+        };
+        context.TemplateVersions.Add(version);
+        template.CurrentPublishedVersionId = version.Id;
+
+        await context.SaveChangesAsync();
+        return version.Id;
+    }
+
     private static async Task<Guid> SeedActivePublishedPdfTemplateAsync(
         ApplicationDbContext context,
         string code,
@@ -613,7 +728,8 @@ public sealed class OrderRegistrationServiceTests
         {
             Code = code,
             NameUk = nameUk,
-            Status = TemplateStatus.Active
+            Status = TemplateStatus.Active,
+            Purpose = TemplatePurpose.Protocol
         };
         context.Templates.Add(template);
 

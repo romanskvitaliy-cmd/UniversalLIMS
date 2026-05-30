@@ -12,6 +12,8 @@ public class Template : BaseEntity, ISoftAnnulled
 
     public TemplateStatus Status { get; set; } = TemplateStatus.Draft;
 
+    public TemplatePurpose Purpose { get; set; } = TemplatePurpose.Protocol;
+
     public Guid? CurrentPublishedVersionId { get; set; }
 
     public TemplateVersion? CurrentPublishedVersion { get; set; }

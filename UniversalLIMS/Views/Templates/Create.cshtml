@@ -1,4 +1,5 @@
 @model TemplateEditViewModel
+@using UniversalLIMS.Application.Templates
 
 @{
     ViewData["Title"] = "Новий шаблон";
@@ -22,6 +23,12 @@
         <label asp-for="NameUk" class="form-label"></label>
         <input asp-for="NameUk" class="form-control" />
         <span asp-validation-for="NameUk" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Purpose" class="form-label"></label>
+        <select asp-for="Purpose" asp-items="Model.PurposeOptions" class="form-select"></select>
+        <div class="form-text">Коди <code>REF-*</code> — направлення; <code>f327_</code>, <code>Food_</code> тощо — протоколи.</div>
+        <span asp-validation-for="Purpose" class="text-danger"></span>
     </div>
     <div class="mb-3">
         <label asp-for="DescriptionUk" class="form-label"></label>

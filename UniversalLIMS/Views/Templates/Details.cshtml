@@ -12,6 +12,7 @@
             <h1 class="lims-page-header__title">@Model.NameUk</h1>
             <div class="lims-page-header__meta">
                 <code class="lims-code">@Model.Code</code>
+                <span class="lims-badge lims-badge--draft">@TemplatePurposeCatalog.GetDisplayNameUk(Model.Purpose)</span>
                 <span class="lims-badge lims-badge--draft">@Model.Status</span>
             </div>
             @if (!string.IsNullOrWhiteSpace(Model.DescriptionUk))

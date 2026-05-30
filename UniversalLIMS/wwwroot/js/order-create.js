@@ -1,11 +1,21 @@
 (function () {
     const templateOptions = window.__orderCreateTemplateOptions || [];
+    const referralTemplateOptions = window.__orderCreateReferralTemplateOptions || [];
     const investigationTypes = window.__orderCreateInvestigationTypes || [];
     const branches = window.__orderCreateBranches || [];
     const initialSamples = window.__orderCreateInitialSamples || [];
     const defaultBranchId = window.__orderCreateDefaultBranchId || "";
 
     const templateCatalog = window.OrderTemplateField.createCatalog(templateOptions, investigationTypes);
+    const referralCatalogOptions = referralTemplateOptions.map((option) => ({
+        templateVersionId: option.templateVersionId,
+        templateNameUk: `${option.templateCode} — ${option.templateNameUk}`,
+        versionNumber: option.versionNumber,
+        investigationTypeId: "",
+        previewUrl: option.previewUrl
+    }));
+    const referralCatalog = window.OrderTemplateField.createCatalog(referralCatalogOptions, []);
+    const referralRequired = referralTemplateOptions.length > 0;
 
     const modeExisting = document.getElementById("customerModeExisting");
     const modeNew = document.getElementById("customerModeNew");
@@ -76,11 +86,20 @@
         window.open(previewUrl, "_blank", "noopener,noreferrer");
     }
 
+    function countSelectedTemplates() {
+        return getSampleRows().reduce((count, row) => {
+            if (row.referralPicker?.getValue()) {
+                count += 1;
+            }
+            if (row.templatePicker?.getValue()) {
+                count += 1;
+            }
+            return count;
+        }, 0);
+    }
+
     function syncFieldMappingActions() {
-        const selectedCount = getSampleRows()
-            .filter((row) => row.templatePicker?.getValue())
-            .length;
-        const multi = selectedCount >= 2;
+        const multi = countSelectedTemplates() >= 2;
         btnPrepareMapping?.classList.toggle("d-none", !multi);
         fieldMappingHint?.classList.toggle("d-none", !multi);
     }
@@ -121,10 +140,26 @@
         const fallbackOption = templateOptions[0] || null;
         const option = selectedOption || fallbackOption || null;
 
+        const referralTemplateVersionId = sample?.referralTemplateVersionId || "";
+        const selectedReferralOption = referralCatalog.getOptionByTemplateVersionId(referralTemplateVersionId);
+        const fallbackReferralOption = referralCatalogOptions[0] || null;
+        const referralOption = selectedReferralOption || fallbackReferralOption || null;
+
         return {
             templateVersionId: selectedTemplateVersionId || option?.templateVersionId || "",
+            referralTemplateVersionId:
+                referralTemplateVersionId || referralOption?.templateVersionId || "",
             branchId: sample?.documentTargetBranchIds?.[0] || defaultBranchId || branches[0]?.id || ""
         };
+    }
+
+    function bindTemplatePicker(row, cell, catalog, seedVersionId, callbacks) {
+        cell.innerHTML = window.OrderTemplateField.renderPickerHtml(catalog, seedVersionId, {
+            showPreview: true
+        });
+
+        const fieldRoot = cell.querySelector(".order-template-field");
+        return window.OrderTemplateField.bindPicker(fieldRoot, catalog, callbacks);
     }
 
     function addSampleRow(sample) {
@@ -136,11 +171,15 @@
         const row = document.createElement("div");
         row.className = "row g-2 align-items-end border-top py-2 order-sample-row";
         row.innerHTML = `
-            <div class="col-md-6">
-                <label class="form-label small text-muted d-md-none">Бланк для проби</label>
+            <div class="col-md-3">
+                <label class="form-label small text-muted d-md-none">Бланк направлення REF-*</label>
+                <div class="order-sample-referral-cell"></div>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label small text-muted d-md-none">Бланк протоколу</label>
                 <div class="order-sample-template-cell"></div>
             </div>
-            <div class="col-md-5">
+            <div class="col-md-4">
                 <label class="form-label small text-muted d-md-none">Лабораторія-виконавець</label>
                 <select class="form-select form-select-sm sample-branch-select">
                     ${branchOptionsHtml(seed.branchId)}
@@ -150,16 +189,37 @@
                 <button type="button" class="btn btn-sm btn-outline-danger sample-remove-button" title="Видалити рядок">×</button>
             </div>`;
 
-        const cell = row.querySelector(".order-sample-template-cell");
-        cell.innerHTML = window.OrderTemplateField.renderPickerHtml(templateCatalog, seed.templateVersionId, {
-            showPreview: true
-        });
-
-        const fieldRoot = cell.querySelector(".order-template-field");
-        row.templatePicker = window.OrderTemplateField.bindPicker(fieldRoot, templateCatalog, {
+        const referralCell = row.querySelector(".order-sample-referral-cell");
+        const protocolCell = row.querySelector(".order-sample-template-cell");
+        const pickerCallbacks = {
             onChange: syncSampleRows,
             onPreview: openTemplatePreview
-        });
+        };
+
+        if (referralTemplateOptions.length > 0) {
+            row.referralPicker = bindTemplatePicker(
+                row,
+                referralCell,
+                referralCatalog,
+                seed.referralTemplateVersionId,
+                pickerCallbacks
+            );
+            referralCell.querySelector(".order-template-field__select")?.setAttribute(
+                "aria-label",
+                "Бланк направлення REF"
+            );
+        } else {
+            referralCell.innerHTML =
+                '<p class="small text-muted mb-0 py-1">Немає REF-шаблонів. Додайте в «Шаблони» (тип «Направлення»).</p>';
+        }
+
+        row.templatePicker = bindTemplatePicker(
+            row,
+            protocolCell,
+            templateCatalog,
+            seed.templateVersionId,
+            pickerCallbacks
+        );
 
         samplesList.appendChild(row);
         bindSampleRow(row);
@@ -186,10 +246,17 @@
             const option = row.templatePicker?.getSelectedOption();
             const investigationTypeId = option?.investigationTypeId || "";
             const templateVersionId = option?.templateVersionId || "";
+            const referralTemplateVersionId = row.referralPicker?.getValue() || "";
 
             setHidden(row, "investigation", `Input.Samples[${index}].InvestigationTypeId`, investigationTypeId);
             setHidden(row, "template", `Input.Samples[${index}].TemplateVersionId`, templateVersionId);
             setHidden(row, "document", `Input.Samples[${index}].SelectedTemplateVersionIds[0]`, templateVersionId);
+            setHidden(
+                row,
+                "referral",
+                `Input.Samples[${index}].ReferralTemplateVersionId`,
+                referralTemplateVersionId
+            );
             setHidden(row, "branch", `Input.Samples[${index}].DocumentTargetBranchIds[0]`, branchSelect?.value || defaultBranchId);
         });
 

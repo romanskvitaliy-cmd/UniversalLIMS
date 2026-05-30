@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using UniversalLIMS.Application.Security;
+using UniversalLIMS.Application.Templates;
 using UniversalLIMS.Domain.Templates;
 using UniversalLIMS.Infrastructure.Filters;
 using UniversalLIMS.Infrastructure.Persistence;
@@ -31,6 +33,7 @@ public sealed class TemplatesController : Controller
                 Code = template.Code,
                 NameUk = template.NameUk,
                 Status = template.Status,
+                Purpose = template.Purpose,
                 VersionCount = template.Versions.Count,
                 CurrentPublishedVersionNumber = template.CurrentPublishedVersion == null
                     ? null
@@ -43,7 +46,10 @@ public sealed class TemplatesController : Controller
 
     public IActionResult Create()
     {
-        return View(new TemplateEditViewModel());
+        return View(new TemplateEditViewModel
+        {
+            PurposeOptions = BuildPurposeOptions()
+        });
     }
 
     [HttpPost]
@@ -52,6 +58,7 @@ public sealed class TemplatesController : Controller
     {
         if (!ModelState.IsValid)
         {
+            model.PurposeOptions = BuildPurposeOptions();
             return View(model);
         }
 
@@ -61,6 +68,7 @@ public sealed class TemplatesController : Controller
         if (codeExists)
         {
             ModelState.AddModelError(nameof(model.Code), "Шаблон із таким кодом уже існує.");
+            model.PurposeOptions = BuildPurposeOptions();
             return View(model);
         }
 
@@ -69,7 +77,8 @@ public sealed class TemplatesController : Controller
             Code = model.Code.Trim(),
             NameUk = model.NameUk.Trim(),
             DescriptionUk = model.DescriptionUk?.Trim(),
-            Status = TemplateStatus.Draft
+            Status = TemplateStatus.Draft,
+            Purpose = model.Purpose
         };
 
         _context.Templates.Add(template);
@@ -91,7 +100,9 @@ public sealed class TemplatesController : Controller
             Id = template.Id,
             Code = template.Code,
             NameUk = template.NameUk,
-            DescriptionUk = template.DescriptionUk
+            DescriptionUk = template.DescriptionUk,
+            Purpose = template.Purpose,
+            PurposeOptions = BuildPurposeOptions()
         });
     }
 
@@ -106,6 +117,7 @@ public sealed class TemplatesController : Controller
 
         if (!ModelState.IsValid)
         {
+            model.PurposeOptions = BuildPurposeOptions();
             return View(model);
         }
 
@@ -122,12 +134,14 @@ public sealed class TemplatesController : Controller
         if (codeExists)
         {
             ModelState.AddModelError(nameof(model.Code), "Шаблон із таким кодом уже існує.");
+            model.PurposeOptions = BuildPurposeOptions();
             return View(model);
         }
 
         template.Code = normalizedCode;
         template.NameUk = model.NameUk.Trim();
         template.DescriptionUk = model.DescriptionUk?.Trim();
+        template.Purpose = model.Purpose;
 
         await _context.SaveChangesAsync(cancellationToken);
 
@@ -162,6 +176,7 @@ public sealed class TemplatesController : Controller
             NameUk = template.NameUk,
             DescriptionUk = template.DescriptionUk,
             Status = template.Status,
+            Purpose = template.Purpose,
             Versions = template.Versions
                 .OrderByDescending(version => version.VersionNumber)
                 .Select(version => new TemplateVersionListItemViewModel
@@ -225,4 +240,13 @@ public sealed class TemplatesController : Controller
 
         return RedirectToAction(nameof(Index));
     }
+
+    private static IReadOnlyList<SelectListItem> BuildPurposeOptions() =>
+        TemplatePurposeCatalog.All
+            .Select(purpose => new SelectListItem
+            {
+                Value = ((int)purpose).ToString(),
+                Text = TemplatePurposeCatalog.GetDisplayNameUk(purpose)
+            })
+            .ToList();
 }

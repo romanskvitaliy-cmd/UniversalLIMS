@@ -50,6 +50,8 @@ public sealed class OrderCreateSampleInputModel
 
     public Guid? TemplateVersionId { get; set; }
 
+    public Guid? ReferralTemplateVersionId { get; set; }
+
     public List<Guid> SelectedTemplateVersionIds { get; set; } = [];
 
     public List<Guid> DocumentTargetBranchIds { get; set; } = [];

@@ -511,23 +511,44 @@ public sealed class OrdersController : Controller
             return;
         }
 
+        var referralAllowedIds = form.ReferralTemplateOptions
+            .Select(option => option.TemplateVersionId)
+            .ToHashSet();
+        var requireReferralPerSample = form.ReferralTemplateOptions.Count > 0;
+
         for (var sampleIndex = 0; sampleIndex < samples.Count; sampleIndex++)
         {
             var sample = samples[sampleIndex];
             var selectedTemplateVersionIds = sample.SelectedTemplateVersionIds
                 .Where(id => id != Guid.Empty)
                 .ToList();
+            var referralTemplateVersionId = sample.ReferralTemplateVersionId ?? Guid.Empty;
 
             if (sample.InvestigationTypeId == Guid.Empty)
             {
-                ModelState.AddModelError(string.Empty, $"У рядку {sampleIndex + 1} оберіть бланк для проби.");
+                ModelState.AddModelError(string.Empty, $"У рядку {sampleIndex + 1} оберіть бланк протоколу для проби.");
                 continue;
             }
 
             if (selectedTemplateVersionIds.Count == 0)
             {
-                ModelState.AddModelError(string.Empty, $"У рядку {sampleIndex + 1} оберіть бланк PDF.");
+                ModelState.AddModelError(string.Empty, $"У рядку {sampleIndex + 1} оберіть бланк протоколу PDF.");
                 continue;
+            }
+
+            if (requireReferralPerSample && referralTemplateVersionId == Guid.Empty)
+            {
+                ModelState.AddModelError(
+                    string.Empty,
+                    $"У рядку {sampleIndex + 1} оберіть бланк направлення REF-*.");
+                continue;
+            }
+
+            if (referralTemplateVersionId != Guid.Empty && !referralAllowedIds.Contains(referralTemplateVersionId))
+            {
+                ModelState.AddModelError(
+                    samplesFieldName,
+                    $"У рядку {sampleIndex + 1} обрано недоступний бланк направлення REF.");
             }
 
             var allowedIds = form.TemplateOptions
@@ -539,10 +560,16 @@ public sealed class OrdersController : Controller
             {
                 ModelState.AddModelError(
                     samplesFieldName,
-                    $"У рядку {sampleIndex + 1} обрано недоступний бланк для цієї проби.");
+                    $"У рядку {sampleIndex + 1} обрано недоступний бланк протоколу для цієї проби.");
             }
 
-            if (selectedTemplateVersionIds.Distinct().Count() != selectedTemplateVersionIds.Count)
+            var distinctTemplateIds = selectedTemplateVersionIds.ToList();
+            if (referralTemplateVersionId != Guid.Empty)
+            {
+                distinctTemplateIds.Add(referralTemplateVersionId);
+            }
+
+            if (distinctTemplateIds.Distinct().Count() != distinctTemplateIds.Count)
             {
                 ModelState.AddModelError(
                     samplesFieldName,
@@ -561,6 +588,7 @@ public sealed class OrdersController : Controller
             {
                 InvestigationTypeId = sample.InvestigationTypeId,
                 TemplateVersionId = sample.TemplateVersionId,
+                ReferralTemplateVersionId = sample.ReferralTemplateVersionId,
                 Documents = MapDocuments(sample, defaultBranchId)
             })
             .ToList();
@@ -652,8 +680,17 @@ public sealed class OrdersController : Controller
 
     private static IReadOnlyList<Guid> GetSelectedTemplateVersionIds(OrderCreateInputModel input) =>
         GetSubmittedSamples(input)
-            .SelectMany(sample => sample.SelectedTemplateVersionIds)
-            .Where(id => id != Guid.Empty)
+            .SelectMany(sample =>
+            {
+                var ids = sample.SelectedTemplateVersionIds.Where(id => id != Guid.Empty).ToList();
+                if (sample.ReferralTemplateVersionId is Guid referralId && referralId != Guid.Empty)
+                {
+                    ids.Add(referralId);
+                }
+
+                return ids;
+            })
+            .Distinct()
             .ToList();
 
     private static bool TryParseFieldMappingPayload(
@@ -720,6 +757,17 @@ public sealed class OrdersController : Controller
                     TemplateNameUk = option.TemplateNameUk,
                     VersionNumber = option.VersionNumber,
                     IsDefault = option.IsDefault,
+                    Purpose = option.Purpose,
+                    PreviewUrl = BuildTemplatePreviewUrl(option.TemplateVersionId)
+                })
+                .ToList(),
+            ReferralTemplateOptions = form.ReferralTemplateOptions
+                .Select(option => new OrderReferralTemplateOptionDto
+                {
+                    TemplateVersionId = option.TemplateVersionId,
+                    TemplateCode = option.TemplateCode,
+                    TemplateNameUk = option.TemplateNameUk,
+                    VersionNumber = option.VersionNumber,
                     PreviewUrl = BuildTemplatePreviewUrl(option.TemplateVersionId)
                 })
                 .ToList()

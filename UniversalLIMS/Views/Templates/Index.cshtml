@@ -1,4 +1,5 @@
 @model IReadOnlyCollection<TemplateListItemViewModel>
+@using UniversalLIMS.Application.Templates
 
 @{
     Layout = "_LayoutWorkspace";
@@ -26,6 +27,7 @@
                     <tr>
                         <th>Код</th>
                         <th>Назва</th>
+                        <th>Призначення</th>
                         <th>Статус</th>
                         <th class="text-center">Версії</th>
                         <th>Чинна версія</th>
@@ -38,6 +40,11 @@
                         <tr>
                             <td><code class="lims-code">@template.Code</code></td>
                             <td class="lims-data-table__name">@template.NameUk</td>
+                            <td>
+                                <span class="lims-badge lims-badge--draft">
+                                    @TemplatePurposeCatalog.GetDisplayNameUk(template.Purpose)
+                                </span>
+                            </td>
                             <td>
                                 <span class="lims-badge lims-badge--draft">@template.Status</span>
                             </td>

@@ -1,9 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using UniversalLIMS.Application.Abstractions;
 using UniversalLIMS.Application.Registration;
 using UniversalLIMS.Application.Registration.Abstractions;
 using UniversalLIMS.Application.Templates.Abstractions;
+using UniversalLIMS.Domain.Laboratory;
 using UniversalLIMS.Domain.Registration;
 using UniversalLIMS.Domain.Templates;
 using UniversalLIMS.Infrastructure.Persistence;
@@ -16,6 +18,7 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
     private readonly ITemplateDocumentStorage _templateDocumentStorage;
     private readonly IOrderFieldValueService _orderFieldValueService;
     private readonly ITemplateFieldPermissionService _fieldPermissions;
+    private readonly ICurrentUserService _currentUser;
     private readonly ReferralPdfOverlayRenderer _overlayRenderer;
     private readonly ILogger<PdfWorkspaceFillService> _logger;
     private readonly bool _allowImplicitOrderCreation;
@@ -25,6 +28,7 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
         ITemplateDocumentStorage templateDocumentStorage,
         IOrderFieldValueService orderFieldValueService,
         ITemplateFieldPermissionService fieldPermissions,
+        ICurrentUserService currentUser,
         ILogger<PdfWorkspaceFillService> logger,
         ILogger<ReferralPdfOverlayRenderer> overlayLogger,
         IHostEnvironment hostEnvironment)
@@ -33,6 +37,7 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
         _templateDocumentStorage = templateDocumentStorage;
         _orderFieldValueService = orderFieldValueService;
         _fieldPermissions = fieldPermissions;
+        _currentUser = currentUser;
         _logger = logger;
         _overlayRenderer = new ReferralPdfOverlayRenderer(overlayLogger);
         _allowImplicitOrderCreation = hostEnvironment.IsDevelopment();
@@ -108,6 +113,12 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
         }
 
         var workspaceDataFieldIds = workspaceDataFieldIdByTemplateFieldId.Values.Distinct().ToList();
+        var dataFieldsById = workspaceDataFieldIds.Count == 0
+            ? new Dictionary<Guid, DataField>()
+            : await _context.DataFields
+                .Where(dataField => workspaceDataFieldIds.Contains(dataField.Id) && dataField.IsActive)
+                .ToDictionaryAsync(dataField => dataField.Id, cancellationToken);
+
         var existingValues = workspaceDataFieldIds.Count == 0
             ? []
             : await _context.OrderFieldValues
@@ -115,6 +126,23 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
                                      fieldValue.SampleId == sampleId &&
                                      workspaceDataFieldIds.Contains(fieldValue.DataFieldId))
                 .ToListAsync(cancellationToken);
+
+        var resultDataFieldIds = workspaceDataFieldIds
+            .Where(id => dataFieldsById.TryGetValue(id, out var dataField)
+                         && dataField.Scope == DataFieldScope.Result)
+            .ToList();
+
+        var existingResultValues = sampleId.HasValue && resultDataFieldIds.Count > 0
+            ? await _context.SampleResultValues
+                .Where(resultValue => resultValue.SampleId == sampleId.Value
+                                      && resultDataFieldIds.Contains(resultValue.DataFieldId))
+                .ToListAsync(cancellationToken)
+            : [];
+
+        Guid? defaultEquipmentId = null;
+        var enteredByUserId = string.IsNullOrWhiteSpace(_currentUser.UserId)
+            ? "system"
+            : _currentUser.UserId;
 
         foreach (var item in values)
         {
@@ -177,6 +205,65 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
 
             mapped++;
             var trimmedValue = item.Value?.Trim();
+            dataFieldsById.TryGetValue(dataFieldId, out var dataField);
+            var persistAsSampleResult = sampleId.HasValue
+                && dataField?.Scope == DataFieldScope.Result;
+
+            if (persistAsSampleResult)
+            {
+                if (string.IsNullOrEmpty(trimmedValue))
+                {
+                    var activeResult = existingResultValues
+                        .FirstOrDefault(resultValue => resultValue.DataFieldId == dataFieldId);
+                    if (activeResult is not null)
+                    {
+                        activeResult.Annul("Очищено у PDF Workspace", enteredByUserId);
+                        cleared++;
+                        _logger.LogDebug(
+                            "PdfWorkspaceFill annulled result: sample={SampleId}, dataField={DataFieldId}",
+                            sampleId,
+                            dataFieldId);
+                    }
+
+                    continue;
+                }
+
+                defaultEquipmentId ??= await ResolveDefaultEquipmentIdAsync(cancellationToken);
+                var active = existingResultValues
+                    .FirstOrDefault(resultValue => resultValue.DataFieldId == dataFieldId);
+                if (active is not null
+                    && string.Equals(active.StoredValue, trimmedValue, StringComparison.Ordinal))
+                {
+                    saved++;
+                    continue;
+                }
+
+                if (active is not null)
+                {
+                    active.Annul("Оновлено у PDF Workspace", enteredByUserId);
+                    existingResultValues.Remove(active);
+                }
+
+                var resultValue = new SampleResultValue(
+                    sampleId!.Value,
+                    dataFieldId,
+                    trimmedValue,
+                    ResolveResultUnit(dataField!),
+                    0m,
+                    defaultEquipmentId.Value,
+                    DateTime.UtcNow,
+                    enteredByUserId);
+                _context.SampleResultValues.Add(resultValue);
+                existingResultValues.Add(resultValue);
+                saved++;
+                _logger.LogInformation(
+                    "PdfWorkspaceFill insert result: sample={SampleId}, templateField={TemplateFieldId}, dataField={DataFieldId}, length={Length}",
+                    sampleId,
+                    templateFieldId,
+                    dataFieldId,
+                    trimmedValue.Length);
+                continue;
+            }
 
             if (string.IsNullOrEmpty(trimmedValue))
             {
@@ -1006,20 +1093,11 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
                 cancellationToken)
             : (Guid?)null;
 
-        var storedByDataFieldId = OrderFieldValueSelection.ResolveByDataFieldId(
-            await _context.OrderFieldValues
-                .AsNoTracking()
-                .Where(fieldValue => fieldValue.OrderId == orderId &&
-                                     (!sampleId.HasValue || fieldValue.SampleId == null || fieldValue.SampleId == sampleId) &&
-                                     dataFieldIds.Contains(fieldValue.DataFieldId))
-                .Select(fieldValue => new OrderFieldValueCandidate(
-                    fieldValue.DataFieldId,
-                    fieldValue.SampleId,
-                    fieldValue.StoredValue,
-                    fieldValue.UpdatedAtUtc,
-                    fieldValue.CreatedAtUtc))
-                .ToListAsync(cancellationToken),
-            sampleId);
+        var storedByDataFieldId = await ResolveStoredValuesByDataFieldIdAsync(
+            orderId,
+            sampleId,
+            dataFieldIds,
+            cancellationToken);
 
         var result = new Dictionary<string, string?>(StringComparer.Ordinal);
         foreach (var field in templateFields)
@@ -1060,6 +1138,90 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
 
         return result;
     }
+
+    private async Task<Dictionary<Guid, string?>> ResolveStoredValuesByDataFieldIdAsync(
+        Guid orderId,
+        Guid? sampleId,
+        IReadOnlyList<Guid> dataFieldIds,
+        CancellationToken cancellationToken)
+    {
+        if (dataFieldIds.Count == 0)
+        {
+            return new Dictionary<Guid, string?>();
+        }
+
+        var orderFieldValues = await _context.OrderFieldValues
+            .AsNoTracking()
+            .Where(fieldValue => fieldValue.OrderId == orderId &&
+                                 (!sampleId.HasValue || fieldValue.SampleId == null || fieldValue.SampleId == sampleId) &&
+                                 dataFieldIds.Contains(fieldValue.DataFieldId))
+            .Select(fieldValue => new OrderFieldValueCandidate(
+                fieldValue.DataFieldId,
+                fieldValue.SampleId,
+                fieldValue.StoredValue,
+                fieldValue.UpdatedAtUtc,
+                fieldValue.CreatedAtUtc))
+            .ToListAsync(cancellationToken);
+
+        var storedByDataFieldId = OrderFieldValueSelection.ResolveByDataFieldId(orderFieldValues, sampleId);
+
+        if (!sampleId.HasValue)
+        {
+            return storedByDataFieldId;
+        }
+
+        var resultFieldIds = await _context.DataFields
+            .AsNoTracking()
+            .Where(dataField => dataFieldIds.Contains(dataField.Id)
+                                && dataField.IsActive
+                                && dataField.Scope == DataFieldScope.Result)
+            .Select(dataField => dataField.Id)
+            .ToListAsync(cancellationToken);
+
+        if (resultFieldIds.Count == 0)
+        {
+            return storedByDataFieldId;
+        }
+
+        var sampleResults = await _context.SampleResultValues
+            .AsNoTracking()
+            .Where(resultValue => resultValue.SampleId == sampleId.Value
+                                  && resultFieldIds.Contains(resultValue.DataFieldId))
+            .Select(resultValue => new
+            {
+                resultValue.DataFieldId,
+                resultValue.StoredValue
+            })
+            .ToListAsync(cancellationToken);
+
+        foreach (var sampleResult in sampleResults)
+        {
+            storedByDataFieldId[sampleResult.DataFieldId] = sampleResult.StoredValue;
+        }
+
+        return storedByDataFieldId;
+    }
+
+    private async Task<Guid> ResolveDefaultEquipmentIdAsync(CancellationToken cancellationToken)
+    {
+        var equipmentId = await _context.Equipment
+            .AsNoTracking()
+            .Where(equipment => equipment.IsActive && !equipment.IsAnnulled)
+            .OrderBy(equipment => equipment.Code)
+            .Select(equipment => equipment.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (equipmentId == Guid.Empty)
+        {
+            throw new InvalidOperationException(
+                "Немає активного обладнання для запису результатів лабораторії.");
+        }
+
+        return equipmentId;
+    }
+
+    private static string ResolveResultUnit(DataField dataField) =>
+        string.IsNullOrWhiteSpace(dataField.Unit) ? "—" : dataField.Unit.Trim();
 
     private static string WorkspaceDataFieldKey(Guid templateFieldId) =>
         templateFieldId.ToString("D");
@@ -1509,20 +1671,11 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
                 cancellationToken)
             : (Guid?)null;
 
-        var valuesByDataFieldId = OrderFieldValueSelection.ResolveByDataFieldId(
-            await _context.OrderFieldValues
-                .AsNoTracking()
-                .Where(fieldValue => fieldValue.OrderId == orderId &&
-                                     (!sampleId.HasValue || fieldValue.SampleId == null || fieldValue.SampleId == sampleId) &&
-                                     dataFieldIds.Contains(fieldValue.DataFieldId))
-                .Select(fieldValue => new OrderFieldValueCandidate(
-                    fieldValue.DataFieldId,
-                    fieldValue.SampleId,
-                    fieldValue.StoredValue,
-                    fieldValue.UpdatedAtUtc,
-                    fieldValue.CreatedAtUtc))
-                .ToListAsync(cancellationToken),
-            sampleId);
+        var valuesByDataFieldId = await ResolveStoredValuesByDataFieldIdAsync(
+            orderId,
+            sampleId,
+            dataFieldIds,
+            cancellationToken);
 
         if (valuesByDataFieldId.Count == 0)
         {

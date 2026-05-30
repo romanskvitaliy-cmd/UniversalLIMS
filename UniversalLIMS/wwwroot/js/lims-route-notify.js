@@ -219,11 +219,13 @@
 
         if (count === 1) {
             const item = items[0];
-            const message = `${item.sampleNumber} · ${item.customerFullName}`;
+            const linkHref = effectiveConfig.linkForItem?.(item, journalUrl) ?? journalUrl;
+            const message = effectiveConfig.messageForItem?.(item)
+                ?? `${item.sampleNumber} · ${item.customerFullName}`;
             showToast({
                 title: effectiveConfig.singleTitle,
                 message,
-                linkHref: journalUrl,
+                linkHref,
                 variant
             });
             speak(`${effectiveConfig.voiceSinglePrefix} ${item.sampleNumber}`);
@@ -237,9 +239,17 @@
             speak(`${count} ${effectiveConfig.voiceBatchPrefix}`);
         }
 
-        if (!config || config === pollConfig) {
+        if (!config || config === pollConfig || effectiveConfig.updateJournalBadge) {
             updateJournalBadge(count);
         }
+    };
+
+    const truncateUk = (text, maxLength) => {
+        const value = String(text || "").trim();
+        if (value.length <= maxLength) {
+            return value;
+        }
+        return `${value.slice(0, maxLength - 1)}…`;
     };
 
     const laboratoryReworkNotifyConfig = {
@@ -250,7 +260,16 @@
         batchMessageSuffix: "проб повернуто в лабораторію",
         voiceSinglePrefix: "Повернення на доопрацювання",
         voiceBatchPrefix: "проб на доопрацюванні",
-        toastVariant: "warning"
+        toastVariant: "warning",
+        updateJournalBadge: true,
+        linkForItem: (item, journalUrl) => (
+            item?.sampleId ? `/Laboratory/SampleDetails/${item.sampleId}` : journalUrl
+        ),
+        messageForItem: (item) => {
+            const base = `${item.sampleNumber} · ${item.customerFullName}`;
+            const reason = truncateUk(item.reworkReasonUk, 90);
+            return reason ? `${base} — ${reason}` : base;
+        }
     };
 
     const pollIncoming = async () => {

@@ -1,4 +1,5 @@
 using UniversalLIMS.Domain.Registration;
+using UniversalLIMS.Domain.Templates;
 
 namespace UniversalLIMS.Application.Registration;
 
@@ -26,6 +27,9 @@ public sealed class CreateOrderSampleRequest
     public Guid InvestigationTypeId { get; init; }
 
     public Guid? TemplateVersionId { get; init; }
+
+    /// <summary>Бланк направлення REF-* (Per Sample, D6a).</summary>
+    public Guid? ReferralTemplateVersionId { get; init; }
 
     public IReadOnlyList<CreateOrderDocumentRequest> Documents { get; init; } = [];
 }
@@ -70,6 +74,22 @@ public sealed class OrderTemplateOptionDto
 
     public bool IsDefault { get; init; }
 
+    public TemplatePurpose Purpose { get; init; } = TemplatePurpose.Protocol;
+
+    /// <summary>URL для inline-перегляду оригінального PDF (з токеном).</summary>
+    public string? PreviewUrl { get; init; }
+}
+
+public sealed class OrderReferralTemplateOptionDto
+{
+    public Guid TemplateVersionId { get; init; }
+
+    public required string TemplateCode { get; init; }
+
+    public required string TemplateNameUk { get; init; }
+
+    public int VersionNumber { get; init; }
+
     /// <summary>URL для inline-перегляду оригінального PDF (з токеном).</summary>
     public string? PreviewUrl { get; init; }
 }
@@ -79,6 +99,8 @@ public sealed class OrderCreateFormDto
     public required IReadOnlyList<InvestigationTypeOptionDto> InvestigationTypes { get; init; }
 
     public required IReadOnlyList<OrderTemplateOptionDto> TemplateOptions { get; init; }
+
+    public required IReadOnlyList<OrderReferralTemplateOptionDto> ReferralTemplateOptions { get; init; }
 
     public required IReadOnlyList<BranchOptionDto> Branches { get; init; }
 

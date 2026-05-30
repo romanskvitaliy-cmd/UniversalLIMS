@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using UniversalLIMS.Domain.Templates;
 
 namespace UniversalLIMS.ViewModels.Templates;
@@ -12,6 +13,8 @@ public sealed class TemplateListItemViewModel
     public string NameUk { get; set; } = string.Empty;
 
     public TemplateStatus Status { get; set; }
+
+    public TemplatePurpose Purpose { get; set; }
 
     public int VersionCount { get; set; }
 
@@ -35,6 +38,12 @@ public sealed class TemplateEditViewModel
     [StringLength(1000, ErrorMessage = "Опис не може перевищувати 1000 символів.")]
     [Display(Name = "Опис")]
     public string? DescriptionUk { get; set; }
+
+    [Required(ErrorMessage = "Оберіть призначення шаблону.")]
+    [Display(Name = "Призначення")]
+    public TemplatePurpose Purpose { get; set; } = TemplatePurpose.Protocol;
+
+    public IReadOnlyList<SelectListItem> PurposeOptions { get; set; } = [];
 }
 
 public sealed class TemplateDetailsViewModel
@@ -48,6 +57,8 @@ public sealed class TemplateDetailsViewModel
     public string? DescriptionUk { get; set; }
 
     public TemplateStatus Status { get; set; }
+
+    public TemplatePurpose Purpose { get; set; }
 
     public IReadOnlyCollection<TemplateVersionListItemViewModel> Versions { get; set; } = [];
 }
