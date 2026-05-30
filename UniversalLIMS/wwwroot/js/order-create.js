@@ -1,8 +1,11 @@
 (function () {
     const templateOptions = window.__orderCreateTemplateOptions || [];
+    const investigationTypes = window.__orderCreateInvestigationTypes || [];
     const branches = window.__orderCreateBranches || [];
     const initialSamples = window.__orderCreateInitialSamples || [];
     const defaultBranchId = window.__orderCreateDefaultBranchId || "";
+
+    const templateCatalog = window.OrderTemplateField.createCatalog(templateOptions, investigationTypes);
 
     const modeExisting = document.getElementById("customerModeExisting");
     const modeNew = document.getElementById("customerModeNew");
@@ -24,7 +27,7 @@
     const previewTitle = document.getElementById("orderTemplatePreviewTitle");
     const previewOpenTab = document.getElementById("orderTemplatePreviewOpenTab");
 
-    let searchTimer = null;
+    let customerSearchTimer = null;
     let previewModalInstance = null;
 
     if (previewModal && previewModal.parentElement !== document.body) {
@@ -38,79 +41,6 @@
             .replace(/>/g, "&gt;")
             .replace(/"/g, "&quot;")
             .replace(/'/g, "&#039;");
-    }
-
-    function optionLabel(option) {
-        if (!option) {
-            return "";
-        }
-
-        const version = option.versionNumber ? ` (v${option.versionNumber})` : "";
-        const marker = option.isDefault ? " *" : "";
-        return `${option.templateNameUk}${version}${marker}`;
-    }
-
-    function getOptionByTemplateVersionId(templateVersionId) {
-        return templateOptions.find((option) => option.templateVersionId === templateVersionId) || null;
-    }
-
-    function getOptionsForInvestigation(investigationTypeId) {
-        return templateOptions.filter((option) => option.investigationTypeId === investigationTypeId);
-    }
-
-    function templatePickerHtml(selectClass, buttonClass, optionsHtml) {
-        return `
-            <div class="order-sample-template-picker">
-                <select class="form-select form-select-sm ${selectClass}">
-                    ${optionsHtml}
-                </select>
-                <button type="button"
-                        class="btn btn-sm btn-outline-secondary ${buttonClass} order-sample-template-picker__preview"
-                        title="Переглянути оригінал PDF"
-                        aria-label="Переглянути оригінал PDF"
-                        disabled>
-                    <i class="bi bi-eye" aria-hidden="true"></i>
-                </button>
-            </div>`;
-    }
-
-    function activeTemplateOptionsHtml(selectedTemplateVersionId) {
-        const emptySelected = selectedTemplateVersionId ? "" : " selected";
-        const options = [`<option value=""${emptySelected}>— оберіть —</option>`];
-        for (const option of templateOptions) {
-            const selected = option.templateVersionId === selectedTemplateVersionId ? " selected" : "";
-            options.push(
-                `<option value="${option.templateVersionId}" data-investigation-type-id="${option.investigationTypeId}"${selected}>${escapeHtml(optionLabel(option))}</option>`
-            );
-        }
-
-        return options.join("");
-    }
-
-    function pdfOptionsHtml(investigationTypeId, selectedTemplateVersionId) {
-        const optionsForType = getOptionsForInvestigation(investigationTypeId);
-        const emptySelected = selectedTemplateVersionId ? "" : " selected";
-        const options = [`<option value=""${emptySelected}>— оберіть —</option>`];
-        for (const option of optionsForType) {
-            const selected = option.templateVersionId === selectedTemplateVersionId ? " selected" : "";
-            options.push(
-                `<option value="${option.templateVersionId}"${selected}>${escapeHtml(optionLabel(option))}</option>`
-            );
-        }
-
-        return options.join("");
-    }
-
-    function syncPreviewButton(button, templateVersionId) {
-        if (!button) {
-            return;
-        }
-
-        const option = getOptionByTemplateVersionId(templateVersionId);
-        const previewUrl = option?.previewUrl || "";
-        button.disabled = !previewUrl;
-        button.dataset.previewUrl = previewUrl;
-        button.dataset.previewTitle = option ? optionLabel(option) : "";
     }
 
     function getPreviewModalInstance() {
@@ -148,7 +78,7 @@
 
     function syncFieldMappingActions() {
         const selectedCount = getSampleRows()
-            .filter((row) => row.querySelector(".sample-pdf-select")?.value)
+            .filter((row) => row.templatePicker?.getValue())
             .length;
         const multi = selectedCount >= 2;
         btnPrepareMapping?.classList.toggle("d-none", !multi);
@@ -187,14 +117,11 @@
             sample?.selectedTemplateVersionIds?.[0]
             || sample?.templateVersionId
             || "";
-        const selectedOption = getOptionByTemplateVersionId(selectedTemplateVersionId);
-        const fallbackOption = sample?.investigationTypeId
-            ? getOptionsForInvestigation(sample.investigationTypeId)[0]
-            : templateOptions[0];
+        const selectedOption = templateCatalog.getOptionByTemplateVersionId(selectedTemplateVersionId);
+        const fallbackOption = templateOptions[0] || null;
         const option = selectedOption || fallbackOption || null;
 
         return {
-            investigationTypeId: sample?.investigationTypeId || option?.investigationTypeId || "",
             templateVersionId: selectedTemplateVersionId || option?.templateVersionId || "",
             branchId: sample?.documentTargetBranchIds?.[0] || defaultBranchId || branches[0]?.id || ""
         };
@@ -209,21 +136,11 @@
         const row = document.createElement("div");
         row.className = "row g-2 align-items-end border-top py-2 order-sample-row";
         row.innerHTML = `
-            <div class="col-md-4">
-                <label class="form-label small text-muted d-md-none">Активний шаблон / тип дослідження</label>
-                ${templatePickerHtml(
-                    "sample-active-template-select",
-                    "sample-active-preview-button",
-                    activeTemplateOptionsHtml(seed.templateVersionId))}
+            <div class="col-md-6">
+                <label class="form-label small text-muted d-md-none">Бланк для проби</label>
+                <div class="order-sample-template-cell"></div>
             </div>
-            <div class="col-md-4">
-                <label class="form-label small text-muted d-md-none">PDF-бланк</label>
-                ${templatePickerHtml(
-                    "sample-pdf-select",
-                    "sample-pdf-preview-button",
-                    pdfOptionsHtml(seed.investigationTypeId, seed.templateVersionId))}
-            </div>
-            <div class="col-md-3">
+            <div class="col-md-5">
                 <label class="form-label small text-muted d-md-none">Лабораторія-виконавець</label>
                 <select class="form-select form-select-sm sample-branch-select">
                     ${branchOptionsHtml(seed.branchId)}
@@ -233,49 +150,28 @@
                 <button type="button" class="btn btn-sm btn-outline-danger sample-remove-button" title="Видалити рядок">×</button>
             </div>`;
 
+        const cell = row.querySelector(".order-sample-template-cell");
+        cell.innerHTML = window.OrderTemplateField.renderPickerHtml(templateCatalog, seed.templateVersionId, {
+            showPreview: true
+        });
+
+        const fieldRoot = cell.querySelector(".order-template-field");
+        row.templatePicker = window.OrderTemplateField.bindPicker(fieldRoot, templateCatalog, {
+            onChange: syncSampleRows,
+            onPreview: openTemplatePreview
+        });
+
         samplesList.appendChild(row);
         bindSampleRow(row);
         syncSampleRows();
     }
 
-    function bindPreviewButton(button, select) {
-        button?.addEventListener("click", () => {
-            const templateVersionId = select?.value || "";
-            const option = getOptionByTemplateVersionId(templateVersionId);
-            const previewUrl = option?.previewUrl || button.dataset.previewUrl || "";
-            openTemplatePreview(previewUrl, option ? optionLabel(option) : "");
-        });
-    }
-
     function bindSampleRow(row) {
-        const activeSelect = row.querySelector(".sample-active-template-select");
-        const activePreviewButton = row.querySelector(".sample-active-preview-button");
-        const pdfSelect = row.querySelector(".sample-pdf-select");
-        const pdfPreviewButton = row.querySelector(".sample-pdf-preview-button");
         const removeButton = row.querySelector(".sample-remove-button");
-
-        syncPreviewButton(activePreviewButton, activeSelect?.value);
-        syncPreviewButton(pdfPreviewButton, pdfSelect?.value);
-
-        activeSelect?.addEventListener("change", () => {
-            const selectedOption = getOptionByTemplateVersionId(activeSelect.value);
-            const investigationTypeId = selectedOption?.investigationTypeId || "";
-            pdfSelect.innerHTML = pdfOptionsHtml(investigationTypeId, selectedOption?.templateVersionId || "");
-            syncPreviewButton(activePreviewButton, activeSelect.value);
-            syncPreviewButton(pdfPreviewButton, pdfSelect.value);
-            syncSampleRows();
-        });
-
-        pdfSelect?.addEventListener("change", () => {
-            syncPreviewButton(pdfPreviewButton, pdfSelect.value);
-            syncSampleRows();
-        });
-
-        bindPreviewButton(activePreviewButton, activeSelect);
-        bindPreviewButton(pdfPreviewButton, pdfSelect);
 
         row.querySelector(".sample-branch-select")?.addEventListener("change", syncSampleRows);
         removeButton?.addEventListener("click", () => {
+            window.OrderTemplateField.closeOpenMenu();
             row.remove();
             syncSampleRows();
         });
@@ -286,13 +182,10 @@
         samplesPlaceholder?.classList.toggle("d-none", rows.length > 0);
 
         rows.forEach((row, index) => {
-            const activeSelect = row.querySelector(".sample-active-template-select");
-            const pdfSelect = row.querySelector(".sample-pdf-select");
             const branchSelect = row.querySelector(".sample-branch-select");
-            const activeOption = getOptionByTemplateVersionId(activeSelect?.value);
-            const pdfOption = getOptionByTemplateVersionId(pdfSelect?.value);
-            const investigationTypeId = activeOption?.investigationTypeId || pdfOption?.investigationTypeId || "";
-            const templateVersionId = pdfOption?.templateVersionId || activeOption?.templateVersionId || "";
+            const option = row.templatePicker?.getSelectedOption();
+            const investigationTypeId = option?.investigationTypeId || "";
+            const templateVersionId = option?.templateVersionId || "";
 
             setHidden(row, "investigation", `Input.Samples[${index}].InvestigationTypeId`, investigationTypeId);
             setHidden(row, "template", `Input.Samples[${index}].TemplateVersionId`, templateVersionId);
@@ -377,14 +270,14 @@
     btnAddSample?.addEventListener("click", () => addSampleRow());
 
     searchInput?.addEventListener("input", () => {
-        clearTimeout(searchTimer);
+        clearTimeout(customerSearchTimer);
         const query = searchInput.value.trim();
         if (query.length < 2) {
             resultsBox?.classList.add("d-none");
             return;
         }
 
-        searchTimer = setTimeout(async () => {
+        customerSearchTimer = setTimeout(async () => {
             const items = await searchCustomers(query);
             renderSearchResults(items);
         }, 250);

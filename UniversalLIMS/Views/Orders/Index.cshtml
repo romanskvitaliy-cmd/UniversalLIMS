@@ -3,21 +3,20 @@
 
 @{
     Layout = "_LayoutWorkspace";
-    ViewData["Title"] = "Реєстр замовлень";
+    ViewData["Title"] = "Реєстр справ";
 }
 
 <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
     <div>
-        <h1 class="h3 mb-1">Реєстр замовлень</h1>
+        <h1 class="h3 mb-1">Реєстр справ</h1>
         <p class="text-muted mb-0">
-            Справи реєстратури: проби, PDF-документи, статус процесу, маршрут у філії.
-            Колонки «Проби» та «Док.» — усе створене; у лабораторію потрапляє після відправки зі справи.
+            Справи (номер REF), проби та бланки PDF. У лабораторію — після відправки з картки справи.
         </p>
     </div>
     <div class="d-flex flex-wrap gap-2 align-items-start">
         <partial name="_WorkspaceCabinetLink" />
         <a class="btn btn-sm btn-primary" asp-action="Create">
-            <i class="bi bi-plus-lg me-1"></i>Прийняти пробу
+            <i class="bi bi-plus-lg me-1"></i>Нова справа
         </a>
     </div>
 </div>

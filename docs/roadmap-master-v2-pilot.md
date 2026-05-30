@@ -1,6 +1,6 @@
 # Master roadmap v2 — пілот ЦКПХ (філії, направлення, сповіщення, мапінг)
 
-> **Оновлено:** 2026-05-30  
+> **Оновлено:** 2026-05-30 (план T1/B/R/D — Cursor + Grok)  
 > **Призначення:** єдиний документ для подальшої розробки. Збирає рішення з архітектурних обговорень (Cursor + Grok + керівництво), щоб **нічого не загубити** по дорозі.  
 > **Аудиторія:** розробник, агент Cursor, технічний куратор проєкту.  
 > **Репозиторій:** UniversalLIMS (.NET 8 MVC), UI — українська.
@@ -21,10 +21,12 @@
 
 1. **Філії** — одна сутність `Branch` для реєстратури, лабораторій і експертів. **Не** створювати «Робоче місце», `ExpertGroup`, `Workstation`.
 2. **Кілька експертів / лабораторій** — через `User.BranchId` + фільтрація черг і сповіщень. Для пар `LAB → EXP` — опційно `Branch.ExpertBranchId` або `Mixed`-філії на пілоті.
-3. **Направлення** — звичайний `Template` (код `REF-*`). Word/PDF завантажується → **автоконвертація в PDF** → Map тегів → Fill у реєстратурі. Принесене паперове — скан + ручний перенос у цифрову форму.
-4. **Мапінг полів** — вже реалізовано (`OrderFieldLinkGroup`). Об’єднання полів між **направленням і протоколами** — той самий механізм.
+3. **Направлення (цифрове)** — реєстратура **формує на бланку**, який адмін завантажив (`REF-*`). Це один із документів замовлення поруч із протоколами — **не окремий модуль**.
+4. **Мапінг полів** — вже реалізовано (`OrderFieldLinkGroup`, `MapOrderFields`). Якщо один замовник + направлення + 4 протоколи — **один крок мапінгу** на всі документи: об’єднати «ПІБ», «дата відбору» тощо між REF і протоколами, заповнити один раз. Принесене паперове — скан + перенос у той самий цифровий REF-бланк.
 5. **Лабораторія** — UX має повторити ланцюжок реєстратури: **сторінка проби** з таблицею документів і статусів; «Відправити експерту» — **не** в toolbar PDF (тимчасово там, перенести на сторінку проби).
-6. **Пріоритет розробки:** філії + фільтр експерта → фікс сповіщень + lab UX → направлення REF-* → профілі мапінгу (пізніше).
+6. **Пріоритет розробки (актуальний):** B1–B2 (expert filter) → **T1** (terminology UI) → C2 (rework notify) → **R1** (`SampleResultValue`) → D1+D6 Per Sample (REF) → E1 MappingProfile.
+7. **Терміни UI:** `Order.ReferralNumber` = **«Номер справи»**; слово **«Направлення»** — лише PDF-бланк REF-* (див. `glossary-registration-uk.md`).
+8. **REF на пілоті:** основний режим **Per Sample** (1 REF на пробу); Per Order — backlog (§7.0).
 
 ---
 
@@ -119,25 +121,38 @@ Branch
 
 **Важливо:** `TargetBranchId` = **лабораторія виконання**, не завжди = філія експерта. Якщо `LAB-BACT-ZHY` і `EXP-ZHY` — різні записи в `Branches`, потрібен mapping (див. §4.2).
 
-### 3.2 Направлення = Template (не окремий модуль)
+### 3.2 Направлення = Template у тому ж замовленні (не окремий модуль)
+
+> Терміни для UI: [glossary-registration-uk.md](glossary-registration-uk.md) — **справа**, **проба**, **бланк PDF**, **REF**.
+
+**Підготовка (адмін, один раз):**
 
 ```
-Word/PDF бланк → Upload → PDF у системі (авто) → Map тегів → Publish
-                                                          ↓
-                                            Реєстратура: PDF Fill → OrderFieldValue
-                                                          ↓
-                                            ReferralPdfGenerator (друк/архів)
+Word/PDF бланк → Upload → PDF у системі (авто) → Map тегів на шаблоні → Publish
+```
+
+**Щоденна робота (реєстратор):**
+
+```
+Create: 1 замовник + REF-* (направлення) + N протоколів (напр. 4)
+     → MapOrderFields (якщо документів ≥ 2) — REF + протоколи разом
+     → Fill (спільні поля один раз + решта по документах)
+     → ReferralPdfGenerator (друк REF окремо / протоколи окремо — [TODO D2])
+     → відправка протоколів у lab
 ```
 
 **Word:** дозволений як **джерело макету**. Система завжди працює з PDF (`TemplateVersionService` конвертує `.doc/.docx` автоматично).
 
-**Коди шаблонів направлення:** `REF-MOZ-GENERAL`, `REF-WATER`, `REF-FOOD` тощо.
+**Коди шаблонів направлення:** `REF-MOZ-GENERAL`, `REF-WATER`, `REF-FOOD` тощо.  
+**Коди протоколів:** `f327_*`, `Food_*` тощо — без змін.
+
+**Ключове:** направлення і протоколи — це **`OrderDocument`** одного `Order`. Мапінг спільних полів **не окремий для REF** — використовується існуючий `Orders/MapOrderFields` (див. §7.4).
 
 **Принесене паперове направлення (v1):**
 
 1. Завантажити скан як **додаток до Order** `[TODO: OrderAttachment]`.
-2. Реєстратор **переносить дані** у цифровий шаблон `REF-*` вручну.
-3. **Без OCR** на пілоті.
+2. Реєстратор **переносить дані** у той самий цифровий `REF-*` (Fill у PDF workspace).
+3. Далі — звичайний flow: протоколи, Map, lab. **Без OCR** на пілоті.
 
 ### 3.3 Три шари даних (не плутати)
 
@@ -147,7 +162,7 @@ Word/PDF бланк → Upload → PDF у системі (авто) → Map те
 | Динамічні поля | `OrderFieldValue` → `DataFieldId` | `f327_pH`, `Food_SamplingDate` |
 | Макет PDF | `TemplateField` + `TemplateFieldSegment` | координати на бланку |
 
-**Мапінг спільних полів** (`OrderFieldLinkGroup`) — на **замовлення**, не глобально. Зв’язує різні теги з одним значенням (напр. `f327_SamplingDate` + `Food_SamplingDate` + поле на направленні).
+**Мапінг спільних полів** (`OrderFieldLinkGroup`) — на **замовлення**, не глобально. Зв’язує різні теги з одним значенням між **усіма** документами замовлення, включно з REF (напр. `REF_SamplingDate` + `f327_SamplingDate` + `Food_SamplingDate`). Типовий кейс: **1 замовник + 1 направлення + 4 протоколи → один MapOrderFields**.
 
 ### 3.4 Заборони (ISO / аудит)
 
@@ -250,55 +265,160 @@ Word/PDF бланк → Upload → PDF у системі (авто) → Map те
 
 ---
 
-## 7. Блок D — Направлення (стандартизовані бланки)
+## 7. Блок D — Направлення (стандартизовані бланки + спільний мапінг)
 
-### 7.1 Два сценарії intake
+### 7.0 Режим прив’язки REF (погоджено Cursor + Grok, 2026-05-30)
 
-| Сценарій | Дії реєстратора |
-|----------|-----------------|
-| **Цифрове** | Create → (опційно REF-шаблон) → проби + протоколи → Map полів → Fill → відправка в lab |
-| **Паперове** | Upload scan `[TODO]` → Create → Fill REF-* (перенести з паперу) → далі як цифрове |
+| Режим | Sanlab | LIMS | Пілот |
+|-------|--------|------|-------|
+| **Per Sample** | 1 зразок = 1 паперове направлення | REF-`OrderDocument` на кожну пробу (2 док. на рядок: REF + протокол) | **Основний — реалізувати першим** |
+| **Per Order** | 1 направлення на пакет зразків (ТБ тощо) | 1 REF на справу + N протоколів | Backlog; потребує nullable `OrderDocument.SampleId` |
 
-### 7.2 Підготовка бланка направлення (адмін, один раз)
+**Не робити на пілоті:** обидва режими одночасно в UI. Default = **Per Sample** (відповідає `OrderDocument.SampleId` required).
 
-1. Отримати офіційний бланк МОЗ (Word або PDF).
-2. **Templates** → створити шаблон `REF-MOZ-001` «Направлення (загальне)».
-3. **Upload** версії: `.docx` або `.pdf` (Word → PDF **автоматично**).
-4. **Map** — розставити теги (глобальні `Order.*`, `Sample.*`, `Customer.*` де можливо + локальні `REF_*`).
-5. **Publish** версії.
-6. **Permissions** — Registrar: Read+Write на поля направлення.
-7. (Опційно) Прив’язати до `InvestigationType` або показувати в Create окремим списком «Шаблони направлень».
+**Питання для ЦКПХ (бажано):** «На кожен зразок окремий бланк направлення чи одне на замовлення?» — відповідь впливає лише на пріоритет Per Order.
 
-### 7.3 `TemplatePurpose` (рекомендовано)
+> **Погоджено (2026-05-30):** цифрове направлення формує **реєстратура** на завантаженому бланку `REF-*`.  
+> Направлення й протоколи — **одне замовлення, один клієнт**. Мапінг полів — **той самий** `MapOrderFields`, що вже працює для «1 замовник + 4 протоколи»; REF-документ просто додається до списку документів на мапінгу.
+
+### 7.1 Цифровий flow (основний)
+
+```
+Крок 1  Create
+        ├── Замовник (1)
+        ├── Шаблон направлення REF-*     ← OrderDocument
+        └── Проби + протоколи (1–N)      ← OrderDocument(и) на кожну пробу
+
+Крок 2  MapOrderFields  (якщо всього документів ≥ 2)
+        ├── Поля REF-MOZ-001
+        ├── Поля f327_… (протокол 1)
+        ├── Поля Food_… (протокол 2)
+        └── … до 4+ протоколів
+        → реєстратор об’єднує однакові за змістом (ПІБ, адреса, дата відбору…)
+        → автооб’єднання лише за exact tag; copy mapping з попереднього order
+
+Крок 3  CreateWithFieldMapping → Order + FieldLinkGroups + shared OrderFieldValues
+
+Крок 4  PDF Fill
+        ├── REF-* (направлення) — заповнити / перевірити
+        └── Протоколи — заповнити реєстраційні поля (решту — lab)
+
+Крок 5  Друк / архів
+        ├── «Друк направлення» — лише REF [TODO D2]
+        └── Протоколи — окремо або разом з lab flow
+
+Крок 6  Відправка протоколів у лабораторію (REF зазвичай лишається в реєстрації / видається клієнту)
+```
+
+**Приклад замовлення:**
+
+| Документ | Template | Призначення |
+|----------|----------|-------------|
+| Направлення | `REF-MOZ-001` | Intake, друк для клієнта |
+| Протокол 1 | `f327` вода | Lab |
+| Протокол 2 | `f327` вода (інша проба) | Lab |
+| Протокол 3 | `Food_*` | Lab |
+| Протокол 4 | `Food_*` | Lab |
+
+→ **5 документів** → обов’язковий `MapOrderFields` → одне введення «Дата відбору» потрапляє на REF і на всі 4 протоколи, якщо реєстратор їх об’єднав.
+
+### 7.2 Що вже працює без нового коду (мапінг)
+
+| Механізм | Стан | Примітка |
+|----------|------|----------|
+| `MapOrderFields` для 2+ шаблонів | ✅ | REF рахується як ще один шаблон у списку |
+| `OrderFieldLinkGroup` на замовлення | ✅ | групи зберігаються на `Order` |
+| Auto-merge за exact tag | ✅ | `REF_X` = `REF_X` між версіями |
+| Copy mapping з попереднього order | ✅ | за збігом тегів |
+| Shared textarea → `OrderFieldValue` | ✅ | `ApplySharedFieldValuesAsync` |
+
+**Що потрібно доробити в UX (не новий мапінг-движок):**
+
+- [ ] **D1.** `TemplatePurpose` на `Template` + міграція (Referral / Protocol / Conclusion).
+- [ ] **D6a (Per Sample, пілот).** У рядку проби на `Orders/Create` — другий select «Бланк направлення REF-*» поруч із «Бланк протоколу»; створює 2 `OrderDocument` на пробу.
+- [ ] **D6b (backlog).** Per Order: один dropdown REF на справу + nullable `SampleId` для referral-документів.
+- [ ] **D7.** На `MapOrderFields` — групувати: Per Sample — «REF + протокол проби N»; Per Order — «Направлення | Протокол: f327 | …».
+- [ ] **D8a.** QA Per Sample: 1 клієнт + 3 проби + 3 REF + 3 протоколи → Map → Fill.
+- [ ] **D8.** QA Per Order: 1 клієнт + 1 REF + 4 протоколи → Map → Fill.
+
+### 7.3 Паперове направлення (другорядний сценарій)
+
+| Крок | Дія |
+|------|-----|
+| 1 | Клієнт приніс папір/PDF |
+| 2 | `[TODO D4]` Upload scan → `OrderAttachment` |
+| 3 | Create + REF-* + протоколи — **як у §7.1** |
+| 4 | Fill REF-* — реєстратор **переносить** дані з паперу в цифрову форму |
+| 5 | Map + lab — без змін |
+
+Скан — для аудиту («що принесли»); робочий документ — **цифровий REF** у системі.
+
+### 7.4 Підготовка бланка направлення (адмін, один раз)
+
+> **Погоджено:** направлення завантажується і обслуговується **як звичайний шаблон (протокол)** — той самий конструктор, калібрування, Fill, права. Окремого редактора для REF **не потрібно**.
+
+#### Три рівні «правки» (однакові для REF і протоколів)
+
+| Рівень | Де | Хто | Що змінюється | Куди зберігається |
+|--------|-----|-----|---------------|-------------------|
+| **1. Конструктор** | `TemplateFields/Map` | Адмін | Додати/видалити теги, позиція на PDF, шрифт (чернетка версії) | `TemplateField` + `TemplateFieldSegment` |
+| **2. Калібрування** | Map **або** PDF Fill → вкладка «Позиція» | Адмін; реєстратор — за FLS | Зсув X/Y, шрифт, line-height (підгонка під лінії бланку) | **Шаблон** (усі майбутні Fill цієї версії) **або** **замовлення** (лише цей документ) |
+| **3. Заповнення** | `PdfWorkspace/Fill` з реєстратури | Реєстратор | **Значення** полів (ПІБ, дата, адреса…) | `OrderFieldValue` (лише поточне замовлення) |
+
+**Дві кнопки в Fill (вже є):**
+
+- «Зберегти значення» → текст для **цього** замовлення.
+- «Зберегти макет у шаблон» / scope «шаблон / замовлення» → калібрування позицій.
+
+Для направлення реєстратор зазвичай працює на **рівні 3** (значення). Рівень 2 — якщо текст «зливається з лінією»; краще один раз відкалібрувати в шаблоні, щоб усі наступні направлення були рівні.
+
+#### Підготовка REF-бланка (кроки)
+
+1. Офіційний або погоджений бланк МОЗ (Word або PDF).
+2. **Templates** → `REF-MOZ-001`, `TemplatePurpose = Referral`.
+3. **Upload** `.docx` / `.pdf` (Word → PDF **автоматично**).
+4. **Map (конструктор)** — розставити теги: `REF_*` + глобальні `Order.*`, `Sample.*`, `Customer.*`.
+5. **Калібрування** — у Map або Fill (scope «шаблон»), поки текст лягає на лінії.
+6. **Permissions** — Registrar: Write на поля REF; Lab/Expert: None або Read (направлення їм не заповнювати).
+7. **Publish** версії — далі зміни макету лише через **нову версію** (як у протоколах).
+8. **Не** прив’язувати REF до `InvestigationType` як протокол — окремий список у Create (D6).
+
+**Word у повсякденній роботі:** лише для підготовки макету адміном. Реєстратор працює в PDF Fill — як з протоколами.
+
+### 7.5 `TemplatePurpose` (рекомендовано)
 
 ```csharp
 public enum TemplatePurpose
 {
-    Referral = 1,    // направлення (intake)
+    Referral = 1,    // направлення (intake) — заповнює реєстратор
     Protocol = 2,    // лабораторний протокол
     Conclusion = 3   // висновок експерта (майбутнє)
 }
 ```
 
-Поле на `Template` — для фільтра в UI, **не** змінює ядро Fill/Map.
+Поле на `Template` — фільтр у UI (Create, друк), **не** змінює Fill/Map/FieldLinkGroup.
 
-### 7.4 `ReferralPdfGenerator` — уточнення
+### 7.6 Друк: REF vs протокол
 
-Зараз генератор збирає **усі** `OrderDocument` замовлення. Після введення REF-шаблонів:
+Зараз `ReferralPdfGenerator` збирає **усі** `OrderDocument`. Після REF-шаблонів:
 
-- [ ] **D1.** `TemplatePurpose` на `Template`.
-- [ ] **D2.** Кнопки: «Друк направлення» (лише Referral docs) / «Друк протоколів» (лише Protocol).
-- [ ] **D3.** Або параметр `purpose` у `IReferralPdfGenerator.GenerateAsync`.
-- [ ] **D4.** `OrderAttachment` — таблиця + upload scan на `Orders/Details`.
-- [ ] **D5.** `Order.ReferralSource` enum: `Digital | ExternalPaper` (опційно, для звітів).
-- [ ] **D6.** Create flow: явний крок «Обрати шаблон направлення» (якщо не через InvestigationType).
-- [ ] **D7.** MapOrderFields: REF + протоколи в одному мапінгу (вже підтримується технічно — перевірити UX).
+- [ ] **D1.** `TemplatePurpose` на `Template` + міграція.
+- [ ] **D2.** Кнопки на `Orders/Details`: «Друк направлення» / «Друк протоколів реєстрації».
+- [ ] **D3.** Параметр `purpose` у `IReferralPdfGenerator.GenerateAsync(orderId, purpose?)`.
 
-### 7.5 Задачі контенту (паралельно коду)
+REF **не** відправляється в lab як протокол (статус / workflow — лишається в реєстрації); у lab йдуть лише `Protocol` документи.
 
-- [ ] **D-контент-1.** 1–2 бланки направлення в Word → upload → map.
-- [ ] **D-контент-2.** Теги REF у `ProtocolTagCatalog` або окремий `docs/data/protocol-tags-ref.json`.
-- [ ] **D-контент-3.** Інструкція реєстратору (1 сторінка PDF).
+### 7.7 Додаткові сутності (папір + звіти)
+
+- [ ] **D4.** `OrderAttachment` — scan принесеного PDF/фото на `Orders/Details`.
+- [ ] **D5.** `Order.ReferralSource`: `Digital | ExternalPaper` (опційно).
+
+### 7.8 Задачі контенту (паралельно коду)
+
+- [ ] **D-контент-1.** 1–2 бланки REF у Word → upload → map тегів.
+- [ ] **D-контент-2.** `docs/data/protocol-tags-ref.json` + seed / optgroup у Map.
+- [ ] **D-контент-3.** Інструкція реєстратору: Create → REF + протоколи → Map → Fill (1 стор.).
+- [ ] **D-контент-4.** Тестовий кейс QA: 1 клієнт + REF + 4 протоколи + мапінг 3 спільних полів.
 
 ---
 
@@ -367,17 +487,17 @@ public enum TemplatePurpose
 ```mermaid
 flowchart TD
     subgraph intake [Реєстратура]
-        A[Замовник] --> B{Направлення}
-        B -->|Цифрове| C[Fill REF-*]
-        B -->|Папір| D[Scan attach + Fill REF-*]
-        C --> E[Проби + протоколи]
+        A[1 замовник] --> B[Create: REF-* + проби + протоколи]
+        B --> C{Папір принесли?}
+        C -->|Так| D[Scan attach]
+        C -->|Ні| E{Документів ≥ 2?}
         D --> E
-        E --> F{2+ документи?}
-        F -->|Так| G[MapOrderFields]
-        F -->|Ні| H[Зберегти Order]
-        G --> H
-        H --> I[Fill протоколи / направлення]
-        I --> J[Відправка в lab]
+        E -->|Так| F[MapOrderFields REF + протоколи]
+        E -->|Ні| G[Зберегти Order]
+        F --> G
+        G --> H[Fill REF + протоколи]
+        H --> I[Друк направлення]
+        H --> J[Відправка протоколів у lab]
     end
 
     subgraph lab [Лабораторія]
@@ -407,23 +527,27 @@ flowchart TD
 
 ### Фаза 1 — Критично для пілоту (1–2 тижні)
 
+| ID | Задача | Блок | Стан |
+|----|--------|------|------|
+| A1 | BranchKind + міграція | A | ✅ |
+| A2–A3 | UI філій + обов’язковий BranchId у Users | A | ❌ |
+| **B1–B2** | **Фільтр черги і сповіщень експерта** | B | ❌ **#1 пріоритет** |
+| **T1** | **UI: «Направлення» → «Номер справи»** (Index, Lab, Issuance); «Направлення» лише для REF-бланка | UX | ❌ **#2** |
+| A4 | ExpertBranchId для LAB→EXP (якщо не лише Mixed) | A | ❌ |
+| C2, C1 | Rework + end-to-end сповіщення (після B1–B2) | C | 🟡 C6 ✅ |
+| G1–G3 | SampleDetails + «Відправити експерту» | G | ✅ |
+| **R1** | **`DataFieldScope.Result` → `SampleResultValue` у PDF Save** (зараз усе в `OrderFieldValue`) | Lab | ❌ |
+| — | Smoke QA весь ланцюжок | QA | ❌ |
+
+### Фаза 2 — Направлення Per Sample (1–2 тижні, паралельно контент)
+
 | ID | Задача | Блок |
 |----|--------|------|
-| A1–A3 | BranchKind + UI філій + обов’язковий BranchId у Users | A |
-| B1–B2 | Фільтр черги і сповіщень експерта | B |
-| A4 | ExpertBranchId для LAB→EXP (якщо не лише Mixed) | A |
-| C2, C6 | Rework notification + фікс `lastSeenUtc` у poll | C |
-| G1–G3 | SampleDetails + перенос «Відправити експерту» з PDF toolbar | G |
-| — | Smoke QA весь ланцюжок | QA |
-
-### Фаза 2 — Направлення (1–2 тижні, паралельно контент)
-
-| ID | Задача | Блок |
-|----|--------|------|
-| D1–D3 | TemplatePurpose + розділення друку | D |
-| D4–D5 | OrderAttachment + ReferralSource | D |
-| D-контент | Перший REF-бланк у системі | D |
-| D6–D7 | UX Create з направленням | D |
+| D1, D2–D3 | TemplatePurpose + розділення друку REF / протоколи | D |
+| **D6a** | REF у рядку проби (Per Sample) | D |
+| D-контент-1 | Перший REF-бланк Word → upload → map | D |
+| D7, D8a | Групування Map + QA Per Sample | D |
+| D4–D5, D6b, D8 | Scan, Per Order, QA пакетного REF — **після пілоту** | backlog |
 
 ### Фаза 3 — Зручність (після пілоту)
 
@@ -457,27 +581,39 @@ flowchart TD
 - [ ] «Видано» → архів.
 - [ ] Rework → проба назад у lab + toast лаборанта.
 
-### 13.3 Направлення
+### 13.3 Направлення (Per Sample — пілот)
 
-- [ ] REF-шаблон: upload Word → PDF у системі → Map → Fill → друк.
-- [ ] Паперове: scan attach + fill digital (ручний перенос).
-- [ ] Спільні поля REF + протокол через MapOrderFields.
+- [ ] REF-шаблон: upload Word → PDF → Map → Publish.
+- [ ] Create: **3 проби × (REF + протокол)** → MapOrderFields показує 6 документів.
+- [ ] Map: REF проби 1 об’єднано з протоколом проби 1 (не з пробою 2).
+- [ ] Fill → значення на PDF; lab Fill → **R1:** результати в `SampleResultValue`.
+- [ ] «Друк направлення» — лише REF (D2).
+- [ ] REF не в lab-журналі; протоколи відправлені в lab.
+- [ ] UI: колонка «Номер справи», не «Направлення» (T1).
 
 ---
 
 ## 14. Стартовий prompt для агента Cursor
 
 ```text
-UniversalLIMS — пілот ЦКПХ.
+UniversalLIMS — пілот ЦКПХ (Житомир).
 
-Прочитай docs/roadmap-master-v2-pilot.md (master roadmap).
+Прочитай docs/roadmap-master-v2-pilot.md (§1 TL;DR, §7 D, §12 фази, §17 активний план).
+Терміни: docs/glossary-registration-uk.md.
 
-Поточна фаза: [1 / 2 / 3].
-Задачі: [наприклад B1–B2: фільтр ExpertReviewQueueService по BranchId].
+Поточна фаза: 1.
+Наступні задачі (порядок): B1–B2 → T1 → C2 → R1 → D1+D6a.
+
+Ключові рішення (не перепитувати):
+- Протокол = PDF-шаблон (OrderDocument), Fill у PDF Workspace; не ResultEntry UI.
+- REF-* = той самий механізм; на пілоті Per Sample (1 REF на пробу).
+- Order.ReferralNumber у UI = «Номер справи»; «Направлення» = лише REF-бланк.
+- SampleResultValue для Result scope — таблиця є, запису поки немає (R1).
+- G1–G3 (SampleDetails + експерту) — зроблено; не дублювати.
 
 Правила:
-- Не створювати Workstation, ExpertGroup, окремий Referral entity.
-- Word upload уже → PDF автоматично; не будувати Word runtime.
+- Не Workstation, ExpertGroup, окремий Referral entity.
+- Word → PDF авто; не Word runtime.
 - Не auto-match полів за Title.
 - Не ламати ReferralPdfOverlayRenderer без запиту.
 - dotnet test перед завершенням.
@@ -506,8 +642,49 @@ UniversalLIMS — пілот ЦКПХ.
 | 2026-05-30 | Філії без Workstation; poll сповіщення; видача + rework |
 | 2026-05-30 | Branch як ядро для lab/reg/expert; BranchKind замість 7+ lab types |
 | 2026-05-30 | Направлення = Template REF-*; Word→PDF авто; папір = scan + ручний ввід |
+| 2026-05-30 | REF + N протоколів — один MapOrderFields (існуючий мапінг, без нового движка) |
 | 2026-05-30 | Пріоритет: філії + expert filter → сповіщення + lab UX → REF-шаблони |
 | 2026-05-30 | Lab UX: SampleDetails як Orders/Details; «Експерту» не в PDF toolbar; баг lastSeenUtc у poll |
+| 2026-05-30 | REF Per Sample — default пілоту; Per Order — backlog; T1 terminology; R1 SampleResultValue |
+| 2026-05-30 | Реєстратура UX: «справа / проба / бланк PDF»; glossary; Details групує документи по пробах |
+
+---
+
+## 17. Активний план (handoff для нового агента)
+
+**Контекст:** архітектура погоджена (Cursor + Grok + керівництво). Не перебудовувати. Закрити прогалини по пріоритету.
+
+### Що вже працює (не ламати)
+
+- Create / MapOrderFields / PDF Fill / Issuance / rework
+- `Orders/Details` — проби з документами по `SampleId`
+- `Laboratory/SampleDetails` — Fill + «Відправити готові» (G1–G3 ✅)
+- Poll сповіщення (C6 ✅)
+- `BranchKind` (A1 ✅)
+
+### Наступні задачі (строго по порядку)
+
+| # | ID | Що зробити | Файли / зона |
+|---|-----|------------|--------------|
+| 1 | B1 | Фільтр `ExpertReviewQueueService.GetQueueAsync` по `User.BranchId` | `ExpertReviewQueueService.cs` |
+| 2 | B2 | Те саме для `GetIncomingSinceAsync` + expert notifications API | expert services, JS poll |
+| 3 | T1 | Labels: Index/Issuance/Lab «Номер справи»; фільтр `referralNumber` → display «Номер справи» | Views |
+| 4 | C2 | Rework toast лаборанта end-to-end | lab notifications API + JS |
+| 5 | R1 | `PdfWorkspaceFillService.SaveValuesAsync`: `DataFieldScope.Result` → `SampleResultValue` | Fill service + tests |
+| 6 | D1 | `TemplatePurpose` enum + migration | `Template`, Create filters |
+| 7 | D6a | REF select у рядку проби Create → 2 OrderDocument на Sample | Create VM, `OrderRegistrationService` |
+| 8 | D-контент-1 | Перший REF-бланк у Templates | admin + docs |
+
+### Технічні нотатки
+
+- **`OrderDocument.SampleId`** — required; Per Sample REF не потребує зміни схеми.
+- **Per Order REF** — лише після пілоту: nullable `SampleId` (D6b).
+- **`ReferralNumber` у коді/БД** — не перейменовувати; лише UI labels (T1).
+- **Lab результати** зараз у `OrderFieldValue` — борг; R1 обов’язковий до масового пілоту.
+
+### Заборонено на v1
+
+Окремий Referral entity, Workstation, OCR, auto-match полів за Title, ResultEntry UI, SignalR.
 
 ---
 

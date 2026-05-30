@@ -17,7 +17,7 @@ public static class WorkspaceNavigationCatalog
             LimsRoles.Registrar =>
             [
                 new("Головна", "Home", "Workspace", "bi-house-door-fill"),
-                new("Нова проба", "Orders", "Create", "bi-plus-circle"),
+                new("Нова справа", "Orders", "Create", "bi-plus-circle"),
                 new("Реєстр", "Orders", "Index", "bi-journal-plus"),
                 new("Готові до видачі", "Issuance", "Index", "bi-box-arrow-up-right"),
                 new("PDF Workspace", "PdfWorkspace", "Index", "bi-file-earmark-pdf"),
@@ -59,9 +59,9 @@ public static class WorkspaceNavigationCatalog
             ],
             LimsRoles.Registrar =>
             [
-                Link("Прийом проб", "Створити замовлення, пробу, направлення та обрати бланки", "bi-clipboard2-plus",
+                Link("Прийом справи", "Замовник, проби та бланки PDF; номер REF — автоматично", "bi-clipboard2-plus",
                     "/Orders/Create", true),
-                Link("Реєстр замовлень", "Пошук, статуси, маршрути та направлення", "bi-journal-plus",
+                Link("Реєстр справ", "Пошук за REF, замовником, статусами проб", "bi-journal-plus",
                     "/Orders", true),
                 Link("Готові до видачі", "Затверджені проби — видача результатів клієнту", "bi-box-arrow-up-right",
                     "/Issuance", true),

@@ -465,8 +465,8 @@ public sealed class OrdersController : Controller
             : result.ReferralNumber;
 
         return result.Samples.Count <= 1
-            ? $"Створено замовлення {referralNumber}, проба {result.SampleNumber}, документів: {result.Documents.Count}."
-            : $"Створено замовлення {referralNumber}, проб: {result.Samples.Count}, документів: {result.Documents.Count}.";
+            ? $"Створено справу {referralNumber}, проба {result.SampleNumber}, бланків PDF: {result.Documents.Count}."
+            : $"Створено справу {referralNumber}, проб: {result.Samples.Count}, бланків PDF: {result.Documents.Count}.";
     }
 
     private static RedirectToActionResult? TryBuildPostCreatePdfFillRedirect(
@@ -507,7 +507,7 @@ public sealed class OrdersController : Controller
     {
         if (samples.Count == 0)
         {
-            ModelState.AddModelError(string.Empty, "Додайте хоча б одне дослідження.");
+            ModelState.AddModelError(string.Empty, "Додайте хоча б одну пробу з бланком PDF.");
             return;
         }
 
@@ -520,13 +520,13 @@ public sealed class OrdersController : Controller
 
             if (sample.InvestigationTypeId == Guid.Empty)
             {
-                ModelState.AddModelError(string.Empty, $"У рядку {sampleIndex + 1} оберіть тип дослідження.");
+                ModelState.AddModelError(string.Empty, $"У рядку {sampleIndex + 1} оберіть бланк для проби.");
                 continue;
             }
 
             if (selectedTemplateVersionIds.Count == 0)
             {
-                ModelState.AddModelError(string.Empty, $"У рядку {sampleIndex + 1} оберіть PDF-бланк.");
+                ModelState.AddModelError(string.Empty, $"У рядку {sampleIndex + 1} оберіть бланк PDF.");
                 continue;
             }
 
@@ -539,7 +539,7 @@ public sealed class OrdersController : Controller
             {
                 ModelState.AddModelError(
                     samplesFieldName,
-                    $"У рядку {sampleIndex + 1} обрано недоступний шаблон для цього типу дослідження.");
+                    $"У рядку {sampleIndex + 1} обрано недоступний бланк для цієї проби.");
             }
 
             if (selectedTemplateVersionIds.Distinct().Count() != selectedTemplateVersionIds.Count)

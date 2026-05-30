@@ -10,6 +10,7 @@
     var firstSampleRegisteredAt = detail.Samples.Min(sample => sample.RegisteredAt);
     var orderCreateJsonOptions = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
     var templateOptionsJson = JsonSerializer.Serialize(Model.AppendForm.TemplateOptions, orderCreateJsonOptions);
+    var investigationTypesJson = JsonSerializer.Serialize(Model.AppendForm.InvestigationTypes, orderCreateJsonOptions);
     var branchesJson = JsonSerializer.Serialize(Model.AppendForm.Branches, orderCreateJsonOptions);
     var initialAppendSamplesJson = JsonSerializer.Serialize(Model.AppendSamples.Samples, orderCreateJsonOptions);
     var defaultBranchId = Model.AppendForm.DefaultBranchId?.ToString("D") ?? "";
@@ -207,7 +208,7 @@
                                             data-investigation-type-id="@seedInvestigationId"
                                             data-template-version-id="@seedVersionId"
                                             data-branch-id="@seedBranchId"
-                                            title="Додати таке саме дослідження">
+                                            title="Додати пробу з таким самим бланком">
                                         Як ця
                                     </button>
                                 }
@@ -333,8 +334,8 @@
                 aria-expanded="@(appendPanelOpen ? "true" : "false")"
                 aria-controls="orderDetailAppendBody">
             <span class="order-detail-append__toggle-icon" aria-hidden="true">+</span>
-            <span class="order-detail-append__toggle-text">Додати дослідження до цієї справи</span>
-            <span class="order-detail-append__toggle-hint">нова проба, той самий замовник</span>
+            <span class="order-detail-append__toggle-text">Додати пробу до цієї справи</span>
+            <span class="order-detail-append__toggle-hint">новий рядок: проба + бланк PDF</span>
         </button>
 
         <div class="order-detail-append__body" id="orderDetailAppendBody" @(appendPanelOpen ? "" : "hidden")>
@@ -348,9 +349,8 @@
 
                 <div id="orderAppendSamplesPanel" class="order-detail-append__panel">
                     <div class="row g-2 px-1 pb-2 small text-muted fw-semibold d-none d-md-flex order-detail-append__headings">
-                        <div class="col-md-4">Тип / шаблон</div>
-                        <div class="col-md-4">PDF-бланк</div>
-                        <div class="col-md-3">Філія</div>
+                        <div class="col-md-6">Бланк для проби</div>
+                        <div class="col-md-5">Філія</div>
                         <div class="col-md-1 text-end"> </div>
                     </div>
                     <div id="orderAppendSamplesList"></div>
@@ -427,6 +427,7 @@
 @section Scripts {
     <script>
         window.__orderAppendTemplateOptions = @Html.Raw(templateOptionsJson);
+        window.__orderAppendInvestigationTypes = @Html.Raw(investigationTypesJson);
         window.__orderAppendBranches = @Html.Raw(branchesJson);
         window.__orderAppendInitialSamples = @Html.Raw(initialAppendSamplesJson);
         window.__orderAppendDefaultBranchId = @Html.Raw(JsonSerializer.Serialize(defaultBranchId));
@@ -434,6 +435,7 @@
         window.__orderAppendPanelOpen = @Html.Raw(appendPanelOpen ? "true" : "false");
     </script>
     <script src="~/js/customer-format-hints.js" asp-append-version="true"></script>
+    <script src="~/js/order-template-field.js" asp-append-version="true"></script>
     <script src="~/js/order-detail.js" asp-append-version="true"></script>
     <script src="~/js/order-detail-append.js" asp-append-version="true"></script>
 }

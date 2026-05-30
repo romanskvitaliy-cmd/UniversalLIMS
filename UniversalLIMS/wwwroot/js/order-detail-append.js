@@ -1,10 +1,12 @@
 (function () {
     const templateOptions = window.__orderAppendTemplateOptions || [];
+    const investigationTypes = window.__orderAppendInvestigationTypes || [];
     const branches = window.__orderAppendBranches || [];
     const initialSamples = window.__orderAppendInitialSamples || [];
     const defaultBranchId = window.__orderAppendDefaultBranchId || "";
-    const appendSeeds = window.__orderAppendSeeds || [];
     const panelOpenInitially = window.__orderAppendPanelOpen === true;
+
+    const templateCatalog = window.OrderTemplateField.createCatalog(templateOptions, investigationTypes);
 
     const appendRoot = document.getElementById("orderDetailAppend");
     const appendToggle = document.getElementById("orderDetailAppendToggle");
@@ -28,59 +30,6 @@
             .replace(/'/g, "&#039;");
     }
 
-    function optionLabel(option) {
-        if (!option) {
-            return "";
-        }
-
-        const version = option.versionNumber ? ` (v${option.versionNumber})` : "";
-        return `${option.templateNameUk}${version}`;
-    }
-
-    function getOptionByTemplateVersionId(templateVersionId) {
-        return templateOptions.find((option) => option.templateVersionId === templateVersionId) || null;
-    }
-
-    function getOptionsForInvestigation(investigationTypeId) {
-        return templateOptions.filter((option) => option.investigationTypeId === investigationTypeId);
-    }
-
-    function templatePickerHtml(selectClass, optionsHtml) {
-        return `
-            <div class="order-sample-template-picker">
-                <select class="form-select form-select-sm ${selectClass}">
-                    ${optionsHtml}
-                </select>
-            </div>`;
-    }
-
-    function activeTemplateOptionsHtml(selectedTemplateVersionId) {
-        const emptySelected = selectedTemplateVersionId ? "" : " selected";
-        const options = [`<option value=""${emptySelected}>— оберіть —</option>`];
-        for (const option of templateOptions) {
-            const selected = option.templateVersionId === selectedTemplateVersionId ? " selected" : "";
-            options.push(
-                `<option value="${option.templateVersionId}" data-investigation-type-id="${option.investigationTypeId}"${selected}>${escapeHtml(optionLabel(option))}</option>`
-            );
-        }
-
-        return options.join("");
-    }
-
-    function pdfOptionsHtml(investigationTypeId, selectedTemplateVersionId) {
-        const optionsForType = getOptionsForInvestigation(investigationTypeId);
-        const emptySelected = selectedTemplateVersionId ? "" : " selected";
-        const options = [`<option value=""${emptySelected}>— оберіть —</option>`];
-        for (const option of optionsForType) {
-            const selected = option.templateVersionId === selectedTemplateVersionId ? " selected" : "";
-            options.push(
-                `<option value="${option.templateVersionId}"${selected}>${escapeHtml(optionLabel(option))}</option>`
-            );
-        }
-
-        return options.join("");
-    }
-
     function branchOptionsHtml(selectedId) {
         return branches
             .map((branch) => {
@@ -98,16 +47,12 @@
         const selectedTemplateVersionId =
             sample?.selectedTemplateVersionIds?.[0]
             || sample?.templateVersionId
-            || sample?.templateVersionId
             || "";
-        const selectedOption = getOptionByTemplateVersionId(selectedTemplateVersionId);
-        const fallbackOption = sample?.investigationTypeId
-            ? getOptionsForInvestigation(sample.investigationTypeId)[0]
-            : templateOptions[0];
+        const selectedOption = templateCatalog.getOptionByTemplateVersionId(selectedTemplateVersionId);
+        const fallbackOption = templateOptions[0] || null;
         const option = selectedOption || fallbackOption || null;
 
         return {
-            investigationTypeId: sample?.investigationTypeId || option?.investigationTypeId || "",
             templateVersionId: selectedTemplateVersionId || option?.templateVersionId || "",
             branchId: sample?.documentTargetBranchIds?.[0] || sample?.branchId || defaultBranchId || branches[0]?.id || ""
         };
@@ -118,15 +63,11 @@
         const row = document.createElement("div");
         row.className = "row g-2 align-items-end border-top py-2 order-sample-row order-detail-append__row";
         row.innerHTML = `
-            <div class="col-md-4">
-                <label class="form-label small text-muted d-md-none">Тип / шаблон</label>
-                ${templatePickerHtml("sample-active-template-select", activeTemplateOptionsHtml(seed.templateVersionId))}
+            <div class="col-md-6">
+                <label class="form-label small text-muted d-md-none">Бланк для проби</label>
+                <div class="order-sample-template-cell"></div>
             </div>
-            <div class="col-md-4">
-                <label class="form-label small text-muted d-md-none">PDF-бланк</label>
-                ${templatePickerHtml("sample-pdf-select", pdfOptionsHtml(seed.investigationTypeId, seed.templateVersionId))}
-            </div>
-            <div class="col-md-3">
+            <div class="col-md-5">
                 <label class="form-label small text-muted d-md-none">Філія</label>
                 <select class="form-select form-select-sm sample-branch-select">
                     ${branchOptionsHtml(seed.branchId)}
@@ -136,26 +77,27 @@
                 <button type="button" class="btn btn-sm btn-outline-danger sample-remove-button" title="Прибрати рядок">×</button>
             </div>`;
 
+        const cell = row.querySelector(".order-sample-template-cell");
+        cell.innerHTML = window.OrderTemplateField.renderPickerHtml(templateCatalog, seed.templateVersionId, {
+            showPreview: false
+        });
+
+        const fieldRoot = cell.querySelector(".order-template-field");
+        row.templatePicker = window.OrderTemplateField.bindPicker(fieldRoot, templateCatalog, {
+            onChange: syncSampleRows
+        });
+
         samplesList.appendChild(row);
         bindSampleRow(row);
         syncSampleRows();
     }
 
     function bindSampleRow(row) {
-        const activeSelect = row.querySelector(".sample-active-template-select");
-        const pdfSelect = row.querySelector(".sample-pdf-select");
         const removeButton = row.querySelector(".sample-remove-button");
 
-        activeSelect?.addEventListener("change", () => {
-            const selectedOption = getOptionByTemplateVersionId(activeSelect.value);
-            const investigationTypeId = selectedOption?.investigationTypeId || "";
-            pdfSelect.innerHTML = pdfOptionsHtml(investigationTypeId, selectedOption?.templateVersionId || "");
-            syncSampleRows();
-        });
-
-        pdfSelect?.addEventListener("change", syncSampleRows);
         row.querySelector(".sample-branch-select")?.addEventListener("change", syncSampleRows);
         removeButton?.addEventListener("click", () => {
+            window.OrderTemplateField.closeOpenMenu();
             row.remove();
             syncSampleRows();
         });
@@ -166,13 +108,10 @@
         samplesPlaceholder?.classList.toggle("d-none", rows.length > 0);
 
         rows.forEach((row, index) => {
-            const activeSelect = row.querySelector(".sample-active-template-select");
-            const pdfSelect = row.querySelector(".sample-pdf-select");
             const branchSelect = row.querySelector(".sample-branch-select");
-            const activeOption = getOptionByTemplateVersionId(activeSelect?.value);
-            const pdfOption = getOptionByTemplateVersionId(pdfSelect?.value);
-            const investigationTypeId = activeOption?.investigationTypeId || pdfOption?.investigationTypeId || "";
-            const templateVersionId = pdfOption?.templateVersionId || activeOption?.templateVersionId || "";
+            const option = row.templatePicker?.getSelectedOption();
+            const investigationTypeId = option?.investigationTypeId || "";
+            const templateVersionId = option?.templateVersionId || "";
 
             setHidden(row, "investigation", `AppendSamples.Samples[${index}].InvestigationTypeId`, investigationTypeId);
             setHidden(row, "template", `AppendSamples.Samples[${index}].TemplateVersionId`, templateVersionId);
@@ -240,19 +179,16 @@
         const rows = getSampleRows();
         if (rows.length === 0) {
             event.preventDefault();
-            window.alert("Додайте хоча б одне дослідження.");
+            window.alert("Додайте хоча б одну пробу з бланком PDF.");
             setPanelOpen(true);
             return;
         }
 
-        const hasBlank = rows.some((row) => {
-            const pdfSelect = row.querySelector(".sample-pdf-select");
-            return !pdfSelect?.value;
-        });
+        const hasBlank = rows.some((row) => !row.templatePicker?.getValue());
 
         if (hasBlank) {
             event.preventDefault();
-            window.alert("У кожному рядку оберіть PDF-бланк.");
+            window.alert("У кожному рядку оберіть бланк для проби.");
             return;
         }
 

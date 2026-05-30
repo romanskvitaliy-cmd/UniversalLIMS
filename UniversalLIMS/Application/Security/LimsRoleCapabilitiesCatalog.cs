@@ -27,7 +27,7 @@ public static class LimsRoleCapabilitiesCatalog
             LimsRoles.Registrar,
             "Прийом проб, створення замовлень і заповнення PDF-бланків реєстратури.",
             ["Реєстрація проб", "PDF Workspace"],
-            ["Нова проба", "Реєстр замовлень", "PDF Workspace"],
+            ["Нова справа", "Реєстр справ", "PDF Workspace"],
             "Лише філія користувача"),
         Build(
             LimsRoles.LaboratoryTechnician,

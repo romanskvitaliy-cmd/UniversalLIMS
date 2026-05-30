@@ -571,7 +571,7 @@ public sealed class OrderRegistrationService : IOrderRegistrationService
         {
             if (request.InvestigationTypeId == Guid.Empty)
             {
-                throw new InvalidOperationException("Оберіть хоча б одне дослідження.");
+                throw new InvalidOperationException("Додайте хоча б одну пробу з бланком PDF.");
             }
 
             requestedSamples =
