@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using UniversalLIMS.Application.Abstractions;
 using UniversalLIMS.Application.Common;
 using UniversalLIMS.Application.Expert;
 using UniversalLIMS.Application.Expert.Abstractions;
@@ -11,10 +12,14 @@ namespace UniversalLIMS.Infrastructure.Expert;
 public sealed class ExpertReviewQueueService : IExpertReviewQueueService
 {
     private readonly ApplicationDbContext _context;
+    private readonly ICurrentUserService _currentUser;
 
-    public ExpertReviewQueueService(ApplicationDbContext context)
+    public ExpertReviewQueueService(
+        ApplicationDbContext context,
+        ICurrentUserService currentUser)
     {
         _context = context;
+        _currentUser = currentUser;
     }
 
     public async Task<PagedResult<ExpertReviewQueueItemDto>> GetQueueAsync(
@@ -37,6 +42,8 @@ public sealed class ExpertReviewQueueService : IExpertReviewQueueService
                     !document.IsAnnulled
                     && document.Status != OrderDocumentStatus.Pending
                     && document.Status != OrderDocumentStatus.ResultsEntered));
+
+        samplesQuery = ApplyExpertBranchFilter(samplesQuery);
 
         if (!string.IsNullOrWhiteSpace(filter.SampleNumber))
         {
@@ -188,7 +195,7 @@ public sealed class ExpertReviewQueueService : IExpertReviewQueueService
         DateTime sinceUtc,
         CancellationToken cancellationToken = default)
     {
-        var rows = await _context.Samples
+        var samplesQuery = _context.Samples
             .AsNoTracking()
             .Where(sample =>
                 !sample.IsAnnulled
@@ -203,7 +210,11 @@ public sealed class ExpertReviewQueueService : IExpertReviewQueueService
                 && !sample.OrderDocuments.Any(document =>
                     !document.IsAnnulled
                     && document.Status != OrderDocumentStatus.Pending
-                    && document.Status != OrderDocumentStatus.ResultsEntered))
+                    && document.Status != OrderDocumentStatus.ResultsEntered));
+
+        samplesQuery = ApplyExpertBranchFilter(samplesQuery);
+
+        var rows = await samplesQuery
             .OrderBy(sample => sample.ResultsEnteredAtUtc)
             .Take(20)
             .Select(sample => new
@@ -234,5 +245,20 @@ public sealed class ExpertReviewQueueService : IExpertReviewQueueService
                 ResultsEnteredAtUtc = row.ResultsEnteredAtUtc
             })
             .ToList();
+    }
+
+    private IQueryable<Sample> ApplyExpertBranchFilter(IQueryable<Sample> samplesQuery)
+    {
+        if (_currentUser.BranchId is not Guid expertBranchId)
+        {
+            return samplesQuery;
+        }
+
+        return samplesQuery.Where(sample =>
+            sample.OrderDocuments.Any(document =>
+                !document.IsAnnulled
+                && document.Status != OrderDocumentStatus.Pending
+                && (document.TargetBranchId == expertBranchId
+                    || document.TargetBranch.ExpertBranchId == expertBranchId)));
     }
 }

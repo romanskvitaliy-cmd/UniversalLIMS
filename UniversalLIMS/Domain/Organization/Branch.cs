@@ -12,6 +12,11 @@ public class Branch : BaseEntity, ISoftAnnulled
 
     public BranchKind Kind { get; set; } = BranchKind.Laboratory;
 
+    /// <summary>Для LAB-філій: пул експертів (напр. LAB-BACT-ZHY → EXP-ZHY).</summary>
+    public Guid? ExpertBranchId { get; set; }
+
+    public Branch? ExpertBranch { get; set; }
+
     public string? Address { get; set; }
 
     public bool IsActive { get; set; } = true;

@@ -65,8 +65,8 @@
 | Черга експерта | ✅ | `ExpertReviewQueueService` |
 | Approve / Return to rework | ✅ | `ExpertConclusionService` |
 | Poll API сповіщень | ✅ | `ExpertNotificationsApiController` |
-| **Фільтр черги по філії експерта** | ❌ **Прогалина** | усі експерти бачать усі проби |
-| **Фільтр сповіщень по філії** | ❌ **Прогалина** | те саме |
+| **Фільтр черги по філії експерта** | ✅ (B1) | `ExpertReviewQueueService` + `ExpertBranchId` |
+| **Фільтр сповіщень по філії** | ✅ (B2) | `GetIncomingSinceAsync` |
 
 ### 2.4 Шаблони
 
@@ -86,7 +86,7 @@
 | `User.BranchId` | ✅ | `ApplicationUser` |
 | `Order.BranchId`, `OrderDocument.TargetBranchId` | ✅ | домен |
 | `BranchKind` (Registration/Lab/Expert/Mixed) | ✅ | `BranchKind` enum + `Branch.Kind` (A1) |
-| `Branch.ExpertBranchId` (LAB→EXP) | ❌ | немає |
+| `Branch.ExpertBranchId` (LAB→EXP) | ✅ поле + міграція (A4) | UI в `/Branches` — ❌ |
 | Фільтр dropdown філій за типом у UI | ❌ | |
 
 ---
@@ -233,11 +233,11 @@ Create: 1 замовник + REF-* (направлення) + N протокол
 
 ### 5.3 Задачі розробки (Блок B)
 
-- [ ] **B1.** Фільтр `ExpertReviewQueueService.GetQueueAsync` по філії експерта.
-- [ ] **B2.** Фільтр `GetIncomingSinceAsync` — те саме.
+- [x] **B1.** Фільтр `ExpertReviewQueueService.GetQueueAsync` по філії експерта.
+- [x] **B2.** Фільтр `GetIncomingSinceAsync` — те саме.
 - [ ] **B3.** Сповіщення rework → лаборант: фільтр по `TargetBranchId` (перевірити наявну реалізацію).
 - [ ] **B4.** UI: у черзі експерта показувати `TargetBranchName` (вже частково є).
-- [ ] **B5.** Тести: два експерти в різних філіях — кожен бачить лише «свої» проби.
+- [x] **B5.** Тести: два експерти в різних філіях — кожен бачить лише «свої» проби.
 
 ---
 
@@ -531,8 +531,8 @@ flowchart TD
 |----|--------|------|------|
 | A1 | BranchKind + міграція | A | ✅ |
 | A2–A3 | UI філій + обов’язковий BranchId у Users | A | ❌ |
-| **B1–B2** | **Фільтр черги і сповіщень експерта** | B | ❌ **#1 пріоритет** |
-| **T1** | **UI: «Направлення» → «Номер справи»** (Index, Lab, Issuance); «Направлення» лише для REF-бланка | UX | ❌ **#2** |
+| **B1–B2** | **Фільтр черги і сповіщень експерта** | B | ✅ |
+| **T1** | **UI: «Номер справи»** | UX | ❌ **#1 пріоритет** |
 | A4 | ExpertBranchId для LAB→EXP (якщо не лише Mixed) | A | ❌ |
 | C2, C1 | Rework + end-to-end сповіщення (після B1–B2) | C | 🟡 C6 ✅ |
 | G1–G3 | SampleDetails + «Відправити експерту» | G | ✅ |
@@ -645,7 +645,7 @@ UniversalLIMS — пілот ЦКПХ (Житомир).
 | 2026-05-30 | REF + N протоколів — один MapOrderFields (існуючий мапінг, без нового движка) |
 | 2026-05-30 | Пріоритет: філії + expert filter → сповіщення + lab UX → REF-шаблони |
 | 2026-05-30 | Lab UX: SampleDetails як Orders/Details; «Експерту» не в PDF toolbar; баг lastSeenUtc у poll |
-| 2026-05-30 | REF Per Sample — default пілоту; Per Order — backlog; T1 terminology; R1 SampleResultValue |
+| 2026-05-30 | B1–B2: expert queue/notifications filter by BranchId; Branch.ExpertBranchId (LAB→EXP) |
 | 2026-05-30 | Реєстратура UX: «справа / проба / бланк PDF»; glossary; Details групує документи по пробах |
 
 ---
@@ -661,24 +661,24 @@ UniversalLIMS — пілот ЦКПХ (Житомир).
 - `Laboratory/SampleDetails` — Fill + «Відправити готові» (G1–G3 ✅)
 - Poll сповіщення (C6 ✅)
 - `BranchKind` (A1 ✅)
+- Expert queue + toast фільтр по філії (B1–B2 ✅)
 
 ### Наступні задачі (строго по порядку)
 
 | # | ID | Що зробити | Файли / зона |
 |---|-----|------------|--------------|
-| 1 | B1 | Фільтр `ExpertReviewQueueService.GetQueueAsync` по `User.BranchId` | `ExpertReviewQueueService.cs` |
-| 2 | B2 | Те саме для `GetIncomingSinceAsync` + expert notifications API | expert services, JS poll |
-| 3 | T1 | Labels: Index/Issuance/Lab «Номер справи»; фільтр `referralNumber` → display «Номер справи» | Views |
-| 4 | C2 | Rework toast лаборанта end-to-end | lab notifications API + JS |
-| 5 | R1 | `PdfWorkspaceFillService.SaveValuesAsync`: `DataFieldScope.Result` → `SampleResultValue` | Fill service + tests |
-| 6 | D1 | `TemplatePurpose` enum + migration | `Template`, Create filters |
-| 7 | D6a | REF select у рядку проби Create → 2 OrderDocument на Sample | Create VM, `OrderRegistrationService` |
-| 8 | D-контент-1 | Перший REF-бланк у Templates | admin + docs |
+| 1 | B1–B2 | ✅ Фільтр expert queue + notifications по BranchId | `ExpertReviewQueueService.cs` |
+| 2 | T1 | Labels: «Номер справи» в Index/Lab/Issuance | Views |
+| 3 | C2 | Rework toast лаборанта end-to-end | lab notifications API + JS |
+| 4 | R1 | `DataFieldScope.Result` → `SampleResultValue` у PDF Save | Fill service + tests |
+| 5 | D1 | `TemplatePurpose` enum + migration | `Template`, Create filters |
+| 6 | D6a | REF select у рядку проби Create → 2 OrderDocument на Sample | Create VM, `OrderRegistrationService` |
+| 7 | D-контент-1 | Перший REF-бланк у Templates | admin + docs |
 
 ### Технічні нотатки
 
 - **`OrderDocument.SampleId`** — required; Per Sample REF не потребує зміни схеми.
-- **Per Order REF** — лише після пілоту: nullable `SampleId` (D6b).
+- **`Branch.ExpertBranchId`** — поле є; для LAB→EXP задати в БД або через UI (A4 UI — backlog).
 - **`ReferralNumber` у коді/БД** — не перейменовувати; лише UI labels (T1).
 - **Lab результати** зараз у `OrderFieldValue` — борг; R1 обов’язковий до масового пілоту.
 

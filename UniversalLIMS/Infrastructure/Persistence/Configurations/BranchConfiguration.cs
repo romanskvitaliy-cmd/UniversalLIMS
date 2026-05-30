@@ -29,6 +29,11 @@ public sealed class BranchConfiguration : IEntityTypeConfiguration<Branch>
             .HasDefaultValue(BranchKind.Laboratory)
             .IsRequired();
 
+        builder.HasOne(branch => branch.ExpertBranch)
+            .WithMany()
+            .HasForeignKey(branch => branch.ExpertBranchId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.Property(branch => branch.Address)
             .HasMaxLength(500);
 

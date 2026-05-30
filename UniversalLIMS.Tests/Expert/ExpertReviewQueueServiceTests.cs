@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using UniversalLIMS.Application.Abstractions;
 using UniversalLIMS.Application.Expert;
 using UniversalLIMS.Domain.Laboratory;
 using UniversalLIMS.Domain.Organization;
@@ -17,7 +18,7 @@ public sealed class ExpertReviewQueueServiceTests
         var sampleId = Guid.NewGuid();
         await using var context = await CreateSeededContextAsync(sampleId, OrderDocumentStatus.ResultsEntered);
 
-        var service = new ExpertReviewQueueService(context);
+        var service = CreateService(context);
         var result = await service.GetQueueAsync(new ExpertReviewQueueFilter());
 
         Assert.Contains(result.Items, item => item.SampleId == sampleId);
@@ -32,7 +33,7 @@ public sealed class ExpertReviewQueueServiceTests
             OrderDocumentStatus.ResultsEntered,
             secondDocumentStatus: OrderDocumentStatus.InProgress);
 
-        var service = new ExpertReviewQueueService(context);
+        var service = CreateService(context);
         var result = await service.GetQueueAsync(new ExpertReviewQueueFilter());
 
         Assert.DoesNotContain(result.Items, item => item.SampleId == sampleId);
@@ -51,7 +52,7 @@ public sealed class ExpertReviewQueueServiceTests
         });
         await context.SaveChangesAsync();
 
-        var service = new ExpertReviewQueueService(context);
+        var service = CreateService(context);
         var result = await service.GetQueueAsync(new ExpertReviewQueueFilter());
 
         Assert.DoesNotContain(result.Items, item => item.SampleId == sampleId);
@@ -70,7 +71,7 @@ public sealed class ExpertReviewQueueServiceTests
         });
         await context.SaveChangesAsync();
 
-        var service = new ExpertReviewQueueService(context);
+        var service = CreateService(context);
         var result = await service.GetQueueAsync(new ExpertReviewQueueFilter
         {
             ReviewStatus = ExpertConclusionStatus.Approved
@@ -93,7 +94,7 @@ public sealed class ExpertReviewQueueServiceTests
         });
         await context.SaveChangesAsync();
 
-        var service = new ExpertReviewQueueService(context);
+        var service = CreateService(context);
         var result = await service.GetQueueAsync(new ExpertReviewQueueFilter
         {
             ReviewStatus = ExpertConclusionStatus.Approved,
@@ -117,7 +118,7 @@ public sealed class ExpertReviewQueueServiceTests
         });
         await context.SaveChangesAsync();
 
-        var service = new ExpertReviewQueueService(context);
+        var service = CreateService(context);
         var result = await service.GetQueueAsync(new ExpertReviewQueueFilter
         {
             ReviewStatus = ExpertConclusionStatus.InProgress
@@ -133,7 +134,7 @@ public sealed class ExpertReviewQueueServiceTests
         var sampleId = Guid.NewGuid();
         await using var context = await CreateSeededContextAsync(sampleId, OrderDocumentStatus.ResultsEntered);
 
-        var service = new ExpertReviewQueueService(context);
+        var service = CreateService(context);
         var result = await service.GetQueueAsync(new ExpertReviewQueueFilter());
 
         var item = Assert.Single(result.Items);
@@ -162,7 +163,7 @@ public sealed class ExpertReviewQueueServiceTests
             });
         await context.SaveChangesAsync();
 
-        var service = new ExpertReviewQueueService(context);
+        var service = CreateService(context);
         var result = await service.GetQueueAsync(new ExpertReviewQueueFilter
         {
             ReviewStatus = ExpertConclusionStatus.Approved
@@ -191,7 +192,7 @@ public sealed class ExpertReviewQueueServiceTests
             });
         await context.SaveChangesAsync();
 
-        var service = new ExpertReviewQueueService(context);
+        var service = CreateService(context);
         var result = await service.GetQueueAsync(new ExpertReviewQueueFilter
         {
             ReviewStatus = ExpertConclusionStatus.InProgress
@@ -211,7 +212,7 @@ public sealed class ExpertReviewQueueServiceTests
         sample.ResultsEnteredAtUtc = readyAt;
         await context.SaveChangesAsync();
 
-        var service = new ExpertReviewQueueService(context);
+        var service = CreateService(context);
         var since = readyAt.AddMinutes(-5);
         var result = await service.GetIncomingSinceAsync(since);
 
@@ -232,23 +233,174 @@ public sealed class ExpertReviewQueueServiceTests
         sample.ResultsEnteredAtUtc = DateTime.UtcNow;
         await context.SaveChangesAsync();
 
-        var service = new ExpertReviewQueueService(context);
+        var service = CreateService(context);
         var result = await service.GetIncomingSinceAsync(DateTime.UtcNow.AddHours(-1));
 
         Assert.Empty(result);
     }
 
+    [Fact]
+    public async Task GetQueueAsync_FiltersByExpertBranch_WhenUserHasBranchId()
+    {
+        var visibleSampleId = Guid.NewGuid();
+        var hiddenSampleId = Guid.NewGuid();
+        var expertBranchId = Guid.NewGuid();
+        var otherBranchId = Guid.NewGuid();
+
+        await using var context = await CreateSeededContextAsync(
+            visibleSampleId,
+            OrderDocumentStatus.ResultsEntered,
+            targetBranchId: expertBranchId);
+        await SeedSecondSampleAsync(
+            context,
+            hiddenSampleId,
+            OrderDocumentStatus.ResultsEntered,
+            targetBranchId: otherBranchId);
+
+        var service = CreateService(context, expertBranchId);
+        var result = await service.GetQueueAsync(new ExpertReviewQueueFilter());
+
+        Assert.Contains(result.Items, item => item.SampleId == visibleSampleId);
+        Assert.DoesNotContain(result.Items, item => item.SampleId == hiddenSampleId);
+    }
+
+    [Fact]
+    public async Task GetQueueAsync_IncludesSample_WhenLabBranchMapsToExpertBranch()
+    {
+        var sampleId = Guid.NewGuid();
+        var labBranchId = Guid.NewGuid();
+        var expertBranchId = Guid.NewGuid();
+
+        await using var context = await CreateSeededContextAsync(
+            sampleId,
+            OrderDocumentStatus.ResultsEntered,
+            targetBranchId: labBranchId,
+            labExpertBranchId: expertBranchId);
+
+        var service = CreateService(context, expertBranchId);
+        var result = await service.GetQueueAsync(new ExpertReviewQueueFilter());
+
+        Assert.Contains(result.Items, item => item.SampleId == sampleId);
+    }
+
+    [Fact]
+    public async Task GetIncomingSinceAsync_FiltersByExpertBranch_WhenUserHasBranchId()
+    {
+        var visibleSampleId = Guid.NewGuid();
+        var hiddenSampleId = Guid.NewGuid();
+        var expertBranchId = Guid.NewGuid();
+        var otherBranchId = Guid.NewGuid();
+        var readyAt = new DateTime(2026, 5, 30, 10, 0, 0, DateTimeKind.Utc);
+
+        await using var context = await CreateSeededContextAsync(
+            visibleSampleId,
+            OrderDocumentStatus.ResultsEntered,
+            targetBranchId: expertBranchId);
+        await SeedSecondSampleAsync(
+            context,
+            hiddenSampleId,
+            OrderDocumentStatus.ResultsEntered,
+            targetBranchId: otherBranchId);
+
+        foreach (var sample in await context.Samples.ToListAsync())
+        {
+            sample.Status = SampleStatus.ResultsEntered;
+            sample.ResultsEnteredAtUtc = readyAt;
+        }
+
+        await context.SaveChangesAsync();
+
+        var service = CreateService(context, expertBranchId);
+        var result = await service.GetIncomingSinceAsync(readyAt.AddMinutes(-5));
+
+        Assert.Single(result);
+        Assert.Equal(visibleSampleId, result[0].SampleId);
+    }
+
+    private static ExpertReviewQueueService CreateService(
+        ApplicationDbContext context,
+        Guid? expertBranchId = null) =>
+        new(context, new TestCurrentUserService(expertBranchId));
+
+    private static async Task SeedSecondSampleAsync(
+        ApplicationDbContext context,
+        Guid sampleId,
+        OrderDocumentStatus documentStatus,
+        Guid targetBranchId)
+    {
+        var order = await context.Orders.FirstAsync();
+        var investigationType = await context.InvestigationTypes.FirstAsync();
+        var template = await context.Templates.FirstAsync();
+        var version = await context.TemplateVersions.FirstAsync();
+
+        if (!await context.Branches.AnyAsync(branch => branch.Id == targetBranchId))
+        {
+            context.Branches.Add(new Branch
+            {
+                Id = targetBranchId,
+                Code = $"B-{targetBranchId.ToString("N")[..6]}",
+                Name = "Інша філія",
+                City = "Test",
+                IsActive = true
+            });
+        }
+
+        context.Samples.Add(new Sample
+        {
+            Id = sampleId,
+            OrderId = order.Id,
+            Number = $"S-{sampleId.ToString("N")[..6]}",
+            RegisteredAt = DateTime.UtcNow,
+            InvestigationTypeId = investigationType.Id,
+            Status = SampleStatus.ResultsEntered
+        });
+
+        context.OrderDocuments.Add(new OrderDocument
+        {
+            Id = Guid.NewGuid(),
+            OrderId = order.Id,
+            SampleId = sampleId,
+            TemplateId = template.Id,
+            TemplateVersionId = version.Id,
+            TargetBranchId = targetBranchId,
+            Status = documentStatus
+        });
+
+        await context.SaveChangesAsync();
+    }
+
+    private sealed class TestCurrentUserService(Guid? branchId) : ICurrentUserService
+    {
+        public string? UserId => "expert-test";
+
+        public string? UserName => "expert-test";
+
+        public string? UserFullName => "Expert Test";
+
+        public Guid? BranchId => branchId;
+
+        public string? IpAddress => null;
+
+        public string? UserAgent => null;
+
+        public string? CorrelationId => null;
+
+        public bool IsAuthenticated => true;
+    }
+
     private static async Task<ApplicationDbContext> CreateSeededContextAsync(
         Guid sampleId,
         OrderDocumentStatus primaryDocumentStatus,
-        OrderDocumentStatus? secondDocumentStatus = null)
+        OrderDocumentStatus? secondDocumentStatus = null,
+        Guid? targetBranchId = null,
+        Guid? labExpertBranchId = null)
     {
         var context = CreateContext();
         var templateId = Guid.NewGuid();
         var versionId = Guid.NewGuid();
         var orderId = Guid.NewGuid();
         var customerId = Guid.NewGuid();
-        var branchId = Guid.NewGuid();
+        var branchId = targetBranchId ?? Guid.NewGuid();
         var investigationTypeId = Guid.NewGuid();
         var doc1Id = Guid.NewGuid();
         var doc2Id = Guid.NewGuid();
@@ -258,6 +410,8 @@ public sealed class ExpertReviewQueueServiceTests
             Id = branchId,
             Code = "ZHY",
             Name = "Житомир",
+            City = "Житомир",
+            ExpertBranchId = labExpertBranchId,
             IsActive = true
         });
 
