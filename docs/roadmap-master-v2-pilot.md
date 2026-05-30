@@ -24,7 +24,7 @@
 3. **Направлення (цифрове)** — реєстратура **формує на бланку**, який адмін завантажив (`REF-*`). Це один із документів замовлення поруч із протоколами — **не окремий модуль**.
 4. **Мапінг полів** — вже реалізовано (`OrderFieldLinkGroup`, `MapOrderFields`). Якщо один замовник + направлення + 4 протоколи — **один крок мапінгу** на всі документи: об’єднати «ПІБ», «дата відбору» тощо між REF і протоколами, заповнити один раз. Принесене паперове — скан + перенос у той самий цифровий REF-бланк.
 5. **Лабораторія** — UX має повторити ланцюжок реєстратури: **сторінка проби** з таблицею документів і статусів; «Відправити експерту» — **не** в toolbar PDF (тимчасово там, перенести на сторінку проби).
-6. **Пріоритет розробки (актуальний):** ~~B1–B2, T1, C2, R1, D1, D6a, D2, D3, G5/G6~~ ✅ → **C1 smoke**.
+6. **Пріоритет розробки (актуальний):** ~~B1–B2, T1, C2, R1, D1, D6a, D2, D3, G5/G6, C1 (auto)~~ ✅ → **D-контент-1** + ручний UI smoke C1.
 7. **Терміни UI:** `Order.ReferralNumber` = **«Номер справи»**; слово **«Направлення»** — лише PDF-бланк REF-* (див. `glossary-registration-uk.md`).
 8. **REF на пілоті:** основний режим **Per Sample** (1 REF на пробу); Per Order — backlog (§7.0).
 
@@ -255,7 +255,7 @@ Create: 1 замовник + REF-* (направлення) + N протокол
 
 ### 6.2 Задачі розробки (Блок C)
 
-- [ ] **C1.** Перевірити крок 1–2–4 end-to-end на пілоті (дзвіночок у navbar).
+- [x] **C1.** Автоматизований smoke (`PilotSmokeFlowTests`) + ручний чеклист `docs/pilot-smoke-c1-checklist.md`. UI poll/toast — перевірити на стенді.
 - [x] **C2.** Rework notification — API + JS для лаборанта при `ReturnedForRework` (toast з причиною → SampleDetails).
 - [ ] **C3.** Після B1/B2 — expert notifications лише для своєї філії.
 - [ ] **C4.** Документувати для адміна: 5–10 ПК = одна філія, poll на кожному браузері (не баг).
@@ -602,7 +602,7 @@ UniversalLIMS — пілот ЦКПХ (Житомир).
 Терміни: docs/glossary-registration-uk.md.
 
 Поточна фаза: 1.
-Наступні задачі (порядок): C1 smoke → D-контент-1.
+Наступні задачі (порядок): D-контент-1 → ручний UI smoke C1 на стенді.
 
 Ключові рішення (не перепитувати):
 - Протокол = PDF-шаблон (OrderDocument), Fill у PDF Workspace; не ResultEntry UI.
@@ -676,7 +676,7 @@ UniversalLIMS — пілот ЦКПХ (Житомир).
 | 6 | D6a | ✅ REF select у рядку проби Create → 2 OrderDocument на Sample | Create VM, `OrderRegistrationService`, `order-create.js` |
 | 7 | D2–D3 | ✅ Друк REF / протоколів окремо (`purposeFilter`, Orders/Details) | `ReferralPdfGenerator`, `OrdersController` |
 | 8 | G5/G6 | ✅ Адмін hub lab+expert | `/Laboratories`, `/Users` |
-| 9 | C1 | End-to-end smoke QA (2 експерти + rework) | manual |
+| 9 | C1 | 🟡 Auto smoke ✅ (`PilotSmokeFlowTests`); UI poll — чеклист | `docs/pilot-smoke-c1-checklist.md` |
 | 10 | D-контент-1 | Перший REF-бланк у Templates | admin + docs |
 
 ### Технічні нотатки
