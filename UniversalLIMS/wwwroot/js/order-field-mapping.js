@@ -32,34 +32,101 @@
             return;
         }
 
-        templatesHost.innerHTML = mapping.templates
-            .map((template) => {
-                const fieldsHtml = template.fields
-                    .filter((field) => field.canRead)
-                    .map((field) => {
-                        const disabled = !field.canWrite ? " disabled" : "";
-                        const hint = !field.canWrite ? ' title="Немає права на запис"' : "";
-                        return `<div class="form-check">
-                            <input class="form-check-input field-map-check" type="checkbox"
-                                   data-version-id="${template.templateVersionId}"
-                                   data-field-id="${field.templateFieldId}"
-                                   data-tag="${field.tag}"
-                                   data-title="${field.title ?? ""}"${disabled}${hint}
-                                   id="fld_${field.templateFieldId}" />
-                            <label class="form-check-label" for="fld_${field.templateFieldId}">
-                                <code class="small">${field.tag}</code>
-                                ${field.title ? `<span class="text-muted"> — ${field.title}</span>` : ""}
-                            </label>
-                        </div>`;
-                    })
-                    .join("");
+        if (mapping.sampleGroups?.length) {
+            templatesHost.innerHTML = mapping.sampleGroups
+                .map((sampleGroup) => {
+                    const templatesHtml = (sampleGroup.templates ?? [])
+                        .map((template) => renderTemplateBlock(template, sampleGroup.sampleIndex))
+                        .join("");
 
-                return `<div class="mb-3">
-                    <div class="fw-semibold small">${template.templateNameUk} (v${template.versionNumber})</div>
-                    <div class="ms-2">${fieldsHtml || '<span class="text-muted small">Немає доступних полів</span>'}</div>
+                    return `<section class="field-mapping-sample-group border rounded p-3 mb-3" data-sample-index="${sampleGroup.sampleIndex}">
+                        <h3 class="h6 mb-2">${sampleGroup.label}</h3>
+                        ${templatesHtml || '<span class="text-muted small">Немає шаблонів для цієї проби</span>'}
+                    </section>`;
+                })
+                .join("");
+
+            renderDuplicateTemplateWarning();
+            return;
+        }
+
+        templatesHost.innerHTML = mapping.templates
+            .map((template) => renderTemplateBlock(template))
+            .join("");
+    }
+
+    function renderTemplateBlock(template, sampleIndex) {
+        const sampleAttr = sampleIndex === undefined || sampleIndex === null
+            ? ""
+            : ` data-sample-index="${sampleIndex}"`;
+        const roleBadge = template.documentRoleUk
+            ? `<span class="badge text-bg-light border ms-1">${template.documentRoleUk}</span>`
+            : "";
+
+        const fieldsHtml = template.fields
+            .filter((field) => field.canRead)
+            .map((field) => {
+                const disabled = !field.canWrite ? " disabled" : "";
+                const hint = !field.canWrite ? ' title="Немає права на запис"' : "";
+                const fieldDomId = sampleIndex === undefined || sampleIndex === null
+                    ? `fld_${field.templateFieldId}`
+                    : `fld_${sampleIndex}_${field.templateFieldId}`;
+
+                return `<div class="form-check">
+                    <input class="form-check-input field-map-check" type="checkbox"
+                           data-version-id="${template.templateVersionId}"
+                           data-field-id="${field.templateFieldId}"
+                           data-tag="${field.tag}"
+                           data-title="${field.title ?? ""}"${sampleAttr}${disabled}${hint}
+                           id="${fieldDomId}" />
+                    <label class="form-check-label" for="${fieldDomId}">
+                        <code class="small">${field.tag}</code>
+                        ${field.title ? `<span class="text-muted"> — ${field.title}</span>` : ""}
+                    </label>
                 </div>`;
             })
             .join("");
+
+        return `<div class="mb-3"${sampleAttr}>
+            <div class="fw-semibold small">${template.templateNameUk} (v${template.versionNumber})${roleBadge}</div>
+            <div class="ms-2">${fieldsHtml || '<span class="text-muted small">Немає доступних полів</span>'}</div>
+        </div>`;
+    }
+
+    function renderDuplicateTemplateWarning() {
+        const warningHost = document.getElementById("fieldMappingDuplicateWarning");
+        if (!warningHost || !mapping.sampleGroups?.length) {
+            return;
+        }
+
+        const usageByVersionId = new Map();
+        mapping.sampleGroups.forEach((group) => {
+            (group.templates ?? []).forEach((template) => {
+                const versionId = template.templateVersionId;
+                if (!versionId) {
+                    return;
+                }
+
+                if (!usageByVersionId.has(versionId)) {
+                    usageByVersionId.set(versionId, []);
+                }
+
+                usageByVersionId.get(versionId).push(group.label);
+            });
+        });
+
+        const duplicates = Array.from(usageByVersionId.entries())
+            .filter(([, labels]) => labels.length > 1);
+
+        if (duplicates.length === 0) {
+            warningHost.classList.add("d-none");
+            warningHost.textContent = "";
+            return;
+        }
+
+        warningHost.classList.remove("d-none");
+        warningHost.textContent =
+            "Кілька проб використовують один і той самий шаблон. Поле можна об’єднати лише в одній групі — для іншої проби об’єднуйте поля протоколу окремо.";
     }
 
     function renderGroups() {
@@ -400,11 +467,21 @@
     });
 
     function getSelectedTemplateVersionIds() {
-        return Array.from(
-            form?.querySelectorAll('input[name*=".SelectedTemplateVersionIds"]') ?? []
-        )
-            .map((input) => input.value)
-            .filter(Boolean);
+        const versionIds = new Set();
+
+        form?.querySelectorAll('input[name*=".SelectedTemplateVersionIds"]').forEach((input) => {
+            if (input.value) {
+                versionIds.add(input.value);
+            }
+        });
+
+        form?.querySelectorAll('input[name*=".ReferralTemplateVersionId"]').forEach((input) => {
+            if (input.value) {
+                versionIds.add(input.value);
+            }
+        });
+
+        return Array.from(versionIds);
     }
 
     function applyAdaptedMapping(result) {

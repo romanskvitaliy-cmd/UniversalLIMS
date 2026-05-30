@@ -3,6 +3,32 @@ namespace UniversalLIMS.Application.Registration;
 public sealed class OrderFieldMappingPrepareDto
 {
     public required IReadOnlyList<OrderFieldMappingTemplateDto> Templates { get; init; }
+
+    /// <summary>D7 — групи «REF + протокол проби N» для UI MapOrderFields.</summary>
+    public IReadOnlyList<OrderFieldMappingSampleGroupDto> SampleGroups { get; init; } = [];
+}
+
+public sealed class OrderFieldMappingSampleGroupDto
+{
+    public int SampleIndex { get; init; }
+
+    public required string Label { get; init; }
+
+    public IReadOnlyList<OrderFieldMappingTemplateSlotDto> Templates { get; init; } = [];
+}
+
+public sealed class OrderFieldMappingTemplateSlotDto
+{
+    public Guid TemplateVersionId { get; init; }
+
+    public required string TemplateNameUk { get; init; }
+
+    public int VersionNumber { get; init; }
+
+    /// <summary>«Направлення» або «Протокол».</summary>
+    public required string DocumentRoleUk { get; init; }
+
+    public IReadOnlyList<OrderFieldMappingFieldDto> Fields { get; init; } = [];
 }
 
 public sealed class OrderFieldMappingTemplateDto

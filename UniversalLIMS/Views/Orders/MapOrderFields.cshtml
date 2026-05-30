@@ -40,6 +40,7 @@
     {
         <input type="hidden" name="Samples[@sampleIndex].InvestigationTypeId" value="@Model.CreateInput.Samples[sampleIndex].InvestigationTypeId" />
         <input type="hidden" name="Samples[@sampleIndex].TemplateVersionId" value="@Model.CreateInput.Samples[sampleIndex].TemplateVersionId" />
+        <input type="hidden" name="Samples[@sampleIndex].ReferralTemplateVersionId" value="@Model.CreateInput.Samples[sampleIndex].ReferralTemplateVersionId" />
         @for (var documentIndex = 0; documentIndex < Model.CreateInput.Samples[sampleIndex].SelectedTemplateVersionIds.Count; documentIndex++)
         {
             <input type="hidden" name="Samples[@sampleIndex].SelectedTemplateVersionIds[@documentIndex]" value="@Model.CreateInput.Samples[sampleIndex].SelectedTemplateVersionIds[documentIndex]" />
@@ -62,6 +63,7 @@
                         Позначте чекбоксами поля з однаковим змістом і натисніть «Об’єднати вибрані».
                         Для локальних тегів можна використати автооб’єднання лише за точним збігом тегу.
                     </p>
+                    <p id="fieldMappingDuplicateWarning" class="alert alert-warning py-2 small d-none mb-2" role="status"></p>
                     <div id="fieldMappingTemplates"></div>
                 </div>
             </div>

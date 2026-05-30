@@ -442,15 +442,34 @@ public sealed class OrdersController : Controller
         CancellationToken cancellationToken)
     {
         var copySourceOrders = await _orderFieldLinks.GetFieldMappingSourceOrdersAsync(20, cancellationToken);
+        var sampleInputs = ToOrderCreateSampleInputs(GetSubmittedSamples(input));
+        var sampleGroups = OrderFieldMappingSampleGroupBuilder.Build(sampleInputs, form, mapping);
 
         return new OrderMapFieldsViewModel
         {
             Form = form,
             CreateInput = input,
-            Mapping = mapping,
+            Mapping = new OrderFieldMappingPrepareDto
+            {
+                Templates = mapping.Templates,
+                SampleGroups = sampleGroups
+            },
             CopySourceOrders = copySourceOrders
         };
     }
+
+    private static IReadOnlyList<OrderCreateSampleInput> ToOrderCreateSampleInputs(
+        IReadOnlyList<OrderCreateSampleInputModel> samples) =>
+        samples
+            .Select(sample => new OrderCreateSampleInput
+            {
+                InvestigationTypeId = sample.InvestigationTypeId,
+                ReferralTemplateVersionId = sample.ReferralTemplateVersionId,
+                SelectedTemplateVersionIds = sample.SelectedTemplateVersionIds
+                    .Where(id => id != Guid.Empty)
+                    .ToList()
+            })
+            .ToList();
 
     private void ValidateCustomerSelection(OrderCreateInputModel input)
     {

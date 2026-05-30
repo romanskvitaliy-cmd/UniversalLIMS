@@ -337,7 +337,7 @@ Create: 1 замовник + REF-* (направлення) + N протокол
 - [x] **D1.** `TemplatePurpose` на `Template` + міграція (Referral / Protocol / Conclusion). UI у `/Templates`; фільтр Create — D6a.
 - [x] **D6a (Per Sample, пілот).** У рядку проби на `Orders/Create` — другий select «Бланк направлення REF-*» поруч із «Бланк протоколу»; створює 2 `OrderDocument` на пробу (`ReferralTemplateVersionId` + протокол; REF → `TargetBranchId` реєстратора).
 - [ ] **D6b (backlog).** Per Order: один dropdown REF на справу + nullable `SampleId` для referral-документів.
-- [ ] **D7.** На `MapOrderFields` — групувати: Per Sample — «REF + протокол проби N»; Per Order — «Направлення | Протокол: f327 | …».
+- [x] **D7.** На `MapOrderFields` — групувати: Per Sample — «REF + протокол проби N»; Per Order — «Направлення | Протокол: f327 | …» (Per Order UI — backlog D6b).
 - [ ] **D8a.** QA Per Sample: 1 клієнт + 3 проби + 3 REF + 3 протоколи → Map → Fill.
 - [ ] **D8.** QA Per Order: 1 клієнт + 1 REF + 4 протоколи → Map → Fill.
 
@@ -678,6 +678,7 @@ UniversalLIMS — пілот ЦКПХ (Житомир).
 | 8 | G5/G6 | ✅ Адмін hub lab+expert | `/Laboratories`, `/Users` |
 | 9 | C1 | 🟡 Auto smoke ✅ (`PilotSmokeFlowTests`); UI poll — чеклист | `docs/pilot-smoke-c1-checklist.md` |
 | 10 | D-контент-1 | 🟡 Контент REF-MOZ-001 у repo; **Upload/Map/Publish на стенді** | `docs/ref-moz-001-admin-setup.md` |
+| 11 | D7 | ✅ MapOrderFields групує REF + протокол по пробах | `order-field-mapping.js`, `OrderFieldMappingSampleGroupBuilder` |
 
 ### Технічні нотатки
 
