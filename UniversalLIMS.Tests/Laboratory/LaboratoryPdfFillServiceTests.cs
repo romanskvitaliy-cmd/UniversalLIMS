@@ -139,6 +139,93 @@ public sealed class LaboratoryPdfFillServiceTests
         Assert.Empty(targets);
     }
 
+    [Fact]
+    public async Task GetSampleDetailsAsync_IncludesResultsEnteredAndMarksSendEligibility()
+    {
+        await using var context = CreateContext();
+        var branchId = Guid.NewGuid();
+        var orderId = Guid.NewGuid();
+        var sampleId = Guid.NewGuid();
+        var versionId = Guid.NewGuid();
+        var templateId = Guid.NewGuid();
+        var activeDocumentId = Guid.NewGuid();
+        var sentDocumentId = Guid.NewGuid();
+
+        SeedBranchCustomerOrderSample(context, branchId, orderId, sampleId);
+        SeedPdfTemplate(context, templateId, versionId, "Протокол");
+        context.OrderDocuments.AddRange(
+            new OrderDocument
+            {
+                Id = activeDocumentId,
+                OrderId = orderId,
+                SampleId = sampleId,
+                TemplateId = templateId,
+                TemplateVersionId = versionId,
+                TargetBranchId = branchId,
+                Status = OrderDocumentStatus.InProgress
+            },
+            new OrderDocument
+            {
+                Id = sentDocumentId,
+                OrderId = orderId,
+                SampleId = sampleId,
+                TemplateId = templateId,
+                TemplateVersionId = versionId,
+                TargetBranchId = branchId,
+                Status = OrderDocumentStatus.ResultsEntered
+            });
+
+        await context.SaveChangesAsync();
+
+        var service = new LaboratoryPdfFillService(context, new FixedLaboratoryBranchContext(branchId));
+        var detail = await service.GetSampleDetailsAsync(sampleId);
+
+        Assert.NotNull(detail);
+        Assert.Equal(2, detail!.Documents.Count);
+        Assert.Contains(detail.Documents, document => document.OrderDocumentId == activeDocumentId && document.CanSendToExpert);
+        Assert.Contains(
+            detail.Documents,
+            document => document.OrderDocumentId == sentDocumentId && !document.CanSendToExpert && !document.CanFill);
+        Assert.Contains(
+            detail.Documents,
+            document => document.OrderDocumentId == activeDocumentId && document.CanFill);
+    }
+
+    [Fact]
+    public async Task GetSampleDetailsAsync_SentToLabCannotSendUntilInProgress()
+    {
+        await using var context = CreateContext();
+        var branchId = Guid.NewGuid();
+        var orderId = Guid.NewGuid();
+        var sampleId = Guid.NewGuid();
+        var versionId = Guid.NewGuid();
+        var templateId = Guid.NewGuid();
+        var documentId = Guid.NewGuid();
+
+        SeedBranchCustomerOrderSample(context, branchId, orderId, sampleId);
+        SeedPdfTemplate(context, templateId, versionId, "Протокол");
+        context.OrderDocuments.Add(new OrderDocument
+        {
+            Id = documentId,
+            OrderId = orderId,
+            SampleId = sampleId,
+            TemplateId = templateId,
+            TemplateVersionId = versionId,
+            TargetBranchId = branchId,
+            Status = OrderDocumentStatus.SentToLab
+        });
+
+        await context.SaveChangesAsync();
+
+        var service = new LaboratoryPdfFillService(context, new FixedLaboratoryBranchContext(branchId));
+        var detail = await service.GetSampleDetailsAsync(sampleId);
+
+        Assert.NotNull(detail);
+        var document = Assert.Single(detail!.Documents);
+        Assert.True(document.CanFill);
+        Assert.False(document.CanSendToExpert);
+    }
+
     private static void SeedBranchCustomerOrderSample(
         ApplicationDbContext context,
         Guid branchId,

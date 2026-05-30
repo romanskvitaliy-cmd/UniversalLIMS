@@ -28,8 +28,26 @@ public sealed class BranchServiceTests
         var branch = await context.Branches.SingleAsync(item => item.Id == branchId);
         Assert.Equal("BER", branch.Code);
         Assert.Equal("Бердичівський відділ", branch.Name);
+        Assert.Equal(BranchKind.Laboratory, branch.Kind);
         Assert.True(branch.IsActive);
         Assert.False(branch.IsAnnulled);
+    }
+
+    [Fact]
+    public async Task CreateAsync_InfersRegistrationKindFromRegPrefix()
+    {
+        await using var context = CreateContext();
+        var service = CreateService(context);
+
+        var branchId = await service.CreateAsync(new CreateBranchRequest
+        {
+            Code = "REG-ZHY",
+            Name = "Реєстратура Житомир",
+            City = "Житомир"
+        });
+
+        var branch = await context.Branches.SingleAsync(item => item.Id == branchId);
+        Assert.Equal(BranchKind.Registration, branch.Kind);
     }
 
     [Fact]

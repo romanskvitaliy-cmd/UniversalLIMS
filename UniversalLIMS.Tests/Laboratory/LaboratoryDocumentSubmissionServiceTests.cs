@@ -20,7 +20,7 @@ public sealed class LaboratoryDocumentSubmissionServiceTests
         var sampleId = Guid.NewGuid();
         var documentId = Guid.NewGuid();
         await using var context = CreateContext();
-        SeedSampleWithDocument(context, branchId, orderId, sampleId, documentId, OrderDocumentStatus.SentToLab);
+        SeedSampleWithDocument(context, branchId, orderId, sampleId, documentId, OrderDocumentStatus.InProgress);
         await context.SaveChangesAsync();
 
         var service = CreateService(context, branchId);
@@ -45,7 +45,7 @@ public sealed class LaboratoryDocumentSubmissionServiceTests
         var firstDocumentId = Guid.NewGuid();
         var secondDocumentId = Guid.NewGuid();
         await using var context = CreateContext();
-        SeedSampleWithDocument(context, branchId, orderId, sampleId, firstDocumentId, OrderDocumentStatus.SentToLab);
+        SeedSampleWithDocument(context, branchId, orderId, sampleId, firstDocumentId, OrderDocumentStatus.InProgress);
         context.OrderDocuments.Add(new OrderDocument
         {
             Id = secondDocumentId,
@@ -54,7 +54,7 @@ public sealed class LaboratoryDocumentSubmissionServiceTests
             TemplateId = Guid.NewGuid(),
             TemplateVersionId = Guid.NewGuid(),
             TargetBranchId = branchId,
-            Status = OrderDocumentStatus.SentToLab
+            Status = OrderDocumentStatus.InProgress
         });
         await context.SaveChangesAsync();
 
@@ -71,6 +71,24 @@ public sealed class LaboratoryDocumentSubmissionServiceTests
         Assert.Equal(SampleStatus.ResultsEntered, sampleAfterSecond.Status);
         Assert.NotNull(sampleAfterSecond.ResultsEnteredAtUtc);
         Assert.True(secondResult.SampleReadyForExpert);
+    }
+
+    [Fact]
+    public async Task SendDocumentToExpertAsync_RejectsSentToLabBeforePdfSave()
+    {
+        var branchId = Guid.NewGuid();
+        var orderId = Guid.NewGuid();
+        var sampleId = Guid.NewGuid();
+        var documentId = Guid.NewGuid();
+        await using var context = CreateContext();
+        SeedSampleWithDocument(context, branchId, orderId, sampleId, documentId, OrderDocumentStatus.SentToLab);
+        await context.SaveChangesAsync();
+
+        var service = CreateService(context, branchId);
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.SendDocumentToExpertAsync(documentId));
+
+        Assert.Contains("В роботі", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

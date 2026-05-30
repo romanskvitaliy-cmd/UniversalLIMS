@@ -147,6 +147,7 @@ public sealed class BranchService : IBranchService
             Name = request.Name.Trim(),
             City = request.City.Trim(),
             Address = request.Address?.Trim(),
+            Kind = BranchKindRules.InferFromCode(normalizedCode),
             IsActive = true
         };
 

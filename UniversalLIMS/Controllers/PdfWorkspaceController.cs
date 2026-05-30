@@ -560,9 +560,9 @@ public sealed class PdfWorkspaceController : Controller
                 .FirstOrDefaultAsync(cancellationToken);
         }
 
-        var canSendToExpert = activeRole == LimsRoles.LaboratoryTechnician
-            && orderDocumentId.HasValue
-            && documentStatus is OrderDocumentStatus.SentToLab or OrderDocumentStatus.InProgress;
+        var laboratorySampleDetailsUrl = activeRole == LimsRoles.LaboratoryTechnician && resolvedSampleId.HasValue
+            ? Url.Action("SampleDetails", "Laboratory", new { sampleId = resolvedSampleId.Value })
+            : null;
 
         return new PdfWorkspaceFillViewModel
         {
@@ -589,11 +589,8 @@ public sealed class PdfWorkspaceController : Controller
             ExpertDetailsUrl = resolvedSampleId.HasValue
                 ? Url.Action("Details", "Expert", new { sampleId = resolvedSampleId.Value })
                 : null,
-            SendToExpertUrl = orderDocumentId.HasValue
-                ? Url.Content($"~/api/laboratory/documents/{orderDocumentId.Value}/send-to-expert")
-                : null,
-            DocumentStatus = documentStatus?.ToString(),
-            CanSendToExpert = canSendToExpert
+            LaboratorySampleDetailsUrl = laboratorySampleDetailsUrl,
+            DocumentStatus = documentStatus?.ToString()
         };
     }
 

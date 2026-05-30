@@ -1,11 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using UniversalLIMS.Application.Laboratory;
 using UniversalLIMS.Application.Laboratory.Abstractions;
 using UniversalLIMS.Application.Security;
 using UniversalLIMS.Infrastructure.Filters;
-using UniversalLIMS.Infrastructure.Persistence;
 using UniversalLIMS.ViewModels.Laboratory;
 
 namespace UniversalLIMS.Controllers;
@@ -17,18 +15,15 @@ public sealed class LaboratoryController : Controller
     private readonly ILaboratoryJournalService _journal;
     private readonly ILaboratoryPdfFillService _pdfFill;
     private readonly ILaboratoryBranchContext _laboratoryBranchContext;
-    private readonly ApplicationDbContext _context;
 
     public LaboratoryController(
         ILaboratoryJournalService journal,
         ILaboratoryPdfFillService pdfFill,
-        ILaboratoryBranchContext laboratoryBranchContext,
-        ApplicationDbContext context)
+        ILaboratoryBranchContext laboratoryBranchContext)
     {
         _journal = journal;
         _pdfFill = pdfFill;
         _laboratoryBranchContext = laboratoryBranchContext;
-        _context = context;
     }
 
     [HttpGet]
@@ -62,55 +57,23 @@ public sealed class LaboratoryController : Controller
         return RedirectToAction(nameof(Index));
     }
 
-    /// <summary>Відкриває PDF Workspace для заповнення полів на бланку.</summary>
+    /// <summary>Картка проби — ланцюжок документів (заповнення + відправка експерту).</summary>
     [HttpGet]
-    public async Task<IActionResult> Results(Guid sampleId, CancellationToken cancellationToken)
+    public async Task<IActionResult> SampleDetails(Guid sampleId, CancellationToken cancellationToken)
     {
-        var sampleMeta = await _context.Samples
-            .AsNoTracking()
-            .Where(sample => sample.Id == sampleId && !sample.IsAnnulled)
-            .Select(sample => new
-            {
-                sample.Number,
-                sample.InvestigationType.NameUk
-            })
-            .FirstOrDefaultAsync(cancellationToken);
-
-        if (sampleMeta is null)
-        {
-            return NotFound();
-        }
-
-        var targets = await _pdfFill.GetFillTargetsAsync(sampleId, cancellationToken);
-        if (targets.Count == 0)
+        var detail = await _pdfFill.GetSampleDetailsAsync(sampleId, cancellationToken);
+        if (detail is null)
         {
             TempData["LaboratoryWarning"] =
-                "Для цієї проби немає PDF-документів у статусі «У лабораторії» / «В роботі» і не знайдено опублікованого PDF-шаблону типу дослідження.";
+                "Пробу не знайдено або для неї немає документів у лабораторному workflow.";
             return RedirectToAction(nameof(Index));
         }
 
-        if (targets.Count == 1)
-        {
-            var target = targets[0];
-            return RedirectToAction(
-                "Fill",
-                "PdfWorkspace",
-                new
-                {
-                    templateVersionId = target.TemplateVersionId,
-                    orderId = target.OrderId,
-                    orderDocumentId = target.OrderDocumentId,
-                    sampleId
-                });
-        }
-
-        return View(
-            "ChooseDocument",
-            new LaboratoryChooseDocumentViewModel
-            {
-                SampleNumber = sampleMeta.Number,
-                InvestigationTypeName = sampleMeta.NameUk,
-                Targets = targets
-            });
+        return View(new LaboratorySampleDetailsViewModel { Detail = detail });
     }
+
+    /// <summary>Legacy alias — перенаправлення на картку проби.</summary>
+    [HttpGet]
+    public IActionResult Results(Guid sampleId) =>
+        RedirectToAction(nameof(SampleDetails), new { sampleId });
 }

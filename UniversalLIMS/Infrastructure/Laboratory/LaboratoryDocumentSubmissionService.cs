@@ -11,7 +11,6 @@ public sealed class LaboratoryDocumentSubmissionService : ILaboratoryDocumentSub
 {
     private static readonly OrderDocumentStatus[] SendableDocumentStatuses =
     [
-        OrderDocumentStatus.SentToLab,
         OrderDocumentStatus.InProgress
     ];
 
@@ -59,7 +58,7 @@ public sealed class LaboratoryDocumentSubmissionService : ILaboratoryDocumentSub
             throw new InvalidOperationException(
                 document.Status == OrderDocumentStatus.ResultsEntered
                     ? "Документ вже відправлено експерту."
-                    : "Відправити експерту можна лише документ у статусі «У лабораторії» або «В роботі».");
+                    : "Відправити експерту можна лише після збереження PDF (статус «В роботі»).");
         }
 
         var now = _dateTimeProvider.UtcNow;

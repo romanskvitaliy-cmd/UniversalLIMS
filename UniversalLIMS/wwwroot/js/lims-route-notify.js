@@ -59,6 +59,7 @@
     };
 
     const pollIntervalMs = 45000;
+    const initialLookbackMs = 24 * 60 * 60 * 1000;
     const maxSeenIds = 120;
     const toastContainerId = "limsRouteNotifyToasts";
 
@@ -168,9 +169,9 @@
             }
         }
 
-        const now = new Date().toISOString();
-        localStorage.setItem(storageKeys.lastSeenUtc, now);
-        return now;
+        // First poll for this role/browser: look back instead of "now" (C6).
+        // Otherwise samples routed before the first page open are never notified.
+        return new Date(Date.now() - initialLookbackMs).toISOString();
     };
 
     const setLastSeenUtc = (isoValue) => {

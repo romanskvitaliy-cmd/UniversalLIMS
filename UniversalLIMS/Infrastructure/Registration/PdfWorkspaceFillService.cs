@@ -238,6 +238,30 @@ public sealed class PdfWorkspaceFillService : IPdfWorkspaceFillService
                 order.Id);
         }
 
+        if (orderDocumentId.HasValue
+            && failures.Count == 0
+            && (saved > 0 || cleared > 0))
+        {
+            var document = await ResolveOrderDocumentAsync(
+                order,
+                templateVersionId,
+                orderDocumentId,
+                cancellationToken);
+            if (document.Status == OrderDocumentStatus.SentToLab)
+            {
+                document.Status = OrderDocumentStatus.InProgress;
+                _logger.LogInformation(
+                    "PdfWorkspaceFill promoted document to InProgress: orderDocument={OrderDocumentId}",
+                    document.Id);
+            }
+
+            var sample = order.Samples.FirstOrDefault(item => item.Id == document.SampleId);
+            if (sample?.Status == SampleStatus.Routed)
+            {
+                sample.Status = SampleStatus.InProgress;
+            }
+        }
+
         if (mapped > 0)
         {
             await _context.SaveChangesAsync(cancellationToken);

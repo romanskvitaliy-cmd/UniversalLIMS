@@ -10,6 +10,8 @@ public class Branch : BaseEntity, ISoftAnnulled
 
     public string City { get; set; } = string.Empty;
 
+    public BranchKind Kind { get; set; } = BranchKind.Laboratory;
+
     public string? Address { get; set; }
 
     public bool IsActive { get; set; } = true;

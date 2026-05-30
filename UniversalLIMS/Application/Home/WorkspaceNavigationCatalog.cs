@@ -70,9 +70,9 @@ public static class WorkspaceNavigationCatalog
             ],
             LimsRoles.LaboratoryTechnician =>
             [
-                Link("Лабораторний журнал", "Список проб філії з фільтрами", "bi-droplet-half",
+                Link("Лабораторний журнал", "Список проб філії — відкрийте пробу для PDF і відправки експерту", "bi-droplet-half",
                     "/Laboratory", true),
-                Link("Результати", "Оберіть пробу в журналі → заповнення PDF", "bi-clipboard2-pulse",
+                Link("Результати", "Те саме — через журнал проб", "bi-clipboard2-pulse",
                     "/Laboratory", true),
             ],
             LimsRoles.Specialist =>

@@ -151,11 +151,10 @@ else
                             }
                             @if (!Model.Filter.ShowIssued)
                             {
-                                <form asp-action="MarkIssued" method="post" class="d-inline">
+                                <form asp-action="MarkIssued" method="post" class="d-inline issuance-mark-form">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="sampleId" value="@item.SampleId" />
-                                    <button type="submit" class="btn btn-sm btn-primary"
-                                            onclick="return confirm('Підтвердити видачу результатів клієнту?');">
+                                    <button type="submit" class="btn btn-sm btn-primary issuance-mark-button">
                                         Видано
                                     </button>
                                 </form>
@@ -192,4 +191,24 @@ else
     <p class="text-muted small mt-2 mb-0">
         Показано @Model.Result.Items.Count з @Model.Result.TotalCount.
     </p>
+}
+
+@section Scripts
+{
+    @if (!Model.Filter.ShowIssued)
+    {
+        <script src="~/js/lims-send-confirm.js" asp-append-version="true"></script>
+        <script>
+            document.querySelectorAll(".issuance-mark-form").forEach((form) => {
+                form.addEventListener("submit", (event) => {
+                    const confirmed = window.LimsSendConfirm?.confirmSend(
+                        "Підтвердити видачу результатів клієнту?"
+                    ) ?? window.confirm("Підтвердити видачу результатів клієнту?");
+                    if (!confirmed) {
+                        event.preventDefault();
+                    }
+                });
+            });
+        </script>
+    }
 }

@@ -1,0 +1,159 @@
+@model LaboratorySampleDetailsViewModel
+@using UniversalLIMS.Application.Laboratory
+@using UniversalLIMS.Application.Registration
+@using UniversalLIMS.Domain.Registration
+
+@{
+    Layout = "_LayoutWorkspace";
+    var detail = Model.Detail;
+    var sendableCount = detail.Documents.Count(document => document.CanSendToExpert);
+    var awaitingFillCount = detail.Documents.Count(document =>
+        document.DocumentStatus == OrderDocumentStatus.SentToLab);
+    ViewData["Title"] = $"Проба {detail.SampleNumber}";
+}
+
+<div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+    <div>
+        <h1 class="h3 mb-1">Проба в лабораторії</h1>
+        <p class="text-muted mb-0">
+            <span class="fw-semibold">@detail.SampleNumber</span> · @detail.InvestigationTypeName
+        </p>
+        <p class="small text-muted mb-0">
+            @(detail.ReferralNumber ?? "—") · @detail.CustomerFullName ·
+            <span class="badge lims-status-badge @SampleStatusDisplay.BadgeClass(detail.SampleStatus)">
+                @SampleStatusDisplay.ToUk(detail.SampleStatus)
+            </span>
+            · <strong>@detail.WorkflowSummaryUk</strong>
+        </p>
+    </div>
+    <div class="d-flex flex-wrap gap-2 align-items-start">
+        <partial name="_WorkspaceCabinetLink" />
+        <a class="btn btn-outline-secondary btn-sm" asp-action="Index">← Журнал проб</a>
+    </div>
+</div>
+
+<div class="alert alert-light border mb-3 py-2 lab-sample-workflow-hint">
+    <ol class="mb-0 ps-3 small">
+        <li><strong>Заповнити</strong> — відкрийте PDF, внесіть результати та натисніть «Зберегти» (статус «В роботі»).</li>
+        <li><strong>Відправити</strong> — натисніть «Відправити готові» внизу або оберіть окремі шаблони чекбоксами.</li>
+    </ol>
+</div>
+
+@Html.AntiForgeryToken()
+
+<section class="order-detail-sample card mb-0">
+    <div class="card-header py-2 d-flex justify-content-between align-items-center">
+        <span class="fw-semibold">Шаблони та документи</span>
+        <span class="badge text-bg-light border">@detail.Documents.Count док.</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle lims-workspace-table order-detail-sample__table mb-0">
+                <thead>
+                    <tr>
+                        <th class="ps-3" style="width:2.5rem" title="Обрати для відправки експерту"></th>
+                        <th>Шаблон</th>
+                        <th>Лабораторія</th>
+                        <th>Статус</th>
+                        <th class="text-end pe-3">Дії</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var document in detail.Documents)
+                    {
+                        <tr data-order-document-id="@document.OrderDocumentId">
+                            <td class="ps-3">
+                                @if (document.CanSendToExpert)
+                                {
+                                    <input type="checkbox"
+                                           class="form-check-input lab-expert-send-checkbox"
+                                           value="@document.OrderDocumentId"
+                                           aria-label="Обрати для відправки експерту" />
+                                }
+                            </td>
+                            <td>
+                                <div class="order-detail-doc__name" title="@document.TemplateNameUk">
+                                    @document.TemplateNameUk
+                                </div>
+                                <div class="small text-muted">v@(document.VersionNumber)</div>
+                            </td>
+                            <td><span class="small">@document.TargetBranchName</span></td>
+                            <td>
+                                <span class="badge lims-status-badge @OrderDocumentStatusDisplay.BadgeClass(document.DocumentStatus)">
+                                    @OrderDocumentStatusDisplay.ToUk(document.DocumentStatus)
+                                </span>
+                                @if (document.DocumentStatus == OrderDocumentStatus.SentToLab)
+                                {
+                                    <div class="small text-muted mt-1">Спочатку заповніть і збережіть PDF</div>
+                                }
+                            </td>
+                            <td class="text-end pe-3 text-nowrap">
+                                @if (document.CanFill)
+                                {
+                                    <a class="btn btn-sm btn-primary"
+                                       asp-controller="PdfWorkspace"
+                                       asp-action="Fill"
+                                       asp-route-templateVersionId="@document.TemplateVersionId"
+                                       asp-route-orderId="@document.OrderId"
+                                       asp-route-orderDocumentId="@document.OrderDocumentId"
+                                       asp-route-sampleId="@document.SampleId">
+                                        Заповнити
+                                    </a>
+                                }
+                                else
+                                {
+                                    <span class="text-muted small">—</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        @if (sendableCount > 0)
+        {
+            <div class="p-3 border-top d-flex flex-wrap gap-2 align-items-center order-detail-send-bar">
+                <label class="d-inline-flex align-items-center gap-1 small mb-0 me-1">
+                    <input type="checkbox"
+                           class="form-check-input"
+                           id="labSelectAllExpertDocuments"
+                           title="Обрати всі, готові до відправки" />
+                    Усі
+                </label>
+                <button type="button"
+                        class="btn btn-sm btn-primary"
+                        id="labSendExpertDocumentsButton"
+                        disabled>
+                    Відправити готові (@sendableCount)
+                </button>
+                <div class="form-check form-switch order-detail-send-bar__confirm-switch mb-0">
+                    <input class="form-check-input"
+                           type="checkbox"
+                           role="switch"
+                           id="labSendConfirmSwitch"
+                           checked
+                           title="Запитувати підтвердження перед відправкою" />
+                    <label class="form-check-label" for="labSendConfirmSwitch">Підтвердження</label>
+                </div>
+                <span class="small text-muted ms-auto">
+                    «В роботі» → черга експерта
+                </span>
+            </div>
+        }
+        else if (awaitingFillCount > 0)
+        {
+            <div class="p-3 border-top">
+                <span class="small text-muted">
+                    Відправка стане доступною після збереження PDF — статус зміниться на «В роботі».
+                </span>
+            </div>
+        }
+    </div>
+</section>
+
+@section Scripts
+{
+    <script src="~/js/lims-send-confirm.js" asp-append-version="true"></script>
+    <script src="~/js/lab-sample-details.js" asp-append-version="true"></script>
+}

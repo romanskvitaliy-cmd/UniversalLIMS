@@ -1,13 +1,16 @@
 # Handoff для наступного агента — UniversalLIMS
 
-> Оновлено: 2026-05-27  
+> Оновлено: 2026-05-30  
 > Мова UI і доменних назв: **українська**.  
-> Цей файл — короткий entrypoint. Детальний актуальний handoff по multi-sample / PDF / lab admin: `docs/handoff-multi-sample-lab-admin.md`.
+> **Перше джерело правди:** `docs/roadmap-master-v2-pilot.md` (master roadmap v2 — філії, expert, сповіщення, REF, мапінг).  
+> Цей файл — короткий entrypoint. Детальний handoff по multi-sample / PDF / lab admin: `docs/handoff-multi-sample-lab-admin.md`.
 
 ---
 
 ## 0. Швидкі посилання
 
+- **Master roadmap (читати першим):** `docs/roadmap-master-v2-pilot.md`
+- Архітектура філій і poll: `docs/architecture-branches-workstations-notifications.md`
 - Актуальний handoff гілки: `docs/handoff-multi-sample-lab-admin.md`
 - Лабораторний цикл: `docs/handoff-stage-2-laboratory.md`
 - PDF Fill + lifecycle версій: `docs/handoff-pdf-fill-panel-and-template-lifecycle.md`
@@ -38,6 +41,14 @@
 | `FieldTextLibrary` tag-first у PDF Fill | Закрито |
 | PDF Fill: autosave макету разом із збереженням значень | Закрито |
 | Експерт: черга, approve+notes, return to queue (MVP етап 3) | Закрито |
+
+**Наступна фаза (див. roadmap §12):** Фаза 1 — `A1–A3`, `B1–B2`, `C6`, `G1–G3` (BranchKind, фільтр експерта, фікс poll, SampleDetails).
+
+**Відомі прогалини (не переробляти, а закрити за ID):**
+- Expert queue без фільтра по філії → **B1–B2**
+- «Відправити експерту» у PDF toolbar → перенести на **G3**
+- Toast лаборанту не спрацьовує для уже надісланих проб → **C6**
+- Немає `Laboratory/SampleDetails` → **G1**
 
 **Поточна гілка:** `main`, локально попереду `origin/main` на кілька комітів. `debug-40b8bf.log` може оновлюватися локально автоматично, але його **не комітити**.
 
